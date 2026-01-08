@@ -46,7 +46,10 @@ files.forEach(file => {
   // Remove single-line comments only, preserve code structure
   const code = content
     .split('\n')
-    .filter(line => !line.trim().startsWith('//') || line.trim().length === 0)
+    .filter(line => {
+      const trimmed = line.trim();
+      return !trimmed.startsWith('//');
+    })
     .join('\n')
     .replace(/\n\s*\n/g, '\n') // Remove empty lines
     .replace(/\s+$/gm, '') // Remove trailing whitespace
@@ -174,7 +177,7 @@ const html = `<!DOCTYPE html>
 ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
       <h3 class="bookmarklet-title">${escapeHtml(bm.title)}</h3>
       <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
-      <a href="${bm.code}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">📎 ${escapeHtml(bm.title)}</a>
+      <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">📎 ${escapeHtml(bm.title)}</a>
     </div>
 `).join('\n')}
     
