@@ -1,0 +1,181 @@
+const fs = require('fs');
+const path = require('path');
+
+// Read all bookmarklet files
+const bookmarkletsDir = path.join(__dirname, 'bookmarklets');
+const bookmarklets = [];
+
+// Get all .js files from bookmarklets directory
+const files = fs.readdirSync(bookmarkletsDir).filter(f => f.endsWith('.js'));
+
+files.forEach(file => {
+  const filePath = path.join(bookmarkletsDir, file);
+  const content = fs.readFileSync(filePath, 'utf-8');
+  
+  // Extract title from first comment line
+  const lines = content.split('\n');
+  let title = file.replace('.js', '');
+  let description = '';
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('//')) {
+      const text = line.substring(2).trim();
+      if (i === 0) {
+        title = text;
+      } else if (i === 1) {
+        description = text;
+      }
+    }
+  }
+  
+  // Remove comments and minify
+  const code = content
+    .split('\n')
+    .filter(line => !line.trim().startsWith('//'))
+    .join('\n')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // Create bookmarklet URL
+  const bookmarkletUrl = 'javascript:' + encodeURIComponent(code);
+  
+  bookmarklets.push({
+    id: file.replace('.js', ''),
+    title,
+    description,
+    code: bookmarkletUrl
+  });
+});
+
+// Generate index.html
+const html = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AMPM Bookmarklets</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 1rem;
+      font-size: 2.5rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    .subtitle {
+      color: rgba(255,255,255,0.9);
+      text-align: center;
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+    .bookmarklet-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .bookmarklet-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+    .bookmarklet-title {
+      font-size: 1.5rem;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    .bookmarklet-description {
+      color: #666;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    .bookmarklet-link {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: opacity 0.2s;
+    }
+    .bookmarklet-link:hover {
+      opacity: 0.9;
+    }
+    .instructions {
+      background: rgba(255,255,255,0.95);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .instructions h2 {
+      color: #333;
+      margin-bottom: 0.75rem;
+      font-size: 1.3rem;
+    }
+    .instructions p {
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 0.5rem;
+    }
+    footer {
+      text-align: center;
+      color: rgba(255,255,255,0.8);
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📚 AMPM Bookmarklets</h1>
+    <p class="subtitle">便利なブックマークレット集</p>
+    
+    <div class="instructions">
+      <h2>使い方</h2>
+      <p>下のリンクをブックマークバーにドラッグ&ドロップして使用してください。</p>
+      <p>ブラウザのブックマークバーが表示されていない場合は、Ctrl+Shift+B (Mac: Cmd+Shift+B) で表示できます。</p>
+    </div>
+    
+${bookmarklets.map(bm => `    <div class="bookmarklet-card">
+      <h3 class="bookmarklet-title">${bm.title}</h3>
+      <p class="bookmarklet-description">${bm.description}</p>
+      <a href="${bm.code}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">📎 ${bm.title}</a>
+    </div>
+`).join('\n')}
+    
+    <footer>
+      <p>Generated: ${new Date().toISOString().split('T')[0]}</p>
+      <p>© 2026 AMPM Bookmarklets</p>
+    </footer>
+  </div>
+</body>
+</html>
+`;
+
+// Write index.html
+fs.writeFileSync(path.join(__dirname, 'index.html'), html);
+
+console.log(`✓ Generated index.html with ${bookmarklets.length} bookmarklet(s)`);
+bookmarklets.forEach(bm => {
+  console.log(`  - ${bm.title}`);
+});
