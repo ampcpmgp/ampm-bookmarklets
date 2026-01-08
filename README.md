@@ -9,6 +9,16 @@
 - 🚀 シンプルで高速なビルドシステム
 - 🔄 GitHub Actions による自動デプロイ
 
+## セットアップ
+
+### GitHub Pages の有効化
+
+初回のみ、リポジトリの Settings > Pages で以下を設定してください：
+
+- **Source**: GitHub Actions
+
+この設定により、GitHub Actions ワークフローが自動的にデプロイできるようになります。
+
 ## 使い方
 
 ### ブックマークレットを使う
