@@ -1,6 +1,18 @@
 const fs = require('fs');
 const path = require('path');
 
+// HTML escape function to prevent XSS
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, m => map[m]);
+}
+
 // Read all bookmarklet files
 const bookmarkletsDir = path.join(__dirname, 'bookmarklets');
 const bookmarklets = [];
@@ -12,29 +24,32 @@ files.forEach(file => {
   const filePath = path.join(bookmarkletsDir, file);
   const content = fs.readFileSync(filePath, 'utf-8');
   
-  // Extract title from first comment line
+  // Extract title and description from first two comment lines found
   const lines = content.split('\n');
   let title = file.replace('.js', '');
   let description = '';
+  let commentCount = 0;
   
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = 0; i < lines.length && commentCount < 2; i++) {
     const line = lines[i].trim();
     if (line.startsWith('//')) {
       const text = line.substring(2).trim();
-      if (i === 0) {
+      if (commentCount === 0) {
         title = text;
-      } else if (i === 1) {
+      } else if (commentCount === 1) {
         description = text;
       }
+      commentCount++;
     }
   }
   
-  // Remove comments and minify
+  // Remove single-line comments only, preserve code structure
   const code = content
     .split('\n')
-    .filter(line => !line.trim().startsWith('//'))
+    .filter(line => !line.trim().startsWith('//') || line.trim().length === 0)
     .join('\n')
-    .replace(/\s+/g, ' ')
+    .replace(/\n\s*\n/g, '\n') // Remove empty lines
+    .replace(/\s+$/gm, '') // Remove trailing whitespace
     .trim();
   
   // Create bookmarklet URL
@@ -157,9 +172,9 @@ const html = `<!DOCTYPE html>
     </div>
     
 ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
-      <h3 class="bookmarklet-title">${bm.title}</h3>
-      <p class="bookmarklet-description">${bm.description}</p>
-      <a href="${bm.code}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">📎 ${bm.title}</a>
+      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}</h3>
+      <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
+      <a href="${bm.code}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">📎 ${escapeHtml(bm.title)}</a>
     </div>
 `).join('\n')}
     
