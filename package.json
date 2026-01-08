@@ -1,0 +1,11 @@
+{
+  "name": "ampm-bookmarklets",
+  "version": "1.0.0",
+  "description": "Personal bookmarklet collection with GitHub Pages integration",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "keywords": ["bookmarklet"],
+  "author": "ampcpmgp",
+  "license": "MIT"
+}
