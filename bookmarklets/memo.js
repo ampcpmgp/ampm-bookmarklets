@@ -1,4 +1,4 @@
-// Memo Bookmarklet
+// Local Memo
 // A floating memo widget that stores notes in localStorage with copy and delete functionality
 
 (function() {
