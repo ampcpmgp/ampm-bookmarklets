@@ -1,5 +1,9 @@
+// Memo Bookmarklet
+// A floating memo widget that stores notes in localStorage with copy and delete functionality
+
 (function() {
   try {
+    // Check if memo is already open, and close it if so (toggle behavior)
     const ID = 'ls-memo-final';
     const old = document.getElementById(ID);
     if (old) {
@@ -7,6 +11,7 @@
       return;
     }
 
+    // Create a host element for Shadow DOM isolation
     const host = document.createElement('div');
     host.id = ID;
     host.style.cssText = [
@@ -23,6 +28,7 @@
     ].join(';');
     document.body.appendChild(host);
 
+    // Setup close function with event listener cleanup
     const close = () => {
       document.removeEventListener('keydown', docKey);
       host.remove();
@@ -30,16 +36,19 @@
     
     host._close = close;
 
+    // Listen for Escape key to close the memo
     const docKey = (e) => {
       if (e.key === 'Escape') close();
     };
     
     document.addEventListener('keydown', docKey);
 
+    // Use Shadow DOM to prevent style conflicts with the page
     const shadow = host.attachShadow({ mode: 'open' });
     const KEY = 'my_local_storage_notes';
     const MAX = 100;
 
+    // Load saved memos from localStorage
     const load = () => {
       try {
         return JSON.parse(localStorage.getItem(KEY) || '[]');
@@ -48,11 +57,13 @@
       }
     };
 
+    // Save memos to localStorage and update UI
     const save = (data) => {
       localStorage.setItem(KEY, JSON.stringify(data));
       renderList(data);
     };
 
+    // Helper function to create elements with styles and handlers
     const createElement = (tag, css = '', text = '', clickHandler) => {
       const element = document.createElement(tag);
       if (css) element.style.cssText = css;
@@ -81,7 +92,7 @@
       'line-height:1.5'
     ].join(';'));
 
-    // Header
+    // Create header with title and close button
     const header = createElement('div', [
       'background:#f1f3f4',
       'padding:12px',
@@ -104,7 +115,7 @@
     ].join(';'), '×', close));
     wrap.appendChild(header);
 
-    // Body
+    // Create body container with input area and memo list
     const body = createElement('div', [
       'padding:12px',
       'overflow-y:auto',
@@ -132,6 +143,7 @@
     ].join(';'));
     input.placeholder = 'テキストを入力...';
     input.onkeydown = (e) => {
+      // Stop Escape from closing if user is typing in the input
       if (e.key === 'Escape') {
         close();
         return;
@@ -157,11 +169,13 @@
       if (!value) return;
 
       const data = load();
+      // Check if max limit reached
       if (data.length >= MAX) {
         alert(`最大${MAX}件です`);
         return;
       }
 
+      // Add new memo to the beginning of the list
       data.unshift({ text: value, date: new Date().toISOString() });
       save(data);
       input.value = '';
@@ -179,6 +193,7 @@
 
     shadow.appendChild(wrap);
 
+    // Render the list of saved memos
     const renderList = (data) => {
       title.textContent = `Memo (${data.length}/${MAX})`;
       listContainer.replaceChildren();
@@ -207,6 +222,7 @@
 
         const actions = createElement('div', 'display:flex;gap:5px;');
 
+        // Copy button to copy memo text to clipboard
         const copyButton = createElement('button', [
           'padding:4px 8px',
           'font-size:12px',
@@ -221,6 +237,7 @@
           navigator.clipboard.writeText(item.text).then(close);
         });
 
+        // Delete button to remove memo
         const deleteButton = createElement('button', [
           'padding:4px 8px',
           'font-size:12px',
@@ -243,6 +260,7 @@
       });
     };
 
+    // Initial render of saved memos
     renderList(load());
   } catch (error) {
     console.error(error);
