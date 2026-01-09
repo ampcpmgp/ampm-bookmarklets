@@ -1,3 +1,6 @@
+// Local Memo
+// A floating memo widget that stores notes in localStorage with copy and delete functionality
+
 (function() {
   try {
     const ID = 'ls-memo-final';
@@ -81,7 +84,6 @@
       'line-height:1.5'
     ].join(';'));
 
-    // Header
     const header = createElement('div', [
       'background:#f1f3f4',
       'padding:12px',
@@ -104,7 +106,6 @@
     ].join(';'), '×', close));
     wrap.appendChild(header);
 
-    // Body
     const body = createElement('div', [
       'padding:12px',
       'overflow-y:auto',
