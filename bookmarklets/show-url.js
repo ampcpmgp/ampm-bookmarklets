@@ -1,5 +1,5 @@
-// Show Current URL
-// This bookmarklet displays the current page URL in an alert dialog
+// 現在のURLを表示
+// 現在のページのURLをアラートダイアログに表示するブックマークレット
 
 (function() {
   alert('Current URL: ' + window.location.href);
