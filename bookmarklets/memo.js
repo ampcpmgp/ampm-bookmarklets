@@ -33,7 +33,6 @@
     
     host._close = close;
 
-    // Listen for Escape key to close the memo
     const docKey = (e) => {
       if (e.key === 'Escape') close();
     };
@@ -223,7 +222,6 @@
           navigator.clipboard.writeText(item.text).then(close);
         });
 
-        // Delete button to remove memo
         const deleteButton = createElement('button', [
           'padding:4px 8px',
           'font-size:12px',
