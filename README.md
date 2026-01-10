@@ -28,13 +28,14 @@
 ### ブックマークレットを追加する
 
 1. `bookmarklets/` ディレクトリに新しい `.js` ファイルを作成
-2. 最初の2行にタイトルと説明をコメントで記述
+2. 最初の3行にタイトル、説明、絵文字をコメントで記述
 3. コミット＆プッシュすると自動的にビルド＆デプロイされます
 
 例:
 ```javascript
 // My Bookmarklet Title
 // This is a description of what this bookmarklet does
+// 🚀
 
 (function() {
   // Your code here
