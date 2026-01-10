@@ -28,19 +28,24 @@
 ### ブックマークレットを追加する
 
 1. `bookmarklets/` ディレクトリに新しい `.js` ファイルを作成
-2. 最初の2行にタイトルと説明をコメントで記述
+2. 最初の3行にタイトル、説明、絵文字をコメントで記述
 3. コミット＆プッシュすると自動的にビルド＆デプロイされます
 
 例:
 ```javascript
 // My Bookmarklet Title
 // This is a description of what this bookmarklet does
+// 🚀
 
 (function() {
   // Your code here
   alert('Hello!');
 })();
 ```
+
+**絵文字について:**
+- 3行目のコメントに絵文字を記述すると、GitHub Pages のリンクボタンに表示されます
+- 絵文字を省略した場合は、デフォルトの 📎 が使用されます
 
 ## ビルド
 
