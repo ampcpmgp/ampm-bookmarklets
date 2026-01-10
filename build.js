@@ -24,13 +24,14 @@ files.forEach(file => {
   const filePath = path.join(bookmarkletsDir, file);
   const content = fs.readFileSync(filePath, 'utf-8');
   
-  // Extract title and description from first two comment lines found
+  // Extract title, description, and emoji from first three comment lines found
   const lines = content.split('\n');
   let title = file.replace('.js', '');
   let description = '';
+  let emoji = '📎'; // Default emoji
   let commentCount = 0;
   
-  for (let i = 0; i < lines.length && commentCount < 2; i++) {
+  for (let i = 0; i < lines.length && commentCount < 3; i++) {
     const line = lines[i].trim();
     if (line.startsWith('//')) {
       const text = line.substring(2).trim();
@@ -38,6 +39,8 @@ files.forEach(file => {
         title = text;
       } else if (commentCount === 1) {
         description = text;
+      } else if (commentCount === 2) {
+        emoji = text;
       }
       commentCount++;
     }
@@ -62,6 +65,7 @@ files.forEach(file => {
     id: file.replace('.js', ''),
     title,
     description,
+    emoji,
     code: bookmarkletUrl
   });
 });
@@ -133,9 +137,15 @@ const html = `<!DOCTYPE html>
       text-decoration: none;
       font-weight: 600;
       transition: opacity 0.2s;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
     }
     .bookmarklet-link:hover {
       opacity: 0.9;
+    }
+    .bookmarklet-link.emoji-only {
+      padding: 0.75rem 1rem;
+      font-size: 1.2rem;
     }
     .instructions {
       background: rgba(255,255,255,0.95);
@@ -177,7 +187,8 @@ const html = `<!DOCTYPE html>
 ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
       <h3 class="bookmarklet-title">${escapeHtml(bm.title)}</h3>
       <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
-      <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">📎 ${escapeHtml(bm.title)}</a>
+      <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)} ${escapeHtml(bm.title)}</a>
+      <a href="${escapeHtml(bm.code)}" class="bookmarklet-link emoji-only" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)}</a>
     </div>
 `).join('\n')}
     
