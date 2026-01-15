@@ -17,8 +17,12 @@ function escapeHtml(text) {
 // Get last modified date from git
 function getLastModifiedDate(filePath) {
   try {
+    // Sanitize file path to prevent command injection
+    // Only allow alphanumeric, dash, underscore, dot, and forward slash
+    const sanitizedPath = filePath.replace(/[^a-zA-Z0-9\-_.\/]/g, '');
+    
     // Get the last commit date for the file in YYYY-MM-DD format
-    const result = execSync(`git log -1 --format=%ci -- "${filePath}"`, { encoding: 'utf-8' });
+    const result = execSync(`git log -1 --format=%ci -- "${sanitizedPath}"`, { encoding: 'utf-8' });
     if (result.trim()) {
       // Extract just the date part (YYYY-MM-DD)
       return result.trim().split(' ')[0];
