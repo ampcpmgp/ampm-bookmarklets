@@ -24,14 +24,17 @@ files.forEach(file => {
   const filePath = path.join(bookmarkletsDir, file);
   const content = fs.readFileSync(filePath, 'utf-8');
   
-  // Extract title, description, and emoji from first three comment lines found
+  // Extract title, description, emoji, and version from first four comment lines
+  // Expected comment order: 1) title, 2) description, 3) emoji, 4) version
   const lines = content.split('\n');
   let title = file.replace('.js', '');
   let description = '';
   let emoji = '📎'; // Default emoji
+  let version = ''; // Version information
   let commentCount = 0;
+  const MAX_COMMENT_LINES = 4;
   
-  for (let i = 0; i < lines.length && commentCount < 3; i++) {
+  for (let i = 0; i < lines.length && commentCount < MAX_COMMENT_LINES; i++) {
     const line = lines[i].trim();
     if (line.startsWith('//')) {
       const text = line.substring(2).trim();
@@ -41,6 +44,8 @@ files.forEach(file => {
         description = text;
       } else if (commentCount === 2) {
         emoji = text;
+      } else if (commentCount === 3) {
+        version = text;
       }
       commentCount++;
     }
@@ -66,6 +71,7 @@ files.forEach(file => {
     title,
     description,
     emoji,
+    version,
     code: bookmarkletUrl
   });
 });
@@ -122,6 +128,18 @@ const html = `<!DOCTYPE html>
       font-size: 1.5rem;
       color: #333;
       margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .version-badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      color: #666;
+      background: #f0f0f0;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: normal;
     }
     .bookmarklet-description {
       color: #666;
@@ -185,7 +203,7 @@ const html = `<!DOCTYPE html>
     </div>
     
 ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
-      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}</h3>
+      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}${bm.version ? `<span class="version-badge">${escapeHtml(bm.version)}</span>` : ''}</h3>
       <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)} ${escapeHtml(bm.title)}</a>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link emoji-only" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)}</a>
