@@ -262,12 +262,12 @@
         
         textWrapper.appendChild(textElement);
 
-        // Create a temporary element to check if text is truncated
+        // Check if the text element is truncated by comparing scroll and client heights
         const checkTruncation = () => {
           return textElement.scrollHeight > textElement.clientHeight;
         };
 
-        // Add "Show more" button if text is truncated
+        // Add "Show more" button if text is truncated (setTimeout ensures proper height calculation after render)
         setTimeout(() => {
           if (checkTruncation()) {
             const toggleButton = createElement('button', [
