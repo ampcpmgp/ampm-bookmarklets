@@ -42,11 +42,17 @@
 
     const shadow = host.attachShadow({ mode: 'open' });
     const KEY = 'my_local_storage_notes';
-    const MAX = 100;
+    const MAX = 300;
 
     const load = () => {
       try {
-        return JSON.parse(localStorage.getItem(KEY) || '[]');
+        const data = JSON.parse(localStorage.getItem(KEY) || '[]');
+        // Ensure backward compatibility: add pinned property if missing
+        return data.map(item => ({
+          text: item.text,
+          date: item.date,
+          pinned: item.pinned || false
+        }));
       } catch {
         return [];
       }
@@ -164,7 +170,7 @@
         return;
       }
 
-      data.unshift({ text: value, date: new Date().toISOString() });
+      data.unshift({ text: value, date: new Date().toISOString(), pinned: false });
       save(data);
       input.value = '';
     });
@@ -185,7 +191,16 @@
       title.textContent = `Memo (${data.length}/${MAX})`;
       listContainer.replaceChildren();
 
-      data.forEach((item, index) => {
+      // Sort: pinned items first, then by original order
+      const sortedData = [...data].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return data.indexOf(a) - data.indexOf(b);
+      });
+
+      sortedData.forEach((item) => {
+        const originalIndex = data.indexOf(item);
+        
         const listItem = createElement('li', [
           'background:#fff',
           'border:1px solid #eee',
@@ -194,7 +209,8 @@
           'border-radius:4px',
           'display:flex',
           'align-items:flex-start',
-          'box-sizing:border-box'
+          'box-sizing:border-box',
+          item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
         ].join(';'));
 
         const textElement = createElement('div', [
@@ -207,7 +223,23 @@
         ].join(';'), item.text);
         listItem.appendChild(textElement);
 
-        const actions = createElement('div', 'display:flex;gap:5px;');
+        const actions = createElement('div', 'display:flex;gap:5px;flex-wrap:wrap;');
+
+        const pinButton = createElement('button', [
+          'padding:4px 8px',
+          'font-size:12px',
+          'border:none',
+          'border-radius:3px',
+          'cursor:pointer',
+          'background:' + (item.pinned ? '#fbbf24' : '#d1d5db'),
+          'color:' + (item.pinned ? '#fff' : '#333'),
+          'min-width:45px',
+          'white-space:nowrap'
+        ].join(';'), item.pinned ? '📌 Pin' : 'Pin', () => {
+          const currentData = load();
+          currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
+          save(currentData);
+        });
 
         const copyButton = createElement('button', [
           'padding:4px 8px',
@@ -234,10 +266,11 @@
           'white-space:nowrap'
         ].join(';'), 'Del', () => {
           const currentData = load();
-          currentData.splice(index, 1);
+          currentData.splice(originalIndex, 1);
           save(currentData);
         });
 
+        actions.appendChild(pinButton);
         actions.appendChild(copyButton);
         actions.appendChild(deleteButton);
         listItem.appendChild(actions);
