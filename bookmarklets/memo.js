@@ -76,7 +76,7 @@
       'z-index:2147483647',
       'top:20px',
       'right:20px',
-      'width:400px',
+      'width:360px',
       'max-height:85vh',
       'background:#fff',
       'color:#333',
@@ -235,20 +235,20 @@
           'background:#fff',
           'border:1px solid #eee',
           'margin-bottom:8px',
-          'padding:10px',
-          'border-radius:4px',
+          'padding:12px',
+          'border-radius:6px',
           'display:flex',
-          'align-items:flex-start',
+          'flex-direction:column',
+          'gap:10px',
           'box-sizing:border-box',
           item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
         ].join(';'));
 
         const textElement = createElement('div', [
-          'flex:1',
-          'margin-right:8px',
           'word-break:break-all',
           'font-size:13px',
           'color:#333',
+          'line-height:1.6',
           'display:-webkit-box',
           '-webkit-line-clamp:5',
           '-webkit-box-orient:vertical',
@@ -256,18 +256,25 @@
         ].join(';'), item.text);
         listItem.appendChild(textElement);
 
-        const actions = createElement('div', 'display:flex;gap:5px;flex-wrap:wrap;');
+        const actions = createElement('div', [
+          'display:flex',
+          'gap:6px',
+          'justify-content:flex-start',
+          'flex-wrap:wrap'
+        ].join(';'));
 
         const pinButton = createElement('button', [
-          'padding:4px 8px',
+          'padding:6px 12px',
           'font-size:12px',
           'border:none',
-          'border-radius:3px',
+          'border-radius:4px',
           'cursor:pointer',
-          'background:' + (item.pinned ? '#fbbf24' : '#d1d5db'),
-          'color:' + (item.pinned ? '#fff' : '#333'),
-          'min-width:45px',
-          'white-space:nowrap'
+          'background:' + (item.pinned ? '#fbbf24' : '#e5e7eb'),
+          'color:' + (item.pinned ? '#fff' : '#374151'),
+          'min-width:50px',
+          'white-space:nowrap',
+          'transition:all 0.2s',
+          'font-weight:500'
         ].join(';'), item.pinned ? '📌 Pin' : 'Pin', () => {
           const currentData = load();
           currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
@@ -275,28 +282,32 @@
         });
 
         const copyButton = createElement('button', [
-          'padding:4px 8px',
+          'padding:6px 12px',
           'font-size:12px',
           'border:none',
-          'border-radius:3px',
+          'border-radius:4px',
           'cursor:pointer',
           'background:#34a853',
           'color:#fff',
-          'min-width:45px',
-          'white-space:nowrap'
+          'min-width:50px',
+          'white-space:nowrap',
+          'transition:all 0.2s',
+          'font-weight:500'
         ].join(';'), 'Copy', () => {
           navigator.clipboard.writeText(item.text).then(close);
         });
 
         const deleteButton = createElement('button', [
-          'padding:4px 8px',
+          'padding:6px 12px',
           'font-size:12px',
           'border:none',
-          'border-radius:3px',
+          'border-radius:4px',
           'cursor:pointer',
           'background:#ea4335',
           'color:#fff',
-          'white-space:nowrap'
+          'white-space:nowrap',
+          'transition:all 0.2s',
+          'font-weight:500'
         ].join(';'), 'Del', () => {
           const currentData = load();
           currentData.splice(originalIndex, 1);
