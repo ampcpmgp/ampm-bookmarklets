@@ -24,15 +24,17 @@ files.forEach(file => {
   const filePath = path.join(bookmarkletsDir, file);
   const content = fs.readFileSync(filePath, 'utf-8');
   
-  // Extract title, description, emoji, and version from first four comment lines found
+  // Extract title, description, emoji, and version from first four comment lines
+  // Expected comment order: 1) title, 2) description, 3) emoji, 4) version
   const lines = content.split('\n');
   let title = file.replace('.js', '');
   let description = '';
   let emoji = '📎'; // Default emoji
   let version = ''; // Version information
   let commentCount = 0;
+  const MAX_COMMENT_LINES = 4;
   
-  for (let i = 0; i < lines.length && commentCount < 4; i++) {
+  for (let i = 0; i < lines.length && commentCount < MAX_COMMENT_LINES; i++) {
     const line = lines[i].trim();
     if (line.startsWith('//')) {
       const text = line.substring(2).trim();
