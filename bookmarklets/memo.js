@@ -76,7 +76,7 @@
       'z-index:2147483647',
       'top:20px',
       'right:20px',
-      'width:320px',
+      'width:400px',
       'max-height:85vh',
       'background:#fff',
       'color:#333',
@@ -100,10 +100,38 @@
       'align-items:center',
       'font-weight:bold',
       'border-radius:8px 8px 0 0',
-      'box-sizing:border-box'
+      'box-sizing:border-box',
+      'gap:10px'
     ].join(';'));
     const title = createElement('span', '', 'Memo');
     header.appendChild(title);
+    
+    const deleteAllButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:none',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#ea4335',
+      'color:#fff',
+      'white-space:nowrap',
+      'font-weight:normal'
+    ].join(';'), '🗑️ 削除', () => {
+      const data = load();
+      const unpinnedCount = data.filter(item => !item.pinned).length;
+      
+      if (unpinnedCount === 0) {
+        alert('削除するメモがありません');
+        return;
+      }
+      
+      if (confirm(`ピン留め以外の${unpinnedCount}件を削除しますか？`)) {
+        const newData = data.filter(item => item.pinned);
+        save(newData);
+      }
+    });
+    header.appendChild(deleteAllButton);
+    
     header.appendChild(createElement('span', [
       'cursor:pointer',
       'font-size:24px',
@@ -217,9 +245,12 @@
           'flex:1',
           'margin-right:8px',
           'word-break:break-all',
-          'white-space:pre-wrap',
           'font-size:13px',
-          'color:#333'
+          'color:#333',
+          'display:-webkit-box',
+          '-webkit-line-clamp:5',
+          '-webkit-box-orient:vertical',
+          'overflow:hidden'
         ].join(';'), item.text);
         listItem.appendChild(textElement);
 
