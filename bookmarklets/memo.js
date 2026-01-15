@@ -245,6 +245,10 @@
           item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
         ].join(';'));
 
+        const textWrapper = createElement('div', [
+          'position:relative'
+        ].join(';'));
+
         const textElement = createElement('div', [
           'word-break:break-all',
           'font-size:13px',
@@ -255,7 +259,62 @@
           '-webkit-box-orient:vertical',
           'overflow:hidden'
         ].join(';'), item.text);
-        listItem.appendChild(textElement);
+        
+        textWrapper.appendChild(textElement);
+
+        // Check if the text element is truncated by comparing scroll and client heights
+        const checkTruncation = () => {
+          return textElement.scrollHeight > textElement.clientHeight;
+        };
+
+        // Add "Show more" button if text is truncated (setTimeout ensures proper height calculation after render)
+        setTimeout(() => {
+          if (checkTruncation()) {
+            const toggleButton = createElement('button', [
+              'margin-top:6px',
+              'padding:4px 10px',
+              'font-size:11px',
+              'border:none',
+              'border-radius:4px',
+              'cursor:pointer',
+              'background:#f0f0f0',
+              'color:#666',
+              'transition:all 0.2s',
+              'font-weight:500'
+            ].join(';'), '▼ もっと見る');
+            
+            let isExpanded = false;
+            toggleButton.onclick = () => {
+              isExpanded = !isExpanded;
+              if (isExpanded) {
+                textElement.style.cssText = [
+                  'word-break:break-all',
+                  'font-size:13px',
+                  'color:#333',
+                  'line-height:1.6',
+                  'white-space:pre-wrap'
+                ].join(';');
+                toggleButton.textContent = '▲ 閉じる';
+              } else {
+                textElement.style.cssText = [
+                  'word-break:break-all',
+                  'font-size:13px',
+                  'color:#333',
+                  'line-height:1.6',
+                  'display:-webkit-box',
+                  '-webkit-line-clamp:5',
+                  '-webkit-box-orient:vertical',
+                  'overflow:hidden'
+                ].join(';');
+                toggleButton.textContent = '▼ もっと見る';
+              }
+            };
+            
+            textWrapper.appendChild(toggleButton);
+          }
+        }, 0);
+
+        listItem.appendChild(textWrapper);
 
         const actions = createElement('div', [
           'display:flex',
