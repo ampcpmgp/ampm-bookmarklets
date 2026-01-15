@@ -115,8 +115,9 @@
       'background:#ea4335',
       'color:#fff',
       'white-space:nowrap',
-      'font-weight:normal'
-    ].join(';'), '🗑️ 削除', () => {
+      'font-weight:normal',
+      'margin-left:auto'
+    ].join(';'), '🗑️ 一括削除', () => {
       const data = load();
       const unpinnedCount = data.filter(item => !item.pinned).length;
       
@@ -130,6 +131,7 @@
         save(newData);
       }
     });
+    deleteAllButton.title = 'ピンを除いて一括削除を行います';
     header.appendChild(deleteAllButton);
     
     header.appendChild(createElement('span', [
