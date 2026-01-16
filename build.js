@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 // HTML escape function to prevent XSS
 function escapeHtml(text) {
@@ -11,6 +12,25 @@ function escapeHtml(text) {
     "'": '&#039;'
   };
   return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Get last modified date from git
+function getLastModifiedDate(filePath) {
+  try {
+    // Sanitize file path to prevent command injection
+    // Only allow alphanumeric, dash, underscore, dot, and forward slash
+    const sanitizedPath = filePath.replace(/[^a-zA-Z0-9\-_.\/]/g, '');
+    
+    // Get the last commit date for the file in YYYY-MM-DD format
+    const result = execSync(`git log -1 --format=%ci -- "${sanitizedPath}"`, { encoding: 'utf-8' });
+    if (result.trim()) {
+      // Extract just the date part (YYYY-MM-DD)
+      return result.trim().split(' ')[0];
+    }
+  } catch (error) {
+    // If git command fails, return empty string
+  }
+  return '';
 }
 
 // Read all bookmarklet files
@@ -51,6 +71,9 @@ files.forEach(file => {
     }
   }
   
+  // Get last modified date from git
+  const lastModified = getLastModifiedDate(filePath);
+  
   // Remove single-line comments only, preserve code structure
   const code = content
     .split('\n')
@@ -72,6 +95,7 @@ files.forEach(file => {
     description,
     emoji,
     version,
+    lastModified,
     code: bookmarkletUrl
   });
 });
@@ -203,9 +227,9 @@ const html = `<!DOCTYPE html>
     </div>
     
 ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
-      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}${bm.version ? `<span class="version-badge">${escapeHtml(bm.version)}</span>` : ''}</h3>
+      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}${bm.version ? `<span class="version-badge">${escapeHtml(bm.version)}${bm.lastModified ? ` (${escapeHtml(bm.lastModified)})` : ''}</span>` : ''}</h3>
       <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
-      <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)} ${escapeHtml(bm.title)}</a>
+      <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)} ${escapeHtml(bm.title)}${bm.version ? ` ${escapeHtml(bm.version)}` : ''}</a>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link emoji-only" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)}</a>
     </div>
 `).join('\n')}
