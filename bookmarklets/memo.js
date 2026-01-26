@@ -1,7 +1,7 @@
 // ローカルメモ
-// localStorageにメモを保存し、コピーと削除ができるフローティングメモウィジェット
+// localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v1
+// v2
 
 (function() {
   try {
@@ -106,6 +106,22 @@
     ].join(';'));
     const title = createElement('span', '', 'Memo');
     header.appendChild(title);
+    
+    const settingsButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:none',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#5f6368',
+      'color:#fff',
+      'white-space:nowrap',
+      'font-weight:normal'
+    ].join(';'), '⚙️ 設定', () => {
+      alert('ローカルメモ\nバージョン: v2\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット');
+    });
+    settingsButton.title = 'バージョン情報を表示';
+    header.appendChild(settingsButton);
     
     const deleteAllButton = createElement('button', [
       'padding:4px 10px',
@@ -337,8 +353,89 @@
           'font-weight:500'
         ].join(';'), item.pinned ? '📌 Pin' : 'Pin', () => {
           const currentData = load();
-          currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
-          save(currentData);
+          if (currentData[originalIndex]) {
+            currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
+            save(currentData);
+          }
+        });
+
+        const editButton = createElement('button', [
+          'padding:6px 12px',
+          'font-size:12px',
+          'border:none',
+          'border-radius:4px',
+          'cursor:pointer',
+          'background:#1a73e8',
+          'color:#fff',
+          'min-width:50px',
+          'white-space:nowrap',
+          'transition:all 0.2s',
+          'font-weight:500'
+        ].join(';'), 'Edit', () => {
+          // Create edit mode
+          const editArea = createElement('textarea', [
+            'width:100%',
+            'min-height:80px',
+            'padding:10px',
+            'margin-bottom:8px',
+            'border:1px solid #1a73e8',
+            'border-radius:4px',
+            'resize:vertical',
+            'font-size:13px',
+            'background:#fff',
+            'color:#333',
+            'font-family:sans-serif',
+            'box-sizing:border-box'
+          ].join(';'));
+          editArea.value = item.text;
+          
+          const editActions = createElement('div', [
+            'display:flex',
+            'gap:6px',
+            'margin-bottom:8px'
+          ].join(';'));
+          
+          const saveEditButton = createElement('button', [
+            'padding:6px 12px',
+            'font-size:12px',
+            'border:none',
+            'border-radius:4px',
+            'cursor:pointer',
+            'background:#34a853',
+            'color:#fff',
+            'white-space:nowrap',
+            'font-weight:500'
+          ].join(';'), '✓ 保存', () => {
+            const newText = editArea.value.trim();
+            if (!newText) return;
+            const currentData = load();
+            if (currentData[originalIndex]) {
+              currentData[originalIndex].text = newText;
+              currentData[originalIndex].date = new Date().toISOString();
+              save(currentData);
+            }
+          });
+          
+          const cancelEditButton = createElement('button', [
+            'padding:6px 12px',
+            'font-size:12px',
+            'border:none',
+            'border-radius:4px',
+            'cursor:pointer',
+            'background:#ea4335',
+            'color:#fff',
+            'white-space:nowrap',
+            'font-weight:500'
+          ].join(';'), '✗ キャンセル', () => {
+            renderList(load());
+          });
+          
+          editActions.appendChild(saveEditButton);
+          editActions.appendChild(cancelEditButton);
+          
+          // Replace content with edit mode
+          textWrapper.replaceChildren(editArea);
+          actions.replaceChildren(editActions);
         });
 
         const copyButton = createElement('button', [
@@ -370,11 +467,14 @@
           'font-weight:500'
         ].join(';'), 'Del', () => {
           const currentData = load();
-          currentData.splice(originalIndex, 1);
-          save(currentData);
+          if (originalIndex < currentData.length) {
+            currentData.splice(originalIndex, 1);
+            save(currentData);
+          }
         });
 
         actions.appendChild(pinButton);
+        actions.appendChild(editButton);
         actions.appendChild(copyButton);
         actions.appendChild(deleteButton);
         listItem.appendChild(actions);
