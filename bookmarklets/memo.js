@@ -353,8 +353,10 @@
           'font-weight:500'
         ].join(';'), item.pinned ? '📌 Pin' : 'Pin', () => {
           const currentData = load();
-          currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
-          save(currentData);
+          if (currentData[originalIndex]) {
+            currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
+            save(currentData);
+          }
         });
 
         const editButton = createElement('button', [
@@ -407,9 +409,11 @@
             const newText = editArea.value.trim();
             if (!newText) return;
             const currentData = load();
-            currentData[originalIndex].text = newText;
-            currentData[originalIndex].date = new Date().toISOString();
-            save(currentData);
+            if (currentData[originalIndex]) {
+              currentData[originalIndex].text = newText;
+              currentData[originalIndex].date = new Date().toISOString();
+              save(currentData);
+            }
           });
           
           const cancelEditButton = createElement('button', [
@@ -463,8 +467,10 @@
           'font-weight:500'
         ].join(';'), 'Del', () => {
           const currentData = load();
-          currentData.splice(originalIndex, 1);
-          save(currentData);
+          if (originalIndex < currentData.length) {
+            currentData.splice(originalIndex, 1);
+            save(currentData);
+          }
         });
 
         actions.appendChild(pinButton);
