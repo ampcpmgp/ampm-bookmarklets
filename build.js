@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 // HTML escape function to prevent XSS
 function escapeHtml(text) {
@@ -14,25 +13,6 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Get last modified date from git
-function getLastModifiedDate(filePath) {
-  try {
-    // Sanitize file path to prevent command injection
-    // Only allow alphanumeric, dash, underscore, dot, and forward slash
-    const sanitizedPath = filePath.replace(/[^a-zA-Z0-9\-_.\/]/g, '');
-    
-    // Get the last commit date for the file in YYYY-MM-DD format
-    const result = execSync(`git log -1 --format=%ci -- "${sanitizedPath}"`, { encoding: 'utf-8' });
-    if (result.trim()) {
-      // Extract just the date part (YYYY-MM-DD)
-      return result.trim().split(' ')[0];
-    }
-  } catch (error) {
-    // If git command fails, return empty string
-  }
-  return '';
-}
-
 // Read all bookmarklet files
 const bookmarkletsDir = path.join(__dirname, 'bookmarklets');
 const bookmarklets = [];
@@ -44,15 +24,16 @@ files.forEach(file => {
   const filePath = path.join(bookmarkletsDir, file);
   const content = fs.readFileSync(filePath, 'utf-8');
   
-  // Extract title, description, emoji, and version from first four comment lines
-  // Expected comment order: 1) title, 2) description, 3) emoji, 4) version
+  // Extract title, description, emoji, version, and update date from first five comment lines
+  // Expected comment order: 1) title, 2) description, 3) emoji, 4) version, 5) update date
   const lines = content.split('\n');
   let title = file.replace('.js', '');
   let description = '';
   let emoji = '📎'; // Default emoji
   let version = ''; // Version information
+  let updateDate = ''; // Update date information
   let commentCount = 0;
-  const MAX_COMMENT_LINES = 4;
+  const MAX_COMMENT_LINES = 5;
   
   for (let i = 0; i < lines.length && commentCount < MAX_COMMENT_LINES; i++) {
     const line = lines[i].trim();
@@ -66,13 +47,12 @@ files.forEach(file => {
         emoji = text;
       } else if (commentCount === 3) {
         version = text;
+      } else if (commentCount === 4) {
+        updateDate = text;
       }
       commentCount++;
     }
   }
-  
-  // Get last modified date from git
-  const lastModified = getLastModifiedDate(filePath);
   
   // Remove single-line comments only, preserve code structure
   const code = content
@@ -95,7 +75,7 @@ files.forEach(file => {
     description,
     emoji,
     version,
-    lastModified,
+    updateDate,
     code: bookmarkletUrl
   });
 });
@@ -227,7 +207,7 @@ const html = `<!DOCTYPE html>
     </div>
     
 ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
-      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}${bm.version ? `<span class="version-badge">${escapeHtml(bm.version)}${bm.lastModified ? ` (${escapeHtml(bm.lastModified)})` : ''}</span>` : ''}</h3>
+      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}${bm.version ? `<span class="version-badge">${escapeHtml(bm.version)}${bm.updateDate ? ` (${escapeHtml(bm.updateDate)})` : ''}</span>` : ''}</h3>
       <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)} ${escapeHtml(bm.title)}${bm.version ? ` ${escapeHtml(bm.version)}` : ''}</a>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link emoji-only" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)}</a>
