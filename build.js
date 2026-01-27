@@ -227,7 +227,7 @@ const html = `<!DOCTYPE html>
     </div>
     
 ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
-      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}${bm.version ? `<span class="version-badge">${escapeHtml(bm.version)}${bm.lastModified ? ` (${escapeHtml(bm.lastModified)})` : ''}</span>` : ''}</h3>
+      <h3 class="bookmarklet-title">${escapeHtml(bm.title)}${bm.version ? `<span class="version-badge">${escapeHtml(bm.version)}${bm.lastModified && !bm.version.includes('(') ? ` (${escapeHtml(bm.lastModified)})` : ''}</span>` : ''}</h3>
       <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)} ${escapeHtml(bm.title)}${bm.version ? ` ${escapeHtml(bm.version)}` : ''}</a>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link emoji-only" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)}</a>

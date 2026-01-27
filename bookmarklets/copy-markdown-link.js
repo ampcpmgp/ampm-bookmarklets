@@ -1,7 +1,7 @@
 // Markdownリンクをコピー
 // 現在のページのタイトルとURLをMarkdown形式のリンク [title](url) でクリップボードにコピー
 // 📋
-// v1
+// v1 (2026-01-27)
 
 (function() {
   try {

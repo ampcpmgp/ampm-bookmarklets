@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v2
+// v2 (2026-01-27)
 
 (function() {
   try {
@@ -118,7 +118,7 @@
       'white-space:nowrap',
       'font-weight:normal'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v2\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット');
+      alert('ローカルメモ\nバージョン: v2 (2026-01-27)\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット');
     });
     settingsButton.title = 'バージョン情報を表示';
     header.appendChild(settingsButton);
