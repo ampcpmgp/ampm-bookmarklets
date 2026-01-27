@@ -265,21 +265,20 @@
           'position:relative'
         ].join(';'));
 
-        // Add date display
-        const dateElement = createElement('div', [
-          'font-size:11px',
-          'color:#999',
-          'margin-bottom:6px',
-          'font-style:italic'
-        ].join(';'), item.date ? new Date(item.date).toLocaleString('ja-JP', { 
-          year: 'numeric', 
-          month: '2-digit', 
-          day: '2-digit', 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }) : '');
-        
+        // Add date display if available
         if (item.date) {
+          const dateElement = createElement('div', [
+            'font-size:11px',
+            'color:#999',
+            'margin-bottom:6px',
+            'font-style:italic'
+          ].join(';'), new Date(item.date).toLocaleString('ja-JP', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }));
           textWrapper.appendChild(dateElement);
         }
 
