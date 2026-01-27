@@ -118,7 +118,7 @@
       'white-space:nowrap',
       'font-weight:normal'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v2\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット');
+      alert('ローカルメモ\nバージョン: v2 (2026-01-27)\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n各メモには更新日時が表示されます');
     });
     settingsButton.title = 'バージョン情報を表示';
     header.appendChild(settingsButton);
@@ -264,6 +264,24 @@
         const textWrapper = createElement('div', [
           'position:relative'
         ].join(';'));
+
+        // Add date display
+        const dateElement = createElement('div', [
+          'font-size:11px',
+          'color:#999',
+          'margin-bottom:6px',
+          'font-style:italic'
+        ].join(';'), item.date ? new Date(item.date).toLocaleString('ja-JP', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }) : '');
+        
+        if (item.date) {
+          textWrapper.appendChild(dateElement);
+        }
 
         const textElement = createElement('div', [
           'word-break:break-all',
