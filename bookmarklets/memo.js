@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v2
-// 2026-01-27
+// v3
+// 2026-01-28
 
 (function() {
   try {
@@ -49,8 +49,9 @@
     const load = () => {
       try {
         const data = JSON.parse(localStorage.getItem(KEY) || '[]');
-        // Ensure backward compatibility: add pinned property if missing
+        // Ensure backward compatibility: add pinned and title properties if missing
         return data.map(item => ({
+          title: item.title || '',
           text: item.text,
           date: item.date,
           pinned: item.pinned || false
@@ -119,7 +120,7 @@
       'white-space:nowrap',
       'font-weight:normal'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v2\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット');
+      alert('ローカルメモ\nバージョン: v3\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv3の新機能:\n- タイトル機能の追加');
     });
     settingsButton.title = 'バージョン情報を表示';
     header.appendChild(settingsButton);
@@ -170,6 +171,31 @@
       'box-sizing:border-box'
     ].join(';'));
 
+    const titleInput = createElement('input', [
+      'width:100%',
+      'flex-shrink:0',
+      'padding:10px',
+      'margin-bottom:8px',
+      'border:1px solid #ccc',
+      'border-radius:4px',
+      'font-size:15px',
+      'font-weight:600',
+      'background:#fff',
+      'color:#333',
+      'font-family:sans-serif',
+      'box-sizing:border-box'
+    ].join(';'));
+    titleInput.type = 'text';
+    titleInput.placeholder = 'タイトル（省略可）';
+    titleInput.onkeydown = (e) => {
+      if (e.key === 'Escape') {
+        close();
+        return;
+      }
+      e.stopPropagation();
+    };
+    body.appendChild(titleInput);
+
     const input = createElement('textarea', [
       'width:100%',
       'height:80px',
@@ -209,6 +235,7 @@
       'font-size:13px',
       'box-sizing:border-box'
     ].join(';'), '保存', () => {
+      const title = titleInput.value.trim();
       const value = input.value.trim();
       if (!value) return;
 
@@ -218,8 +245,9 @@
         return;
       }
 
-      data.unshift({ text: value, date: new Date().toISOString(), pinned: false });
+      data.unshift({ title: title, text: value, date: new Date().toISOString(), pinned: false });
       save(data);
+      titleInput.value = '';
       input.value = '';
     });
     body.appendChild(saveButton);
@@ -265,6 +293,20 @@
         const textWrapper = createElement('div', [
           'position:relative'
         ].join(';'));
+
+        // Display title if it exists
+        if (item.title) {
+          const titleElement = createElement('div', [
+            'font-size:16px',
+            'font-weight:700',
+            'color:#1a73e8',
+            'margin-bottom:8px',
+            'line-height:1.4',
+            'letter-spacing:0.3px',
+            'word-break:break-word'
+          ].join(';'), item.title);
+          textWrapper.appendChild(titleElement);
+        }
 
         const textElement = createElement('div', [
           'word-break:break-all',
@@ -374,6 +416,23 @@
           'font-weight:500'
         ].join(';'), 'Edit', () => {
           // Create edit mode
+          const editTitleInput = createElement('input', [
+            'width:100%',
+            'padding:10px',
+            'margin-bottom:8px',
+            'border:1px solid #1a73e8',
+            'border-radius:4px',
+            'font-size:15px',
+            'font-weight:600',
+            'background:#fff',
+            'color:#333',
+            'font-family:sans-serif',
+            'box-sizing:border-box'
+          ].join(';'));
+          editTitleInput.type = 'text';
+          editTitleInput.placeholder = 'タイトル（省略可）';
+          editTitleInput.value = item.title || '';
+          
           const editArea = createElement('textarea', [
             'width:100%',
             'min-height:80px',
@@ -407,10 +466,12 @@
             'white-space:nowrap',
             'font-weight:500'
           ].join(';'), '✓ 保存', () => {
+            const newTitle = editTitleInput.value.trim();
             const newText = editArea.value.trim();
             if (!newText) return;
             const currentData = load();
             if (currentData[originalIndex]) {
+              currentData[originalIndex].title = newTitle;
               currentData[originalIndex].text = newText;
               currentData[originalIndex].date = new Date().toISOString();
               save(currentData);
@@ -435,7 +496,10 @@
           editActions.appendChild(cancelEditButton);
           
           // Replace content with edit mode
-          textWrapper.replaceChildren(editArea);
+          const editContainer = createElement('div');
+          editContainer.appendChild(editTitleInput);
+          editContainer.appendChild(editArea);
+          textWrapper.replaceChildren(editContainer);
           actions.replaceChildren(editActions);
         });
 
@@ -452,7 +516,8 @@
           'transition:all 0.2s',
           'font-weight:500'
         ].join(';'), 'Copy', () => {
-          navigator.clipboard.writeText(item.text).then(close);
+          const copyText = item.title ? `${item.title}\n\n${item.text}` : item.text;
+          navigator.clipboard.writeText(copyText).then(close);
         });
 
         const deleteButton = createElement('button', [
