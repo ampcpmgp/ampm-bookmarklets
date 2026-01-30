@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v3
-// 2026-01-28
+// v4
+// 2026-01-30
 
 (function() {
   try {
@@ -109,6 +109,39 @@
     const title = createElement('span', '', 'Memo');
     header.appendChild(title);
     
+    let isTitleOnlyMode = false;
+    
+    const titleOnlyButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:none',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#34a853',
+      'color:#fff',
+      'white-space:nowrap',
+      'font-weight:normal'
+    ].join(';'), '📋 一覧', () => {
+      isTitleOnlyMode = !isTitleOnlyMode;
+      titleOnlyButton.textContent = isTitleOnlyMode ? '📝 全表示' : '📋 一覧';
+      titleOnlyButton.style.background = isTitleOnlyMode ? '#1a73e8' : '#34a853';
+      
+      // Hide/show input fields based on mode
+      if (isTitleOnlyMode) {
+        titleInput.style.display = 'none';
+        input.style.display = 'none';
+        saveButton.style.display = 'none';
+      } else {
+        titleInput.style.display = 'block';
+        input.style.display = 'block';
+        saveButton.style.display = 'block';
+      }
+      
+      renderList(load());
+    });
+    titleOnlyButton.title = 'タイトル一覧表示を切り替えます';
+    header.appendChild(titleOnlyButton);
+    
     const settingsButton = createElement('button', [
       'padding:4px 10px',
       'font-size:12px',
@@ -120,7 +153,7 @@
       'white-space:nowrap',
       'font-weight:normal'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v3\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv3の新機能:\n- タイトル機能の追加');
+      alert('ローカルメモ\nバージョン: v4\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv4の新機能:\n- タイトル一覧表示モードの追加\n\nv3の機能:\n- タイトル機能の追加');
     });
     settingsButton.title = 'バージョン情報を表示';
     header.appendChild(settingsButton);
@@ -273,6 +306,85 @@
         if (!a.pinned && b.pinned) return 1;
         return data.indexOf(a) - data.indexOf(b);
       });
+
+      if (isTitleOnlyMode) {
+        // Title-only mode: show only titles in a compact list
+        sortedData.forEach((item) => {
+          const originalIndex = data.indexOf(item);
+          
+          const listItem = createElement('li', [
+            'background:#fff',
+            'border:1px solid #eee',
+            'margin-bottom:6px',
+            'padding:10px 12px',
+            'border-radius:6px',
+            'display:flex',
+            'justify-content:space-between',
+            'align-items:center',
+            'gap:8px',
+            'box-sizing:border-box',
+            'cursor:pointer',
+            'transition:background 0.2s',
+            item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
+          ].join(';'));
+          
+          listItem.onmouseover = () => {
+            listItem.style.background = item.pinned ? '#fff9e6' : '#f5f5f5';
+          };
+          listItem.onmouseout = () => {
+            listItem.style.background = item.pinned ? '#fffbf0' : '#fff';
+          };
+          
+          const titleText = createElement('div', [
+            'flex:1',
+            'overflow:hidden',
+            'text-overflow:ellipsis',
+            'white-space:nowrap'
+          ].join(';'));
+          
+          if (item.title) {
+            const titleSpan = createElement('span', [
+              'font-weight:600',
+              'color:#1a73e8',
+              'margin-right:8px'
+            ].join(';'), item.title);
+            titleText.appendChild(titleSpan);
+          } else {
+            const previewText = item.text.substring(0, 50) + (item.text.length > 50 ? '...' : '');
+            const previewSpan = createElement('span', [
+              'color:#666',
+              'font-style:italic'
+            ].join(';'), previewText);
+            titleText.appendChild(previewSpan);
+          }
+          
+          const dateText = createElement('span', [
+            'font-size:11px',
+            'color:#999',
+            'white-space:nowrap'
+          ].join(';'), new Date(item.date).toLocaleDateString('ja-JP'));
+          
+          listItem.appendChild(titleText);
+          listItem.appendChild(dateText);
+          
+          listItem.onclick = () => {
+            isTitleOnlyMode = false;
+            titleOnlyButton.textContent = '📋 一覧';
+            titleOnlyButton.style.background = '#34a853';
+            
+            // Show input fields
+            titleInput.style.display = 'block';
+            input.style.display = 'block';
+            saveButton.style.display = 'block';
+            
+            renderList(data);
+          };
+          
+          listContainer.appendChild(listItem);
+        });
+        
+        return;
+      }
 
       sortedData.forEach((item) => {
         const originalIndex = data.indexOf(item);
