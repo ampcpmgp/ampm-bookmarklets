@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v9
+// v10
 // 2026-01-31
 
 (function() {
@@ -110,8 +110,8 @@
       return EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
     };
 
-    // Track current emoji
-    let currentEmoji = getRandomEmoji();
+    // Track current emoji (initialize as empty to show "no emoji" state)
+    let currentEmoji = '';
 
     // Create a button with hover effect
     const createButtonWithHover = (style, text, clickHandler, hoverBg, normalBg) => {
@@ -241,21 +241,24 @@
     ].join(';'), '⚙️ 設定', () => {
       const message = [
         'ローカルメモ',
-        'バージョン: v9',
+        'バージョン: v10',
         '',
         'localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット',
         '',
-        'v9の新機能:',
+        'v10の新機能:',
+        '- 絵文字の初期状態を空に変更（➕アイコンで表示）',
+        '- 絵文字が未設定の状態を明確に表示',
+        '- ランダム選択ボタンのラベルを「🎲 ランダム選択」に改善',
+        '- 編集モードに絵文字削除ボタンを追加',
+        '',
+        'v9の機能:',
         '- タイトル左側に絵文字セレクターを追加',
         '- 新規メモ作成時にランダムな絵文字をデフォルト表示',
         '- 絵文字ピッカーで簡単に絵文字を選択可能',
         '- タイトル挿入機能を削除し、洗練されたUIに刷新',
         '',
         'v8の機能:',
-        '- タイトルに絵文字を追加できる機能を実装',
-        '',
-        'v7の機能:',
-        '- ヘッダーを2行レイアウトに変更し、件数が見切れない洗練されたUIに改善'
+        '- タイトルに絵文字を追加できる機能を実装'
       ].join('\n');
       alert(message);
     });
@@ -315,7 +318,7 @@
       'align-items:center'
     ].join(';'));
 
-    // Emoji button
+    // Emoji button (show ➕ when empty, otherwise show the emoji)
     const emojiButton = createElement('button', [
       'width:42px',
       'height:42px',
@@ -330,7 +333,7 @@
       'transition:all 0.2s',
       'flex-shrink:0',
       'padding:0'
-    ].join(';'), currentEmoji, () => {
+    ].join(';'), currentEmoji || '➕', () => {
       emojiDropdown.style.display = emojiDropdown.style.display === 'none' ? 'block' : 'none';
     });
     emojiButton.onmouseover = () => {
@@ -396,7 +399,7 @@
       'color:#fff',
       'font-weight:500',
       'transition:background 0.2s'
-    ].join(';'), '🎲 ランダム', () => {
+    ].join(';'), '🎲 ランダム選択', () => {
       const emoji = getRandomEmoji();
       currentEmoji = emoji;
       emojiButton.textContent = emoji;
@@ -536,8 +539,9 @@
       save(data);
       titleInput.value = '';
       input.value = '';
-      currentEmoji = getRandomEmoji();
-      emojiButton.textContent = currentEmoji;
+      // Reset to empty state after saving
+      currentEmoji = '';
+      emojiButton.textContent = '➕';
     });
     body.appendChild(saveButton);
 
@@ -637,8 +641,8 @@
         const listItem = actions.parentElement;
         const textWrapper = listItem.querySelector('div');
         
-        // Edit emoji
-        let editEmoji = item.emoji || getRandomEmoji();
+        // Edit emoji (initialize to existing emoji or empty)
+        let editEmoji = item.emoji || '';
         
         // Edit emoji + title row
         const editEmojiTitleRow = createElement('div', [
@@ -663,7 +667,7 @@
           'transition:all 0.2s',
           'flex-shrink:0',
           'padding:0'
-        ].join(';'), editEmoji, () => {
+        ].join(';'), editEmoji || '➕', () => {
           editEmojiDropdown.style.display = editEmojiDropdown.style.display === 'none' ? 'block' : 'none';
         });
         editEmojiButton.onmouseover = () => {
@@ -720,7 +724,7 @@
           'color:#fff',
           'font-weight:500',
           'transition:background 0.2s'
-        ].join(';'), '🎲 ランダム', () => {
+        ].join(';'), '🎲 ランダム選択', () => {
           const emoji = getRandomEmoji();
           editEmoji = emoji;
           editEmojiButton.textContent = emoji;
@@ -733,6 +737,32 @@
           editRandomPickerButton.style.background = '#f59e0b';
         };
         editEmojiDropdown.appendChild(editRandomPickerButton);
+        
+        // Clear button in edit picker
+        const editClearPickerButton = createElement('button', [
+          'width:100%',
+          'padding:8px',
+          'margin-bottom:8px',
+          'font-size:13px',
+          'border:1px solid #ddd',
+          'border-radius:4px',
+          'cursor:pointer',
+          'background:#ef4444',
+          'color:#fff',
+          'font-weight:500',
+          'transition:background 0.2s'
+        ].join(';'), '🗑️ 削除', () => {
+          editEmoji = '';
+          editEmojiButton.textContent = '➕';
+          editEmojiDropdown.style.display = 'none';
+        });
+        editClearPickerButton.onmouseover = () => {
+          editClearPickerButton.style.background = '#dc2626';
+        };
+        editClearPickerButton.onmouseout = () => {
+          editClearPickerButton.style.background = '#ef4444';
+        };
+        editEmojiDropdown.appendChild(editClearPickerButton);
         
         const editEmojiGrid = createElement('div', [
           'display:grid',
