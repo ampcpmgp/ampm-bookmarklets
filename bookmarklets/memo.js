@@ -633,9 +633,11 @@
         });
         editEmojiButton.onmouseover = () => {
           editEmojiButton.style.background = '#f5f5f5';
+          editEmojiButton.style.transform = 'scale(1.05)';
         };
         editEmojiButton.onmouseout = () => {
           editEmojiButton.style.background = '#fff';
+          editEmojiButton.style.transform = 'scale(1)';
         };
         editEmojiTitleRow.appendChild(editEmojiButton);
         
