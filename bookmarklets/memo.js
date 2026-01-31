@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v5
+// v6
 // 2026-01-31
 
 (function() {
@@ -43,7 +43,10 @@
     document.addEventListener('keydown', docKey);
 
     const shadow = host.attachShadow({ mode: 'open' });
+    
+    // Storage keys
     const KEY = 'my_local_storage_notes';
+    const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const MAX = 300;
 
     const load = () => {
@@ -58,6 +61,24 @@
         }));
       } catch {
         return [];
+      }
+    };
+
+    // Load saved view mode from localStorage
+    const loadViewMode = () => {
+      try {
+        return localStorage.getItem(VIEW_MODE_KEY) === 'list';
+      } catch {
+        return false;
+      }
+    };
+
+    // Save view mode to localStorage
+    const saveViewMode = (isListMode) => {
+      try {
+        localStorage.setItem(VIEW_MODE_KEY, isListMode ? 'list' : 'full');
+      } catch {
+        // Silently fail if localStorage is not available
       }
     };
 
@@ -104,12 +125,14 @@
       'font-weight:bold',
       'border-radius:8px 8px 0 0',
       'box-sizing:border-box',
-      'gap:10px'
+      'gap:8px',
+      'flex-wrap:nowrap'
     ].join(';'));
-    const title = createElement('span', '', 'Memo');
+    const title = createElement('span', 'flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', 'Memo');
     header.appendChild(title);
     
-    let isTitleOnlyMode = false;
+    // Initialize view mode from localStorage
+    let isTitleOnlyMode = loadViewMode();
     
     const titleOnlyButton = createElement('button', [
       'padding:4px 10px',
@@ -120,11 +143,15 @@
       'background:#34a853',
       'color:#fff',
       'white-space:nowrap',
-      'font-weight:normal'
-    ].join(';'), '📋 一覧', () => {
+      'font-weight:normal',
+      'flex-shrink:0'
+    ].join(';'), isTitleOnlyMode ? '📝 全表示' : '📋 一覧', () => {
       isTitleOnlyMode = !isTitleOnlyMode;
       titleOnlyButton.textContent = isTitleOnlyMode ? '📝 全表示' : '📋 一覧';
       titleOnlyButton.style.background = isTitleOnlyMode ? '#1a73e8' : '#34a853';
+      
+      // Save view mode to localStorage
+      saveViewMode(isTitleOnlyMode);
       
       // Hide/show input fields based on mode
       if (isTitleOnlyMode) {
@@ -151,9 +178,10 @@
       'background:#5f6368',
       'color:#fff',
       'white-space:nowrap',
-      'font-weight:normal'
+      'font-weight:normal',
+      'flex-shrink:0'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v5\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv5の新機能:\n- タイトル一覧表示モードでも Pin, Edit, Copy, Del 機能を利用可能に\n\nv4の機能:\n- タイトル一覧表示モードの追加\n\nv3の機能:\n- タイトル機能の追加');
+      alert('ローカルメモ\nバージョン: v6\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv6の新機能:\n- 表示モード（全表示/一覧）をlocalStorageに保存し、次回起動時に復元\n- ヘッダーレイアウトの改善（×ボタンが見切れない）\n- コードの可読性とメンテナンス性の向上\n\nv5の機能:\n- タイトル一覧表示モードでも Pin, Edit, Copy, Del 機能を利用可能に\n\nv4の機能:\n- タイトル一覧表示モードの追加\n\nv3の機能:\n- タイトル機能の追加');
     });
     settingsButton.title = 'バージョン情報を表示';
     header.appendChild(settingsButton);
@@ -168,7 +196,7 @@
       'color:#fff',
       'white-space:nowrap',
       'font-weight:normal',
-      'margin-left:auto'
+      'flex-shrink:0'
     ].join(';'), '🗑️ 一括削除', () => {
       const data = load();
       const unpinnedCount = data.filter(item => !item.pinned).length;
@@ -191,7 +219,8 @@
       'font-size:24px',
       'line-height:1',
       'padding:0 8px',
-      'color:#5f6368'
+      'color:#5f6368',
+      'flex-shrink:0'
     ].join(';'), '×', close));
     wrap.appendChild(header);
 
@@ -726,6 +755,13 @@
     };
 
     renderList(load());
+    
+    // Apply saved view mode on initial load
+    if (isTitleOnlyMode) {
+      titleInput.style.display = 'none';
+      input.style.display = 'none';
+      saveButton.style.display = 'none';
+    }
   } catch (error) {
     console.error(error);
     alert('Error: ' + error);
