@@ -356,15 +356,21 @@
           saveButton.style.display = 'block';
           renderList(data);
           
-          // Wait for render, then find and trigger edit
+          // Wait for render, then find and trigger edit by index
           setTimeout(() => {
             const allItems = listContainer.querySelectorAll('li');
-            const targetItem = Array.from(allItems).find((li) => {
-              const buttons = li.querySelectorAll('button');
-              return Array.from(buttons).some(btn => btn.textContent === 'Edit');
+            // Find the item at the same original index
+            const sortedData = [...data].sort((a, b) => {
+              if (a.pinned && !b.pinned) return -1;
+              if (!a.pinned && b.pinned) return 1;
+              return data.indexOf(a) - data.indexOf(b);
             });
-            if (targetItem) {
-              const editBtn = Array.from(targetItem.querySelectorAll('button')).find(btn => btn.textContent === 'Edit');
+            const targetIndex = sortedData.indexOf(item);
+            if (targetIndex >= 0 && targetIndex < allItems.length) {
+              const targetItem = allItems[targetIndex];
+              const editBtn = Array.from(targetItem.querySelectorAll('button')).find(btn => 
+                btn.textContent === 'Edit' || btn.textContent === '✏️'
+              );
               if (editBtn) editBtn.click();
             }
           }, 100);
@@ -487,9 +493,9 @@
         'background:#ea4335',
         'color:#fff'
       ].join(';'), isCompactMode ? '🗑️' : 'Del', () => {
-        const currentData = load();
-        if (originalIndex < currentData.length) {
-          if (confirm('このメモを削除しますか？')) {
+        if (confirm('このメモを削除しますか？')) {
+          const currentData = load();
+          if (originalIndex < currentData.length) {
             currentData.splice(originalIndex, 1);
             save(currentData);
           }
