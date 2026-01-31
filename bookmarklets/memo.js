@@ -724,10 +724,12 @@
           emojiBtn.onmouseover = () => {
             emojiBtn.style.background = '#f0f0f0';
             emojiBtn.style.borderColor = '#ccc';
+            emojiBtn.style.transform = 'scale(1.15)';
           };
           emojiBtn.onmouseout = () => {
             emojiBtn.style.background = 'transparent';
             emojiBtn.style.borderColor = 'transparent';
+            emojiBtn.style.transform = 'scale(1)';
           };
           editEmojiGrid.appendChild(emojiBtn);
         });
