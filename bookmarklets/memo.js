@@ -213,11 +213,11 @@
       
       // Hide/show input fields based on mode
       if (isTitleOnlyMode) {
-        emojiTitleRow.style.display = 'none';
+        emojiTitleRowContainer.style.display = 'none';
         input.style.display = 'none';
         saveButton.style.display = 'none';
       } else {
-        emojiTitleRow.style.display = 'flex';
+        emojiTitleRowContainer.style.display = 'block';
         input.style.display = 'block';
         saveButton.style.display = 'block';
       }
@@ -302,13 +302,17 @@
       'box-sizing:border-box'
     ].join(';'));
 
+    // Emoji + Title Row Container (for proper dropdown containment)
+    const emojiTitleRowContainer = createElement('div', [
+      'position:relative',
+      'margin-bottom:8px'
+    ].join(';'));
+
     // Emoji + Title Row
     const emojiTitleRow = createElement('div', [
       'display:flex',
       'gap:6px',
-      'margin-bottom:8px',
-      'align-items:center',
-      'position:relative'
+      'align-items:center'
     ].join(';'));
 
     // Emoji button
@@ -369,13 +373,14 @@
       'position:absolute',
       'top:48px',
       'left:0',
+      'right:0',
       'background:#fff',
       'border:1px solid #ccc',
       'border-radius:6px',
       'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
       'padding:8px',
       'z-index:1000',
-      'min-width:280px'
+      'box-sizing:border-box'
     ].join(';'));
 
     // Random button in picker
@@ -444,9 +449,10 @@
     });
 
     emojiDropdown.appendChild(emojiGrid);
-    emojiTitleRow.appendChild(emojiDropdown);
+    emojiTitleRowContainer.appendChild(emojiTitleRow);
+    emojiTitleRowContainer.appendChild(emojiDropdown);
 
-    body.appendChild(emojiTitleRow);
+    body.appendChild(emojiTitleRowContainer);
 
     const input = createElement('textarea', [
       'width:100%',
@@ -572,7 +578,7 @@
           isTitleOnlyMode = false;
           titleOnlyButton.textContent = '📋 一覧';
           titleOnlyButton.style.background = '#34a853';
-          emojiTitleRow.style.display = 'flex';
+          emojiTitleRowContainer.style.display = 'block';
           input.style.display = 'block';
           saveButton.style.display = 'block';
           renderList(data);
@@ -950,7 +956,7 @@
             titleOnlyButton.style.background = '#34a853';
             
             // Show input fields
-            emojiTitleRow.style.display = 'flex';
+            emojiTitleRowContainer.style.display = 'block';
             input.style.display = 'block';
             saveButton.style.display = 'block';
             
@@ -1096,7 +1102,7 @@
     
     // Apply saved view mode on initial load
     if (isTitleOnlyMode) {
-      emojiTitleRow.style.display = 'none';
+      emojiTitleRowContainer.style.display = 'none';
       input.style.display = 'none';
       saveButton.style.display = 'none';
     }
