@@ -644,13 +644,17 @@
         // Edit emoji (initialize to existing emoji or empty)
         let editEmoji = item.emoji || '';
         
+        // Edit Emoji + Title Row Container (for proper dropdown containment)
+        const editEmojiTitleRowContainer = createElement('div', [
+          'position:relative',
+          'margin-bottom:8px'
+        ].join(';'));
+        
         // Edit emoji + title row
         const editEmojiTitleRow = createElement('div', [
           'display:flex',
           'gap:6px',
-          'margin-bottom:8px',
-          'align-items:center',
-          'position:relative'
+          'align-items:center'
         ].join(';'));
         
         const editEmojiButton = createElement('button', [
@@ -703,13 +707,14 @@
           'position:absolute',
           'top:48px',
           'left:0',
+          'right:0',
           'background:#fff',
           'border:1px solid #ccc',
           'border-radius:6px',
           'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
           'padding:8px',
           'z-index:1000',
-          'min-width:280px'
+          'box-sizing:border-box'
         ].join(';'));
         
         const editRandomPickerButton = createElement('button', [
@@ -770,6 +775,7 @@
           'gap:4px',
           'max-height:200px',
           'overflow-y:auto',
+          'overflow-x:hidden',
           'padding:4px'
         ].join(';'));
         
@@ -782,7 +788,9 @@
             'cursor:pointer',
             'background:transparent',
             'transition:all 0.2s',
-            'line-height:1'
+            'line-height:1',
+            'min-width:0',
+            'box-sizing:border-box'
           ].join(';'), emoji, () => {
             editEmoji = emoji;
             editEmojiButton.textContent = emoji;
@@ -802,7 +810,8 @@
         });
         
         editEmojiDropdown.appendChild(editEmojiGrid);
-        editEmojiTitleRow.appendChild(editEmojiDropdown);
+        editEmojiTitleRowContainer.appendChild(editEmojiTitleRow);
+        editEmojiTitleRowContainer.appendChild(editEmojiDropdown);
         
         const editArea = createElement('textarea', [
           'width:100%',
@@ -869,7 +878,7 @@
         
         // Replace content with edit mode
         const editContainer = createElement('div');
-        editContainer.appendChild(editEmojiTitleRow);
+        editContainer.appendChild(editEmojiTitleRowContainer);
         editContainer.appendChild(editArea);
         textWrapper.replaceChildren(editContainer);
         actions.replaceChildren(editActions);
