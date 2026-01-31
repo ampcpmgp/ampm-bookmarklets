@@ -123,6 +123,20 @@
       return EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
     };
 
+    // Create a button with hover effect
+    const createButtonWithHover = (style, text, clickHandler, hoverBg, normalBg) => {
+      const button = createElement('button', style, text, clickHandler);
+      if (hoverBg && normalBg) {
+        button.onmouseover = () => {
+          button.style.background = hoverBg;
+        };
+        button.onmouseout = () => {
+          button.style.background = normalBg;
+        };
+      }
+      return button;
+    };
+
     const wrap = createElement('div', [
       'position:fixed',
       'z-index:2147483647',
@@ -322,7 +336,7 @@
     ].join(';'));
 
     // Random emoji button
-    const randomEmojiButton = createElement('button', [
+    const randomEmojiButton = createButtonWithHover([
       'padding:4px 10px',
       'font-size:12px',
       'border:none',
@@ -335,20 +349,14 @@
       'transition:background 0.2s'
     ].join(';'), '🎲 ランダム', () => {
       insertEmojiAtCursor(titleInput, getRandomEmoji());
-    });
+    }, '#d97706', '#f59e0b');
     randomEmojiButton.title = 'ランダムに絵文字を挿入';
-    randomEmojiButton.onmouseover = () => {
-      randomEmojiButton.style.background = '#d97706';
-    };
-    randomEmojiButton.onmouseout = () => {
-      randomEmojiButton.style.background = '#f59e0b';
-    };
     emojiControls.appendChild(randomEmojiButton);
 
     // Quick emoji buttons (frequently used)
     const quickEmojis = ['📝', '✅', '⭐', '🎯', '💡', '🔥', '🚀', '💪'];
     quickEmojis.forEach(emoji => {
-      const emojiBtn = createElement('button', [
+      const emojiBtn = createButtonWithHover([
         'padding:4px 8px',
         'font-size:14px',
         'border:1px solid #ddd',
@@ -359,7 +367,7 @@
         'line-height:1'
       ].join(';'), emoji, () => {
         insertEmojiAtCursor(titleInput, emoji);
-      });
+      }, '#f0f0f0', '#fff');
       emojiBtn.title = `${emoji}を挿入`;
       emojiBtn.onmouseover = () => {
         emojiBtn.style.background = '#f0f0f0';
@@ -374,7 +382,7 @@
 
     // More emojis button (expander)
     let isEmojiPickerExpanded = false;
-    const moreEmojisButton = createElement('button', [
+    const moreEmojisButton = createButtonWithHover([
       'padding:4px 10px',
       'font-size:12px',
       'border:1px solid #ddd',
@@ -394,14 +402,8 @@
         emojiPicker.style.display = 'none';
         moreEmojisButton.textContent = '➕ もっと';
       }
-    });
+    }, '#f0f0f0', '#fff');
     moreEmojisButton.title = '絵文字一覧を表示';
-    moreEmojisButton.onmouseover = () => {
-      moreEmojisButton.style.background = '#f0f0f0';
-    };
-    moreEmojisButton.onmouseout = () => {
-      moreEmojisButton.style.background = '#fff';
-    };
     emojiControls.appendChild(moreEmojisButton);
 
     body.appendChild(emojiControls);
