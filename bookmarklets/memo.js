@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v4
-// 2026-01-30
+// v5
+// 2026-01-31
 
 (function() {
   try {
@@ -153,7 +153,7 @@
       'white-space:nowrap',
       'font-weight:normal'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v4\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv4の新機能:\n- タイトル一覧表示モードの追加\n\nv3の機能:\n- タイトル機能の追加');
+      alert('ローカルメモ\nバージョン: v5\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv5の新機能:\n- タイトル一覧表示モードでも Pin, Edit, Copy, Del 機能を利用可能に\n\nv4の機能:\n- タイトル一覧表示モードの追加\n\nv3の機能:\n- タイトル機能の追加');
     });
     settingsButton.title = 'バージョン情報を表示';
     header.appendChild(settingsButton);
@@ -296,6 +296,215 @@
 
     shadow.appendChild(wrap);
 
+    // Helper function to create action buttons
+    const createActionButtons = (item, originalIndex, data, isCompactMode = false) => {
+      const actions = createElement('div', [
+        'display:flex',
+        'gap:4px',
+        'justify-content:flex-start',
+        'flex-wrap:wrap',
+        isCompactMode ? 'flex-shrink:0' : ''
+      ].join(';'));
+
+      const buttonStyle = isCompactMode ? [
+        'padding:4px 8px',
+        'font-size:11px',
+        'border:none',
+        'border-radius:3px',
+        'cursor:pointer',
+        'min-width:auto',
+        'white-space:nowrap',
+        'transition:all 0.2s',
+        'font-weight:500'
+      ] : [
+        'padding:6px 12px',
+        'font-size:12px',
+        'border:none',
+        'border-radius:4px',
+        'cursor:pointer',
+        'min-width:50px',
+        'white-space:nowrap',
+        'transition:all 0.2s',
+        'font-weight:500'
+      ];
+
+      const pinButton = createElement('button', [
+        ...buttonStyle,
+        'background:' + (item.pinned ? '#fbbf24' : '#e5e7eb'),
+        'color:' + (item.pinned ? '#fff' : '#374151')
+      ].join(';'), item.pinned ? (isCompactMode ? '📌' : '📌 Pin') : (isCompactMode ? 'Pin' : 'Pin'), () => {
+        const currentData = load();
+        if (currentData[originalIndex]) {
+          currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
+          save(currentData);
+        }
+      });
+      pinButton.title = item.pinned ? 'ピン留めを解除' : 'ピン留めする';
+
+      const editButton = createElement('button', [
+        ...buttonStyle,
+        'background:#1a73e8',
+        'color:#fff'
+      ].join(';'), isCompactMode ? '✏️' : 'Edit', () => {
+        // Switch to full mode if in compact mode
+        if (isCompactMode) {
+          isTitleOnlyMode = false;
+          titleOnlyButton.textContent = '📋 一覧';
+          titleOnlyButton.style.background = '#34a853';
+          titleInput.style.display = 'block';
+          input.style.display = 'block';
+          saveButton.style.display = 'block';
+          renderList(data);
+          
+          // Wait for render, then find and trigger edit
+          setTimeout(() => {
+            const allItems = listContainer.querySelectorAll('li');
+            const targetItem = Array.from(allItems).find((li) => {
+              const buttons = li.querySelectorAll('button');
+              return Array.from(buttons).some(btn => btn.textContent === 'Edit');
+            });
+            if (targetItem) {
+              const editBtn = Array.from(targetItem.querySelectorAll('button')).find(btn => btn.textContent === 'Edit');
+              if (editBtn) editBtn.click();
+            }
+          }, 100);
+          return;
+        }
+        
+        // Full mode edit (existing logic)
+        const listItem = actions.parentElement;
+        const textWrapper = listItem.querySelector('div');
+        
+        const editTitleInput = createElement('input', [
+          'width:100%',
+          'padding:10px',
+          'margin-bottom:8px',
+          'border:1px solid #1a73e8',
+          'border-radius:4px',
+          'font-size:15px',
+          'font-weight:600',
+          'background:#fff',
+          'color:#333',
+          'font-family:sans-serif',
+          'box-sizing:border-box'
+        ].join(';'));
+        editTitleInput.type = 'text';
+        editTitleInput.placeholder = 'タイトル（省略可）';
+        editTitleInput.value = item.title || '';
+        
+        const editArea = createElement('textarea', [
+          'width:100%',
+          'min-height:80px',
+          'padding:10px',
+          'margin-bottom:8px',
+          'border:1px solid #1a73e8',
+          'border-radius:4px',
+          'resize:vertical',
+          'font-size:13px',
+          'background:#fff',
+          'color:#333',
+          'font-family:sans-serif',
+          'box-sizing:border-box'
+        ].join(';'));
+        editArea.value = item.text;
+        
+        const editActions = createElement('div', [
+          'display:flex',
+          'gap:6px',
+          'margin-bottom:8px'
+        ].join(';'));
+        
+        const saveEditButton = createElement('button', [
+          'padding:6px 12px',
+          'font-size:12px',
+          'border:none',
+          'border-radius:4px',
+          'cursor:pointer',
+          'background:#34a853',
+          'color:#fff',
+          'white-space:nowrap',
+          'font-weight:500'
+        ].join(';'), '✓ 保存', () => {
+          const newTitle = editTitleInput.value.trim();
+          const newText = editArea.value.trim();
+          if (!newText) return;
+          const currentData = load();
+          if (currentData[originalIndex]) {
+            currentData[originalIndex].title = newTitle;
+            currentData[originalIndex].text = newText;
+            currentData[originalIndex].date = new Date().toISOString();
+            save(currentData);
+          }
+        });
+        
+        const cancelEditButton = createElement('button', [
+          'padding:6px 12px',
+          'font-size:12px',
+          'border:none',
+          'border-radius:4px',
+          'cursor:pointer',
+          'background:#ea4335',
+          'color:#fff',
+          'white-space:nowrap',
+          'font-weight:500'
+        ].join(';'), '✗ キャンセル', () => {
+          renderList(load());
+        });
+        
+        editActions.appendChild(saveEditButton);
+        editActions.appendChild(cancelEditButton);
+        
+        // Replace content with edit mode
+        const editContainer = createElement('div');
+        editContainer.appendChild(editTitleInput);
+        editContainer.appendChild(editArea);
+        textWrapper.replaceChildren(editContainer);
+        actions.replaceChildren(editActions);
+      });
+      editButton.title = '編集する';
+
+      const copyButton = createElement('button', [
+        ...buttonStyle,
+        'background:#34a853',
+        'color:#fff'
+      ].join(';'), isCompactMode ? '📋' : 'Copy', () => {
+        const copyText = item.title ? `${item.title}\n\n${item.text}` : item.text;
+        navigator.clipboard.writeText(copyText).then(() => {
+          if (isCompactMode) {
+            copyButton.textContent = '✓';
+            setTimeout(() => {
+              copyButton.textContent = '📋';
+            }, 1000);
+          } else {
+            close();
+          }
+        });
+      });
+      copyButton.title = 'コピーする';
+
+      const deleteButton = createElement('button', [
+        ...buttonStyle,
+        'background:#ea4335',
+        'color:#fff'
+      ].join(';'), isCompactMode ? '🗑️' : 'Del', () => {
+        const currentData = load();
+        if (originalIndex < currentData.length) {
+          if (confirm('このメモを削除しますか？')) {
+            currentData.splice(originalIndex, 1);
+            save(currentData);
+          }
+        }
+      });
+      deleteButton.title = '削除する';
+
+      actions.appendChild(pinButton);
+      actions.appendChild(editButton);
+      actions.appendChild(copyButton);
+      actions.appendChild(deleteButton);
+      
+      return actions;
+    };
+
     const renderList = (data) => {
       title.textContent = `Memo (${data.length}/${MAX})`;
       listContainer.replaceChildren();
@@ -308,7 +517,7 @@
       });
 
       if (isTitleOnlyMode) {
-        // Title-only mode: show only titles in a compact list
+        // Title-only mode: show titles with compact action buttons
         sortedData.forEach((item) => {
           const originalIndex = data.indexOf(item);
           
@@ -316,22 +525,32 @@
             'background:#fff',
             'border:1px solid #eee',
             'margin-bottom:6px',
-            'padding:10px 12px',
+            'padding:8px 10px',
             'border-radius:6px',
             'display:flex',
             'justify-content:space-between',
             'align-items:center',
             'gap:8px',
             'box-sizing:border-box',
-            'cursor:pointer',
             'transition:background 0.2s',
             item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
           ].join(';'));
           
-          listItem.onmouseover = () => {
+          // Content area (clickable to expand)
+          const contentArea = createElement('div', [
+            'flex:1',
+            'display:flex',
+            'align-items:center',
+            'gap:8px',
+            'cursor:pointer',
+            'min-width:0',
+            'overflow:hidden'
+          ].join(';'));
+          
+          contentArea.onmouseover = () => {
             listItem.style.background = item.pinned ? '#fff9e6' : '#f5f5f5';
           };
-          listItem.onmouseout = () => {
+          contentArea.onmouseout = () => {
             listItem.style.background = item.pinned ? '#fffbf0' : '#fff';
           };
           
@@ -339,14 +558,14 @@
             'flex:1',
             'overflow:hidden',
             'text-overflow:ellipsis',
-            'white-space:nowrap'
+            'white-space:nowrap',
+            'min-width:0'
           ].join(';'));
           
           if (item.title) {
             const titleSpan = createElement('span', [
               'font-weight:600',
-              'color:#1a73e8',
-              'margin-right:8px'
+              'color:#1a73e8'
             ].join(';'), item.title);
             titleText.appendChild(titleSpan);
           } else {
@@ -361,13 +580,14 @@
           const dateText = createElement('span', [
             'font-size:11px',
             'color:#999',
-            'white-space:nowrap'
+            'white-space:nowrap',
+            'flex-shrink:0'
           ].join(';'), new Date(item.date).toLocaleDateString('ja-JP'));
           
-          listItem.appendChild(titleText);
-          listItem.appendChild(dateText);
+          contentArea.appendChild(titleText);
+          contentArea.appendChild(dateText);
           
-          listItem.onclick = () => {
+          contentArea.onclick = () => {
             isTitleOnlyMode = false;
             titleOnlyButton.textContent = '📋 一覧';
             titleOnlyButton.style.background = '#34a853';
@@ -379,6 +599,12 @@
             
             renderList(data);
           };
+          
+          listItem.appendChild(contentArea);
+          
+          // Add compact action buttons
+          const actionsContainer = createActionButtons(item, originalIndex, data, true);
+          listItem.appendChild(actionsContainer);
           
           listContainer.appendChild(listItem);
         });
@@ -487,174 +713,7 @@
 
         listItem.appendChild(textWrapper);
 
-        const actions = createElement('div', [
-          'display:flex',
-          'gap:6px',
-          'justify-content:flex-start',
-          'flex-wrap:wrap'
-        ].join(';'));
-
-        const pinButton = createElement('button', [
-          'padding:6px 12px',
-          'font-size:12px',
-          'border:none',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:' + (item.pinned ? '#fbbf24' : '#e5e7eb'),
-          'color:' + (item.pinned ? '#fff' : '#374151'),
-          'min-width:50px',
-          'white-space:nowrap',
-          'transition:all 0.2s',
-          'font-weight:500'
-        ].join(';'), item.pinned ? '📌 Pin' : 'Pin', () => {
-          const currentData = load();
-          if (currentData[originalIndex]) {
-            currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
-            save(currentData);
-          }
-        });
-
-        const editButton = createElement('button', [
-          'padding:6px 12px',
-          'font-size:12px',
-          'border:none',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#1a73e8',
-          'color:#fff',
-          'min-width:50px',
-          'white-space:nowrap',
-          'transition:all 0.2s',
-          'font-weight:500'
-        ].join(';'), 'Edit', () => {
-          // Create edit mode
-          const editTitleInput = createElement('input', [
-            'width:100%',
-            'padding:10px',
-            'margin-bottom:8px',
-            'border:1px solid #1a73e8',
-            'border-radius:4px',
-            'font-size:15px',
-            'font-weight:600',
-            'background:#fff',
-            'color:#333',
-            'font-family:sans-serif',
-            'box-sizing:border-box'
-          ].join(';'));
-          editTitleInput.type = 'text';
-          editTitleInput.placeholder = 'タイトル（省略可）';
-          editTitleInput.value = item.title || '';
-          
-          const editArea = createElement('textarea', [
-            'width:100%',
-            'min-height:80px',
-            'padding:10px',
-            'margin-bottom:8px',
-            'border:1px solid #1a73e8',
-            'border-radius:4px',
-            'resize:vertical',
-            'font-size:13px',
-            'background:#fff',
-            'color:#333',
-            'font-family:sans-serif',
-            'box-sizing:border-box'
-          ].join(';'));
-          editArea.value = item.text;
-          
-          const editActions = createElement('div', [
-            'display:flex',
-            'gap:6px',
-            'margin-bottom:8px'
-          ].join(';'));
-          
-          const saveEditButton = createElement('button', [
-            'padding:6px 12px',
-            'font-size:12px',
-            'border:none',
-            'border-radius:4px',
-            'cursor:pointer',
-            'background:#34a853',
-            'color:#fff',
-            'white-space:nowrap',
-            'font-weight:500'
-          ].join(';'), '✓ 保存', () => {
-            const newTitle = editTitleInput.value.trim();
-            const newText = editArea.value.trim();
-            if (!newText) return;
-            const currentData = load();
-            if (currentData[originalIndex]) {
-              currentData[originalIndex].title = newTitle;
-              currentData[originalIndex].text = newText;
-              currentData[originalIndex].date = new Date().toISOString();
-              save(currentData);
-            }
-          });
-          
-          const cancelEditButton = createElement('button', [
-            'padding:6px 12px',
-            'font-size:12px',
-            'border:none',
-            'border-radius:4px',
-            'cursor:pointer',
-            'background:#ea4335',
-            'color:#fff',
-            'white-space:nowrap',
-            'font-weight:500'
-          ].join(';'), '✗ キャンセル', () => {
-            renderList(load());
-          });
-          
-          editActions.appendChild(saveEditButton);
-          editActions.appendChild(cancelEditButton);
-          
-          // Replace content with edit mode
-          const editContainer = createElement('div');
-          editContainer.appendChild(editTitleInput);
-          editContainer.appendChild(editArea);
-          textWrapper.replaceChildren(editContainer);
-          actions.replaceChildren(editActions);
-        });
-
-        const copyButton = createElement('button', [
-          'padding:6px 12px',
-          'font-size:12px',
-          'border:none',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#34a853',
-          'color:#fff',
-          'min-width:50px',
-          'white-space:nowrap',
-          'transition:all 0.2s',
-          'font-weight:500'
-        ].join(';'), 'Copy', () => {
-          const copyText = item.title ? `${item.title}\n\n${item.text}` : item.text;
-          navigator.clipboard.writeText(copyText).then(close);
-        });
-
-        const deleteButton = createElement('button', [
-          'padding:6px 12px',
-          'font-size:12px',
-          'border:none',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#ea4335',
-          'color:#fff',
-          'white-space:nowrap',
-          'transition:all 0.2s',
-          'font-weight:500'
-        ].join(';'), 'Del', () => {
-          const currentData = load();
-          if (originalIndex < currentData.length) {
-            currentData.splice(originalIndex, 1);
-            save(currentData);
-          }
-        });
-
-        actions.appendChild(pinButton);
-        actions.appendChild(editButton);
-        actions.appendChild(copyButton);
-        actions.appendChild(deleteButton);
+        const actions = createActionButtons(item, originalIndex, data, false);
         listItem.appendChild(actions);
         listContainer.appendChild(listItem);
       });
