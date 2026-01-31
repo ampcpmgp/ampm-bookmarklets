@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v7
+// v8
 // 2026-01-31
 
 (function() {
@@ -49,6 +49,15 @@
     const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const MAX = 300;
 
+    // Emoji collection for title decoration
+    const EMOJIS = [
+      '📝', '✅', '⭐', '🎯', '💡', '🔥', '🚀', '💪', '🎉', '📌',
+      '🌟', '✨', '💎', '🎨', '📚', '🔔', '🎁', '🏆', '⚡', '🌈',
+      '🍀', '🎪', '🎭', '🎸', '🎮', '📱', '💻', '🖥️', '⌚', '📷',
+      '🔑', '🔒', '🔓', '🔍', '🔎', '💰', '💳', '📊', '📈', '📉',
+      '🌍', '🌎', '🌏', '🗺️', '🧭', '⏰', '⏱️', '⏲️', '🕐', '📅'
+    ];
+
     const load = () => {
       try {
         const data = JSON.parse(localStorage.getItem(KEY) || '[]');
@@ -93,6 +102,25 @@
       if (text) element.textContent = text;
       if (clickHandler) element.onclick = clickHandler;
       return element;
+    };
+
+    // Insert emoji at cursor position in input field
+    const insertEmojiAtCursor = (inputElement, emoji) => {
+      const start = inputElement.selectionStart;
+      const end = inputElement.selectionEnd;
+      const text = inputElement.value;
+      
+      inputElement.value = text.substring(0, start) + emoji + text.substring(end);
+      
+      // Set cursor position after inserted emoji
+      const newPos = start + emoji.length;
+      inputElement.setSelectionRange(newPos, newPos);
+      inputElement.focus();
+    };
+
+    // Get random emoji from collection
+    const getRandomEmoji = () => {
+      return EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
     };
 
     const wrap = createElement('div', [
@@ -182,10 +210,17 @@
       // Hide/show input fields based on mode
       if (isTitleOnlyMode) {
         titleInput.style.display = 'none';
+        emojiControls.style.display = 'none';
+        emojiPicker.style.display = 'none';
         input.style.display = 'none';
         saveButton.style.display = 'none';
       } else {
         titleInput.style.display = 'block';
+        emojiControls.style.display = 'flex';
+        // Keep emojiPicker hidden unless user explicitly expanded it
+        if (!isEmojiPickerExpanded) {
+          emojiPicker.style.display = 'none';
+        }
         input.style.display = 'block';
         saveButton.style.display = 'block';
       }
@@ -207,7 +242,7 @@
       'font-weight:normal',
       'flex-shrink:0'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v7\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv7の新機能:\n- ヘッダーを2行レイアウトに変更し、件数が見切れない洗練されたUIに改善\n- タイトルと閉じるボタンを第1行に配置\n- アクションボタンを第2行に配置し、必要に応じて折り返し\n\nv6の機能:\n- 表示モード（全表示/一覧）をlocalStorageに保存し、次回起動時に復元\n\nv5の機能:\n- タイトル一覧表示モードでも Pin, Edit, Copy, Del 機能を利用可能に');
+      alert('ローカルメモ\nバージョン: v8\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv8の新機能:\n- タイトルに絵文字を追加できる機能を実装\n- ランダム絵文字ボタンでワンクリック挿入\n- よく使う絵文字をクイックアクセスボタンで配置\n- 50種類以上の絵文字から選択可能な絵文字ピッカー\n\nv7の機能:\n- ヘッダーを2行レイアウトに変更し、件数が見切れない洗練されたUIに改善\n\nv6の機能:\n- 表示モード（全表示/一覧）をlocalStorageに保存し、次回起動時に復元');
     });
     settingsButton.title = 'バージョン情報を表示';
     buttonRow.appendChild(settingsButton);
@@ -256,7 +291,7 @@
       'width:100%',
       'flex-shrink:0',
       'padding:10px',
-      'margin-bottom:8px',
+      'margin-bottom:4px',
       'border:1px solid #ccc',
       'border-radius:4px',
       'font-size:15px',
@@ -276,6 +311,144 @@
       e.stopPropagation();
     };
     body.appendChild(titleInput);
+
+    // Emoji controls container
+    const emojiControls = createElement('div', [
+      'display:flex',
+      'gap:4px',
+      'margin-bottom:8px',
+      'flex-wrap:wrap',
+      'align-items:center'
+    ].join(';'));
+
+    // Random emoji button
+    const randomEmojiButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:none',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#f59e0b',
+      'color:#fff',
+      'white-space:nowrap',
+      'font-weight:500',
+      'transition:background 0.2s'
+    ].join(';'), '🎲 ランダム', () => {
+      insertEmojiAtCursor(titleInput, getRandomEmoji());
+    });
+    randomEmojiButton.title = 'ランダムに絵文字を挿入';
+    randomEmojiButton.onmouseover = () => {
+      randomEmojiButton.style.background = '#d97706';
+    };
+    randomEmojiButton.onmouseout = () => {
+      randomEmojiButton.style.background = '#f59e0b';
+    };
+    emojiControls.appendChild(randomEmojiButton);
+
+    // Quick emoji buttons (frequently used)
+    const quickEmojis = ['📝', '✅', '⭐', '🎯', '💡', '🔥', '🚀', '💪'];
+    quickEmojis.forEach(emoji => {
+      const emojiBtn = createElement('button', [
+        'padding:4px 8px',
+        'font-size:14px',
+        'border:1px solid #ddd',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#fff',
+        'transition:all 0.2s',
+        'line-height:1'
+      ].join(';'), emoji, () => {
+        insertEmojiAtCursor(titleInput, emoji);
+      });
+      emojiBtn.title = `${emoji}を挿入`;
+      emojiBtn.onmouseover = () => {
+        emojiBtn.style.background = '#f0f0f0';
+        emojiBtn.style.transform = 'scale(1.1)';
+      };
+      emojiBtn.onmouseout = () => {
+        emojiBtn.style.background = '#fff';
+        emojiBtn.style.transform = 'scale(1)';
+      };
+      emojiControls.appendChild(emojiBtn);
+    });
+
+    // More emojis button (expander)
+    let isEmojiPickerExpanded = false;
+    const moreEmojisButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:1px solid #ddd',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#fff',
+      'color:#666',
+      'white-space:nowrap',
+      'font-weight:500',
+      'transition:background 0.2s'
+    ].join(';'), '➕ もっと', () => {
+      isEmojiPickerExpanded = !isEmojiPickerExpanded;
+      if (isEmojiPickerExpanded) {
+        emojiPicker.style.display = 'grid';
+        moreEmojisButton.textContent = '➖ 閉じる';
+      } else {
+        emojiPicker.style.display = 'none';
+        moreEmojisButton.textContent = '➕ もっと';
+      }
+    });
+    moreEmojisButton.title = '絵文字一覧を表示';
+    moreEmojisButton.onmouseover = () => {
+      moreEmojisButton.style.background = '#f0f0f0';
+    };
+    moreEmojisButton.onmouseout = () => {
+      moreEmojisButton.style.background = '#fff';
+    };
+    emojiControls.appendChild(moreEmojisButton);
+
+    body.appendChild(emojiControls);
+
+    // Emoji picker (hidden by default)
+    const emojiPicker = createElement('div', [
+      'display:none',
+      'grid-template-columns:repeat(10, 1fr)',
+      'gap:4px',
+      'padding:8px',
+      'margin-bottom:8px',
+      'background:#f9fafb',
+      'border:1px solid #ddd',
+      'border-radius:4px',
+      'max-height:120px',
+      'overflow-y:auto',
+      'box-sizing:border-box'
+    ].join(';'));
+
+    EMOJIS.forEach(emoji => {
+      const emojiBtn = createElement('button', [
+        'padding:6px',
+        'font-size:18px',
+        'border:1px solid transparent',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:transparent',
+        'transition:all 0.2s',
+        'line-height:1'
+      ].join(';'), emoji, () => {
+        insertEmojiAtCursor(titleInput, emoji);
+      });
+      emojiBtn.title = `${emoji}を挿入`;
+      emojiBtn.onmouseover = () => {
+        emojiBtn.style.background = '#e5e7eb';
+        emojiBtn.style.borderColor = '#9ca3af';
+        emojiBtn.style.transform = 'scale(1.2)';
+      };
+      emojiBtn.onmouseout = () => {
+        emojiBtn.style.background = 'transparent';
+        emojiBtn.style.borderColor = 'transparent';
+        emojiBtn.style.transform = 'scale(1)';
+      };
+      emojiPicker.appendChild(emojiBtn);
+    });
+
+    body.appendChild(emojiPicker);
 
     const input = createElement('textarea', [
       'width:100%',
@@ -400,6 +573,10 @@
           titleOnlyButton.textContent = '📋 一覧';
           titleOnlyButton.style.background = '#34a853';
           titleInput.style.display = 'block';
+          emojiControls.style.display = 'flex';
+          emojiPicker.style.display = 'none';
+          isEmojiPickerExpanded = false;
+          moreEmojisButton.textContent = '➕ もっと';
           input.style.display = 'block';
           saveButton.style.display = 'block';
           renderList(data);
@@ -648,6 +825,11 @@
             
             // Show input fields
             titleInput.style.display = 'block';
+            emojiControls.style.display = 'flex';
+            // Keep emojiPicker closed when switching modes
+            emojiPicker.style.display = 'none';
+            isEmojiPickerExpanded = false;
+            moreEmojisButton.textContent = '➕ もっと';
             input.style.display = 'block';
             saveButton.style.display = 'block';
             
@@ -778,6 +960,8 @@
     // Apply saved view mode on initial load
     if (isTitleOnlyMode) {
       titleInput.style.display = 'none';
+      emojiControls.style.display = 'none';
+      emojiPicker.style.display = 'none';
       input.style.display = 'none';
       saveButton.style.display = 'none';
     }
