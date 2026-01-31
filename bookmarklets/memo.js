@@ -410,6 +410,32 @@
     };
     emojiDropdown.appendChild(randomPickerButton);
 
+    // Clear button in picker
+    const clearPickerButton = createElement('button', [
+      'width:100%',
+      'padding:8px',
+      'margin-bottom:8px',
+      'font-size:13px',
+      'border:1px solid #ddd',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#ef4444',
+      'color:#fff',
+      'font-weight:500',
+      'transition:background 0.2s'
+    ].join(';'), '🗑️ 削除', () => {
+      currentEmoji = '';
+      emojiButton.textContent = '➕';
+      emojiDropdown.style.display = 'none';
+    });
+    clearPickerButton.onmouseover = () => {
+      clearPickerButton.style.background = '#dc2626';
+    };
+    clearPickerButton.onmouseout = () => {
+      clearPickerButton.style.background = '#ef4444';
+    };
+    emojiDropdown.appendChild(clearPickerButton);
+
     // Emoji grid
     const emojiGrid = createElement('div', [
       'display:grid',
@@ -417,6 +443,7 @@
       'gap:4px',
       'max-height:200px',
       'overflow-y:auto',
+      'overflow-x:hidden',
       'padding:4px'
     ].join(';'));
 
@@ -429,7 +456,9 @@
         'cursor:pointer',
         'background:transparent',
         'transition:all 0.2s',
-        'line-height:1'
+        'line-height:1',
+        'min-width:0',
+        'box-sizing:border-box'
       ].join(';'), emoji, () => {
         currentEmoji = emoji;
         emojiButton.textContent = emoji;
