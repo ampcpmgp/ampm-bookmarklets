@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v6
+// v7
 // 2026-01-31
 
 (function() {
@@ -120,16 +120,42 @@
       'padding:12px',
       'border-bottom:1px solid #ddd',
       'display:flex',
-      'justify-content:space-between',
-      'align-items:center',
+      'flex-direction:column',
       'font-weight:bold',
       'border-radius:8px 8px 0 0',
       'box-sizing:border-box',
-      'gap:8px',
-      'flex-wrap:nowrap'
+      'gap:8px'
     ].join(';'));
-    const title = createElement('span', 'flex-shrink:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap', 'Memo');
-    header.appendChild(title);
+    
+    // First row: Title and close button
+    const titleRow = createElement('div', [
+      'display:flex',
+      'justify-content:space-between',
+      'align-items:center',
+      'width:100%'
+    ].join(';'));
+    
+    const title = createElement('span', 'flex-shrink:0;white-space:nowrap', 'Memo');
+    titleRow.appendChild(title);
+    
+    titleRow.appendChild(createElement('span', [
+      'cursor:pointer',
+      'font-size:24px',
+      'line-height:1',
+      'padding:0 8px',
+      'color:#5f6368',
+      'flex-shrink:0'
+    ].join(';'), '×', close));
+    
+    header.appendChild(titleRow);
+    
+    // Second row: Action buttons
+    const buttonRow = createElement('div', [
+      'display:flex',
+      'gap:8px',
+      'flex-wrap:wrap',
+      'align-items:center'
+    ].join(';'));
     
     // Initialize view mode from localStorage
     let isTitleOnlyMode = loadViewMode();
@@ -167,7 +193,7 @@
       renderList(load());
     });
     titleOnlyButton.title = 'タイトル一覧表示を切り替えます';
-    header.appendChild(titleOnlyButton);
+    buttonRow.appendChild(titleOnlyButton);
     
     const settingsButton = createElement('button', [
       'padding:4px 10px',
@@ -181,10 +207,10 @@
       'font-weight:normal',
       'flex-shrink:0'
     ].join(';'), '⚙️ 設定', () => {
-      alert('ローカルメモ\nバージョン: v6\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv6の新機能:\n- 表示モード（全表示/一覧）をlocalStorageに保存し、次回起動時に復元\n- ヘッダーレイアウトの改善（×ボタンが見切れない）\n- コードの可読性とメンテナンス性の向上\n\nv5の機能:\n- タイトル一覧表示モードでも Pin, Edit, Copy, Del 機能を利用可能に\n\nv4の機能:\n- タイトル一覧表示モードの追加\n\nv3の機能:\n- タイトル機能の追加');
+      alert('ローカルメモ\nバージョン: v7\n\nlocalStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット\n\nv7の新機能:\n- ヘッダーを2行レイアウトに変更し、件数が見切れない洗練されたUIに改善\n- タイトルと閉じるボタンを第1行に配置\n- アクションボタンを第2行に配置し、必要に応じて折り返し\n\nv6の機能:\n- 表示モード（全表示/一覧）をlocalStorageに保存し、次回起動時に復元\n\nv5の機能:\n- タイトル一覧表示モードでも Pin, Edit, Copy, Del 機能を利用可能に');
     });
     settingsButton.title = 'バージョン情報を表示';
-    header.appendChild(settingsButton);
+    buttonRow.appendChild(settingsButton);
     
     const deleteAllButton = createElement('button', [
       'padding:4px 10px',
@@ -212,16 +238,9 @@
       }
     });
     deleteAllButton.title = 'ピンを除いて一括削除を行います';
-    header.appendChild(deleteAllButton);
+    buttonRow.appendChild(deleteAllButton);
     
-    header.appendChild(createElement('span', [
-      'cursor:pointer',
-      'font-size:24px',
-      'line-height:1',
-      'padding:0 8px',
-      'color:#5f6368',
-      'flex-shrink:0'
-    ].join(';'), '×', close));
+    header.appendChild(buttonRow);
     wrap.appendChild(header);
 
     const body = createElement('div', [
