@@ -356,7 +356,7 @@
     // Quick emoji buttons (frequently used)
     const quickEmojis = ['📝', '✅', '⭐', '🎯', '💡', '🔥', '🚀', '💪'];
     quickEmojis.forEach(emoji => {
-      const emojiBtn = createButtonWithHover([
+      const emojiBtn = createElement('button', [
         'padding:4px 8px',
         'font-size:14px',
         'border:1px solid #ddd',
@@ -367,7 +367,7 @@
         'line-height:1'
       ].join(';'), emoji, () => {
         insertEmojiAtCursor(titleInput, emoji);
-      }, '#f0f0f0', '#fff');
+      });
       emojiBtn.title = `${emoji}を挿入`;
       emojiBtn.onmouseover = () => {
         emojiBtn.style.background = '#f0f0f0';
