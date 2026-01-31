@@ -1054,8 +1054,8 @@
           'position:relative'
         ].join(';'));
 
-        // Display title if it exists
-        if (item.title) {
+        // Display title and/or emoji if they exist
+        if (item.title || item.emoji) {
           const titleRow = createElement('div', [
             'display:flex',
             'align-items:center',
@@ -1071,16 +1071,19 @@
             titleRow.appendChild(emojiSpan);
           }
           
-          const titleElement = createElement('div', [
-            'font-size:16px',
-            'font-weight:700',
-            'color:#1a73e8',
-            'line-height:1.4',
-            'letter-spacing:0.3px',
-            'word-break:break-word',
-            'flex:1'
-          ].join(';'), item.title);
-          titleRow.appendChild(titleElement);
+          if (item.title) {
+            const titleElement = createElement('div', [
+              'font-size:16px',
+              'font-weight:700',
+              'color:#1a73e8',
+              'line-height:1.4',
+              'letter-spacing:0.3px',
+              'word-break:break-word',
+              'flex:1'
+            ].join(';'), item.title);
+            titleRow.appendChild(titleElement);
+          }
+          
           textWrapper.appendChild(titleRow);
         }
 
