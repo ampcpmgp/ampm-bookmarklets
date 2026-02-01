@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v10
-// 2026-01-31
+// v11
+// 2026-02-01
 
 (function() {
   try {
@@ -61,11 +61,13 @@
     const load = () => {
       try {
         const data = JSON.parse(localStorage.getItem(KEY) || '[]');
-        // Ensure backward compatibility: add pinned, title, and emoji properties if missing
+        // Ensure backward compatibility: add pinned, title, emoji, createdDate and updatedDate properties if missing
         return data.map(item => ({
           title: item.title || '',
           text: item.text,
-          date: item.date,
+          // Migrate old 'date' field to createdDate and updatedDate
+          createdDate: item.createdDate || item.date || new Date().toISOString(),
+          updatedDate: item.updatedDate || item.date || new Date().toISOString(),
           pinned: item.pinned || false,
           emoji: item.emoji || ''
         }));
@@ -241,24 +243,21 @@
     ].join(';'), '⚙️ 設定', () => {
       const message = [
         'ローカルメモ',
-        'バージョン: v10',
+        'バージョン: v11',
         '',
         'localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット',
         '',
-        'v10の新機能:',
+        'v11の新機能:',
+        '- 一覧表示時、編集ボタンを押すとスクロール位置をその対象まで連れていく',
+        '- 一覧表示時、更新日を表示しない（シンプルなUI）',
+        '- 全表示時、作成日・更新日を表示（洗練されたUXで情報過多を防止）',
+        '- 作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示',
+        '',
+        'v10の機能:',
         '- 絵文字の初期状態を空に変更（➕アイコンで表示）',
         '- 絵文字が未設定の状態を明確に表示',
         '- ランダム選択ボタンのラベルを「🎲 ランダム選択」に改善',
-        '- 編集モードに絵文字削除ボタンを追加',
-        '',
-        'v9の機能:',
-        '- タイトル左側に絵文字セレクターを追加',
-        '- 新規メモ作成時にランダムな絵文字をデフォルト表示',
-        '- 絵文字ピッカーで簡単に絵文字を選択可能',
-        '- タイトル挿入機能を削除し、洗練されたUIに刷新',
-        '',
-        'v8の機能:',
-        '- タイトルに絵文字を追加できる機能を実装'
+        '- 編集モードに絵文字削除ボタンを追加'
       ].join('\n');
       alert(message);
     });
@@ -535,7 +534,8 @@
         return;
       }
 
-      data.unshift({ title: title, text: value, date: new Date().toISOString(), pinned: false, emoji: currentEmoji });
+      const now = new Date().toISOString();
+      data.unshift({ title: title, text: value, createdDate: now, updatedDate: now, pinned: false, emoji: currentEmoji });
       save(data);
       titleInput.value = '';
       input.value = '';
@@ -614,9 +614,13 @@
           emojiTitleRowContainer.style.display = 'block';
           input.style.display = 'block';
           saveButton.style.display = 'block';
+          
+          // Save view mode
+          saveViewMode(isTitleOnlyMode);
+          
           renderList(data);
           
-          // Wait for render, then find and trigger edit by index
+          // Wait for render, then find and scroll to target item
           setTimeout(() => {
             const allItems = listContainer.querySelectorAll('li');
             // Find the item at the same original index
@@ -628,6 +632,19 @@
             const targetIndex = sortedData.indexOf(item);
             if (targetIndex >= 0 && targetIndex < allItems.length) {
               const targetItem = allItems[targetIndex];
+              
+              // Scroll to the target item smoothly
+              targetItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              
+              // Add a highlight effect
+              targetItem.style.transition = 'background 0.5s';
+              const originalBg = item.pinned ? '#fffbf0' : '#fff';
+              targetItem.style.background = '#e3f2fd';
+              setTimeout(() => {
+                targetItem.style.background = originalBg;
+              }, 1000);
+              
+              // Trigger edit after scrolling
               const editBtn = Array.from(targetItem.querySelectorAll('button')).find(btn => 
                 btn.textContent === 'Edit' || btn.textContent === '✏️'
               );
@@ -854,7 +871,7 @@
             currentData[originalIndex].title = newTitle;
             currentData[originalIndex].text = newText;
             currentData[originalIndex].emoji = editEmoji;
-            currentData[originalIndex].date = new Date().toISOString();
+            currentData[originalIndex].updatedDate = new Date().toISOString();
             save(currentData);
           }
         });
@@ -1008,15 +1025,7 @@
             titleText.appendChild(previewSpan);
           }
           
-          const dateText = createElement('span', [
-            'font-size:11px',
-            'color:#999',
-            'white-space:nowrap',
-            'flex-shrink:0'
-          ].join(';'), new Date(item.date).toLocaleDateString('ja-JP'));
-          
           contentArea.appendChild(titleText);
-          contentArea.appendChild(dateText);
           
           contentArea.onclick = () => {
             isTitleOnlyMode = false;
@@ -1108,6 +1117,47 @@
         ].join(';'), item.text);
         
         textWrapper.appendChild(textElement);
+        
+        // Add timestamp information with refined UX
+        const timestampContainer = createElement('div', [
+          'display:flex',
+          'gap:8px',
+          'flex-wrap:wrap',
+          'margin-top:8px',
+          'font-size:11px',
+          'color:#888',
+          'opacity:0.8'
+        ].join(';'));
+        
+        const createdDate = new Date(item.createdDate);
+        const updatedDate = new Date(item.updatedDate);
+        const createdDateStr = createdDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
+        const updatedDateStr = updatedDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
+        
+        // Show creation date
+        const createdSpan = createElement('span', [
+          'display:inline-flex',
+          'align-items:center',
+          'gap:3px'
+        ].join(';'));
+        createdSpan.innerHTML = `<span style="opacity:0.7">作成:</span> ${createdDateStr}`;
+        timestampContainer.appendChild(createdSpan);
+        
+        // Show update date only if different from creation date
+        if (updatedDateStr !== createdDateStr) {
+          const separator = createElement('span', 'opacity:0.5', '•');
+          timestampContainer.appendChild(separator);
+          
+          const updatedSpan = createElement('span', [
+            'display:inline-flex',
+            'align-items:center',
+            'gap:3px'
+          ].join(';'));
+          updatedSpan.innerHTML = `<span style="opacity:0.7">更新:</span> ${updatedDateStr}`;
+          timestampContainer.appendChild(updatedSpan);
+        }
+        
+        textWrapper.appendChild(timestampContainer);
 
         // Check if the text element is truncated by comparing scroll and client heights
         const checkTruncation = () => {
