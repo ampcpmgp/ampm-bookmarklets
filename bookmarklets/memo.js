@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v11
+// v12
 // 2026-02-01
 
 (function() {
@@ -29,18 +29,34 @@
     ].join(';');
     document.body.appendChild(host);
 
+    // Centralized keyboard handler for maintainability
+    const KeyHandler = {
+      ESC: 'Escape',
+      
+      // Check if Ctrl+Enter was pressed
+      isCtrlEnter: (e) => {
+        return (e.ctrlKey || e.metaKey) && e.key === 'Enter';
+      },
+      
+      // Main document-level key handler (defined after close() is declared)
+      handleDocumentKey: null
+    };
+
     const close = () => {
-      document.removeEventListener('keydown', docKey);
+      document.removeEventListener('keydown', KeyHandler.handleDocumentKey);
       host.remove();
     };
     
     host._close = close;
 
-    const docKey = (e) => {
-      if (e.key === 'Escape') close();
+    // Set up document key handler now that close() is defined
+    KeyHandler.handleDocumentKey = (e) => {
+      if (e.key === KeyHandler.ESC) {
+        close();
+      }
     };
     
-    document.addEventListener('keydown', docKey);
+    document.addEventListener('keydown', KeyHandler.handleDocumentKey);
 
     const shadow = host.attachShadow({ mode: 'open' });
     
@@ -243,21 +259,20 @@
     ].join(';'), '⚙️ 設定', () => {
       const message = [
         'ローカルメモ',
-        'バージョン: v11',
+        'バージョン: v12',
         '',
         'localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット',
         '',
-        'v11の新機能:',
+        'v12の新機能:',
+        '- Ctrl+Enter で保存できるように改善（見やすいヒント付き）',
+        '- ESC キーで編集モードをキャンセル可能',
+        '- キーボードショートカットの集中管理で拡張性向上',
+        '',
+        'v11の機能:',
         '- 一覧表示時、編集ボタンを押すとスクロール位置をその対象まで連れていく',
         '- 一覧表示時、更新日を表示しない（シンプルなUI）',
         '- 全表示時、作成日・更新日を表示（洗練されたUXで情報過多を防止）',
-        '- 作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示',
-        '',
-        'v10の機能:',
-        '- 絵文字の初期状態を空に変更（➕アイコンで表示）',
-        '- 絵文字が未設定の状態を明確に表示',
-        '- ランダム選択ボタンのラベルを「🎲 ランダム選択」に改善',
-        '- 編集モードに絵文字削除ボタンを追加'
+        '- 作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示'
       ].join('\n');
       alert(message);
     });
@@ -361,8 +376,13 @@
     titleInput.type = 'text';
     titleInput.placeholder = 'タイトル（省略可）';
     titleInput.onkeydown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === KeyHandler.ESC) {
         close();
+        return;
+      }
+      if (KeyHandler.isCtrlEnter(e)) {
+        e.preventDefault();
+        input.focus();
         return;
       }
       e.stopPropagation();
@@ -503,8 +523,13 @@
     ].join(';'));
     input.placeholder = 'テキストを入力...';
     input.onkeydown = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === KeyHandler.ESC) {
         close();
+        return;
+      }
+      if (KeyHandler.isCtrlEnter(e)) {
+        e.preventDefault();
+        saveButton.click();
         return;
       }
       e.stopPropagation();
@@ -523,7 +548,7 @@
       'font-weight:bold',
       'font-size:13px',
       'box-sizing:border-box'
-    ].join(';'), '保存', () => {
+    ].join(';'), '💾 保存 (Ctrl+Enter)', () => {
       const title = titleInput.value.trim();
       const value = input.value.trim();
       if (!value) return;
@@ -716,6 +741,19 @@
         editTitleInput.type = 'text';
         editTitleInput.placeholder = 'タイトル（省略可）';
         editTitleInput.value = item.title || '';
+        editTitleInput.onkeydown = (e) => {
+          if (e.key === KeyHandler.ESC) {
+            e.preventDefault();
+            cancelEditButton.click();
+            return;
+          }
+          if (KeyHandler.isCtrlEnter(e)) {
+            e.preventDefault();
+            editArea.focus();
+            return;
+          }
+          e.stopPropagation();
+        };
         editEmojiTitleRow.appendChild(editTitleInput);
         
         // Edit emoji dropdown
@@ -845,6 +883,19 @@
           'box-sizing:border-box'
         ].join(';'));
         editArea.value = item.text;
+        editArea.onkeydown = (e) => {
+          if (e.key === KeyHandler.ESC) {
+            e.preventDefault();
+            cancelEditButton.click();
+            return;
+          }
+          if (KeyHandler.isCtrlEnter(e)) {
+            e.preventDefault();
+            saveEditButton.click();
+            return;
+          }
+          e.stopPropagation();
+        };
         
         const editActions = createElement('div', [
           'display:flex',
@@ -862,7 +913,7 @@
           'color:#fff',
           'white-space:nowrap',
           'font-weight:500'
-        ].join(';'), '✓ 保存', () => {
+        ].join(';'), '✓ 保存 (Ctrl+Enter)', () => {
           const newTitle = editTitleInput.value.trim();
           const newText = editArea.value.trim();
           if (!newText) return;
@@ -886,7 +937,7 @@
           'color:#fff',
           'white-space:nowrap',
           'font-weight:500'
-        ].join(';'), '✗ キャンセル', () => {
+        ].join(';'), '✗ キャンセル (ESC)', () => {
           renderList(load());
         });
         
