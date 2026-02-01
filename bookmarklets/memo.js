@@ -907,7 +907,7 @@
         'background:#34a853',
         'color:#fff'
       ].join(';'), isCompactMode ? '📋' : 'Copy', () => {
-        const copyText = item.title ? `${item.title}\n\n${item.text}` : item.text;
+        const copyText = item.text;
         navigator.clipboard.writeText(copyText).then(() => {
           if (isCompactMode) {
             copyButton.textContent = '✓';
