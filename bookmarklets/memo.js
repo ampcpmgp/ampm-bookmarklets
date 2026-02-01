@@ -744,6 +744,7 @@
         editTitleInput.onkeydown = (e) => {
           if (e.key === KeyHandler.ESC) {
             e.preventDefault();
+            e.stopPropagation();
             cancelEditButton.click();
             return;
           }
@@ -886,6 +887,7 @@
         editArea.onkeydown = (e) => {
           if (e.key === KeyHandler.ESC) {
             e.preventDefault();
+            e.stopPropagation();
             cancelEditButton.click();
             return;
           }
