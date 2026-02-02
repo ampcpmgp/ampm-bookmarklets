@@ -71,13 +71,58 @@
     const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const MAX = 300;
 
-    // Emoji collection for title decoration
+    // Comprehensive emoji collection for title decoration
+    // Organized by category for better UX
     const EMOJIS = [
+      // Productivity & Tasks (20)
       '📝', '✅', '⭐', '🎯', '💡', '🔥', '🚀', '💪', '🎉', '📌',
-      '🌟', '✨', '💎', '🎨', '📚', '🔔', '🎁', '🏆', '⚡', '🌈',
-      '🍀', '🎪', '🎭', '🎸', '🎮', '📱', '💻', '🖥️', '⌚', '📷',
-      '🔑', '🔒', '🔓', '🔍', '🔎', '💰', '💳', '📊', '📈', '📉',
-      '🌍', '🌎', '🌏', '🗺️', '🧭', '⏰', '⏱️', '⏲️', '🕐', '📅'
+      '✏️', '📋', '✔️', '⚠️', '❗', '❓', '💯', '🏁', '🎬', '🔔',
+      
+      // Objects & Tools (30)
+      '📚', '📖', '📕', '📗', '📘', '📙', '📓', '📔', '📒', '📄',
+      '📃', '📑', '🗂️', '📂', '📁', '🗃️', '🗄️', '📇', '🗓️', '📅',
+      '📆', '📊', '📈', '📉', '🗒️', '📰', '🗞️', '🏷️', '🔖', '📜',
+      
+      // Technology (30)
+      '💻', '🖥️', '⌨️', '🖱️', '🖨️', '💾', '💿', '📀', '🎮', '🕹️',
+      '📱', '📲', '☎️', '📞', '📟', '📠', '📡', '🔋', '🔌', '🔬',
+      '🔦', '🕯️', '🪔', '🧯', '🛢️', '💸', '💰', '💎', '💶', '💷',
+      
+      // Nature & Weather (30)
+      '🌞', '🌝', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑',
+      '🌒', '🌓', '🌔', '🌙', '🌈', '☀️', '✨', '⚡', '☄️', '🌤️',
+      '🌍', '🌎', '🌏', '🌐', '🗺️', '🧭', '🏔️', '⛰️', '🌋', '🗻',
+      
+      // Time & Calendar (15)
+      '⏰', '⏱️', '⏲️', '⏳', '⌛', '🕐', '🕑', '🕒', '🕓', '🕔',
+      '🕕', '🕖', '🕗', '🕘', '🕙',
+      
+      // Symbols & Shapes (30)
+      '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+      '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '🔴', '🟠',
+      '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔶', '🔷', '🔸',
+      
+      // Food & Drink (20)
+      '☕', '🍵', '🧃', '🥤', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃',
+      '🍸', '🍹', '🍾', '🍴', '🍽️', '🥄', '🔪', '🍕', '🍔', '🍟',
+      
+      // Activities & Sports (15)
+      '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱',
+      '🏓', '🏸', '🏒', '🏑', '🥍',
+      
+      // Transport & Places (15)
+      '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐',
+      '🚚', '🚛', '🚜', '✈️', '🛸',
+      
+      // Decorative & Fun (20)
+      '🎨', '🎭', '🎪', '🎥', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷',
+      '🎺', '🎸', '🪕', '🎻', '🎲', '♟️', '🎳', '🃏', '🎰', '🧩',
+      
+      // Misc (35)
+      '🔑', '🔒', '🔓', '🔐', '🔏', '🔗', '⛓️', '💼', '🎒', '👜',
+      '💳', '🎁', '🎀', '🎊', '🎗️', '🎈', '🏆', '🥇', '🥈', '🥉',
+      '🌺', '🌸', '🌼', '🌻', '🌷', '🌹', '🥀', '💐', '🍂', '🍁',
+      '🔮', '🌟', '🌠', '🎇', '🎆'
     ];
 
     const load = () => {
@@ -152,6 +197,34 @@
     };
 
     /**
+     * Apply hover transform effect to an element with proper centering
+     * @param {HTMLElement} element - The element to apply hover effect to
+     * @param {number} scale - The scale factor on hover (e.g., 1.15)
+     * @param {string} bgColor - Optional background color on hover
+     * @param {string} borderColor - Optional border color on hover
+     */
+    const applyHoverEffect = (element, scale = 1.15, bgColor = null, borderColor = null) => {
+      // Set transform-origin to ensure centered scaling
+      element.style.transformOrigin = 'center center';
+      
+      element.onmouseover = () => {
+        element.style.transform = `scale(${scale})`;
+        if (bgColor) element.style.background = bgColor;
+        if (borderColor) element.style.borderColor = borderColor;
+      };
+      
+      element.onmouseout = () => {
+        element.style.transform = 'scale(1)';
+        if (bgColor) element.style.background = element._originalBg || 'transparent';
+        if (borderColor) element.style.borderColor = element._originalBorder || 'transparent';
+      };
+      
+      // Store original values for restoration
+      if (bgColor) element._originalBg = element.style.background || 'transparent';
+      if (borderColor) element._originalBorder = element.style.borderColor || 'transparent';
+    };
+
+    /**
      * Create a reusable emoji picker UI component
      * @param {string} initialEmoji - The initial emoji to display (empty string for none)
      * @param {Function} onEmojiChange - Optional callback function called when emoji changes
@@ -195,14 +268,9 @@
       ].join(';'), selectedEmoji || '➕', () => {
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
       });
-      emojiButton.onmouseover = () => {
-        emojiButton.style.background = '#f5f5f5';
-        emojiButton.style.transform = 'scale(1.05)';
-      };
-      emojiButton.onmouseout = () => {
-        emojiButton.style.background = '#fff';
-        emojiButton.style.transform = 'scale(1)';
-      };
+      
+      // Apply centered hover effect
+      applyHoverEffect(emojiButton, 1.05, '#f5f5f5');
       
       // Title input
       const titleInput = createElement('input', [
@@ -310,16 +378,10 @@
           dropdown.style.display = 'none';
           if (onEmojiChange) onEmojiChange(selectedEmoji);
         });
-        emojiBtn.onmouseover = () => {
-          emojiBtn.style.background = '#f0f0f0';
-          emojiBtn.style.borderColor = '#ccc';
-          emojiBtn.style.transform = 'scale(1.15)';
-        };
-        emojiBtn.onmouseout = () => {
-          emojiBtn.style.background = 'transparent';
-          emojiBtn.style.borderColor = 'transparent';
-          emojiBtn.style.transform = 'scale(1)';
-        };
+        
+        // Apply centered hover effect with background and border
+        applyHoverEffect(emojiBtn, 1.15, '#f0f0f0', '#ccc');
+        
         emojiGrid.appendChild(emojiBtn);
       });
       
@@ -1023,14 +1085,10 @@
     ].join(';'), currentEmoji || '➕', () => {
       emojiDropdown.style.display = emojiDropdown.style.display === 'none' ? 'block' : 'none';
     });
-    emojiButton.onmouseover = () => {
-      emojiButton.style.background = '#f5f5f5';
-      emojiButton.style.transform = 'scale(1.05)';
-    };
-    emojiButton.onmouseout = () => {
-      emojiButton.style.background = '#fff';
-      emojiButton.style.transform = 'scale(1)';
-    };
+    
+    // Apply centered hover effect
+    applyHoverEffect(emojiButton, 1.05, '#f5f5f5');
+    
     emojiTitleRow.appendChild(emojiButton);
 
     // Title input
@@ -1159,16 +1217,10 @@
         emojiButton.textContent = emoji;
         emojiDropdown.style.display = 'none';
       });
-      emojiBtn.onmouseover = () => {
-        emojiBtn.style.background = '#f0f0f0';
-        emojiBtn.style.borderColor = '#ccc';
-        emojiBtn.style.transform = 'scale(1.15)';
-      };
-      emojiBtn.onmouseout = () => {
-        emojiBtn.style.background = 'transparent';
-        emojiBtn.style.borderColor = 'transparent';
-        emojiBtn.style.transform = 'scale(1)';
-      };
+      
+      // Apply centered hover effect with background and border
+      applyHoverEffect(emojiBtn, 1.15, '#f0f0f0', '#ccc');
+      
       emojiGrid.appendChild(emojiBtn);
     });
 
