@@ -365,7 +365,7 @@
         document.addEventListener('keydown', escHandler);
         
         // Prevent background scrolling by saving and setting body overflow
-        const originalOverflow = document.body.style.overflow;
+        const originalOverflow = document.body.style.overflow || '';
         document.body.style.overflow = 'hidden';
         
         shadow.appendChild(overlay);
@@ -378,7 +378,12 @@
           document.removeEventListener('keydown', this.activeModal.escHandler);
           this.activeModal.overlay.remove();
           // Restore original body overflow to re-enable scrolling
-          document.body.style.overflow = this.activeModal.originalOverflow;
+          if (this.activeModal.originalOverflow) {
+            document.body.style.overflow = this.activeModal.originalOverflow;
+          } else {
+            // Remove the inline style to restore default behavior
+            document.body.style.removeProperty('overflow');
+          }
           this.activeModal = null;
         }
       }
