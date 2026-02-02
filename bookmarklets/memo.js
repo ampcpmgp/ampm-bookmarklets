@@ -33,6 +33,9 @@
     const KeyHandler = {
       ESC: 'Escape',
       
+      // Track edit mode state to prevent ESC from closing popup during edit
+      isEditMode: false,
+      
       // Check if Ctrl+Enter was pressed
       isCtrlEnter: (e) => {
         return (e.ctrlKey || e.metaKey) && e.key === 'Enter';
@@ -52,7 +55,10 @@
     // Set up document key handler now that close() is defined
     KeyHandler.handleDocumentKey = (e) => {
       if (e.key === KeyHandler.ESC) {
-        close();
+        // Don't close popup if in edit mode - let edit field handlers handle it
+        if (!KeyHandler.isEditMode) {
+          close();
+        }
       }
     };
     
@@ -680,6 +686,9 @@
         }
         
         // Full mode edit (existing logic)
+        // Enter edit mode
+        KeyHandler.isEditMode = true;
+        
         const listItem = actions.parentElement;
         const textWrapper = listItem.querySelector('div');
         
@@ -927,6 +936,8 @@
             currentData[originalIndex].updatedDate = new Date().toISOString();
             save(currentData);
           }
+          // Exit edit mode
+          KeyHandler.isEditMode = false;
         });
         
         const cancelEditButton = createElement('button', [
@@ -940,6 +951,8 @@
           'white-space:nowrap',
           'font-weight:500'
         ].join(';'), '✗ キャンセル (ESC)', () => {
+          // Exit edit mode
+          KeyHandler.isEditMode = false;
           renderList(load());
         });
         
