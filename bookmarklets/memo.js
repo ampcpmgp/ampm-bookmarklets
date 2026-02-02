@@ -355,14 +355,21 @@
         // ESC key to close
         const escHandler = (e) => {
           if (e.key === KeyHandler.ESC) {
+            // Prevent event from bubbling to document-level handler
+            e.stopPropagation();
+            e.preventDefault();
             this.close();
             if (onClose) onClose();
           }
         };
         document.addEventListener('keydown', escHandler);
         
+        // Prevent background scrolling by saving and setting body overflow
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        
         shadow.appendChild(overlay);
-        this.activeModal = { overlay, escHandler };
+        this.activeModal = { overlay, escHandler, originalOverflow };
       },
       
       // Close the active modal
@@ -370,6 +377,8 @@
         if (this.activeModal) {
           document.removeEventListener('keydown', this.activeModal.escHandler);
           this.activeModal.overlay.remove();
+          // Restore original body overflow to re-enable scrolling
+          document.body.style.overflow = this.activeModal.originalOverflow;
           this.activeModal = null;
         }
       }
