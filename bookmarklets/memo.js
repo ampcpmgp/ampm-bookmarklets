@@ -750,20 +750,6 @@
         editTitleInput.type = 'text';
         editTitleInput.placeholder = 'タイトル（省略可）';
         editTitleInput.value = item.title || '';
-        editTitleInput.onkeydown = (e) => {
-          if (e.key === KeyHandler.ESC) {
-            e.preventDefault();
-            e.stopPropagation();
-            cancelEditButton.click();
-            return;
-          }
-          if (KeyHandler.isCtrlEnter(e)) {
-            e.preventDefault();
-            editArea.focus();
-            return;
-          }
-          e.stopPropagation();
-        };
         editEmojiTitleRow.appendChild(editTitleInput);
         
         // Edit emoji dropdown
@@ -893,26 +879,17 @@
           'box-sizing:border-box'
         ].join(';'));
         editArea.value = item.text;
-        editArea.onkeydown = (e) => {
-          if (e.key === KeyHandler.ESC) {
-            e.preventDefault();
-            e.stopPropagation();
-            cancelEditButton.click();
-            return;
-          }
-          if (KeyHandler.isCtrlEnter(e)) {
-            e.preventDefault();
-            saveEditButton.click();
-            return;
-          }
-          e.stopPropagation();
-        };
         
         const editActions = createElement('div', [
           'display:flex',
           'gap:6px',
           'margin-bottom:8px'
         ].join(';'));
+        
+        // Helper to exit edit mode cleanly
+        const exitEditMode = () => {
+          KeyHandler.isEditMode = false;
+        };
         
         const saveEditButton = createElement('button', [
           'padding:6px 12px',
@@ -934,10 +911,9 @@
             currentData[originalIndex].text = newText;
             currentData[originalIndex].emoji = editEmoji;
             currentData[originalIndex].updatedDate = new Date().toISOString();
-            save(currentData);
+            save(currentData); // save() calls renderList() which exits edit UI
           }
-          // Exit edit mode
-          KeyHandler.isEditMode = false;
+          exitEditMode();
         });
         
         const cancelEditButton = createElement('button', [
@@ -951,10 +927,44 @@
           'white-space:nowrap',
           'font-weight:500'
         ].join(';'), '✗ キャンセル (ESC)', () => {
-          // Exit edit mode
-          KeyHandler.isEditMode = false;
+          exitEditMode();
           renderList(load());
         });
+        
+        // Set up keyboard handlers after buttons are created
+        editTitleInput.onkeydown = (e) => {
+          if (e.key === KeyHandler.ESC) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Directly execute cancel logic instead of clicking button
+            exitEditMode();
+            renderList(load());
+            return;
+          }
+          if (KeyHandler.isCtrlEnter(e)) {
+            e.preventDefault();
+            editArea.focus();
+            return;
+          }
+          e.stopPropagation();
+        };
+        
+        editArea.onkeydown = (e) => {
+          if (e.key === KeyHandler.ESC) {
+            e.preventDefault();
+            e.stopPropagation();
+            // Directly execute cancel logic instead of clicking button
+            exitEditMode();
+            renderList(load());
+            return;
+          }
+          if (KeyHandler.isCtrlEnter(e)) {
+            e.preventDefault();
+            saveEditButton.click();
+            return;
+          }
+          e.stopPropagation();
+        };
         
         editActions.appendChild(saveEditButton);
         editActions.appendChild(cancelEditButton);
