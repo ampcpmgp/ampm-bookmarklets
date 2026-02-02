@@ -980,14 +980,7 @@
       ].join(';'), isCompactMode ? '📋' : 'Copy', () => {
         const copyText = item.text;
         navigator.clipboard.writeText(copyText).then(() => {
-          if (isCompactMode) {
-            copyButton.textContent = '✓';
-            setTimeout(() => {
-              copyButton.textContent = '📋';
-            }, 1000);
-          } else {
-            close();
-          }
+          close();
         });
       });
       copyButton.title = 'コピーする';
