@@ -378,7 +378,7 @@
           document.removeEventListener('keydown', this.activeModal.escHandler);
           this.activeModal.overlay.remove();
           // Restore original body overflow to re-enable scrolling
-          if (this.activeModal.originalOverflow) {
+          if (this.activeModal.originalOverflow !== '') {
             document.body.style.overflow = this.activeModal.originalOverflow;
           } else {
             // Remove the inline style to restore default behavior
