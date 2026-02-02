@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v13
+// v14
 // 2026-02-02
 
 (function() {
@@ -151,6 +151,230 @@
       return button;
     };
 
+    // Popup Modal System - Reusable component for displaying modal dialogs with tabs
+    const PopupModal = {
+      activeModal: null,
+      
+      // Create and display a modal with tabs
+      create: function(options) {
+        const { title, tabs, onClose } = options;
+        
+        // Close any existing modal
+        if (this.activeModal) {
+          this.close();
+        }
+        
+        // Create overlay
+        const overlay = createElement('div', [
+          'position:fixed',
+          'top:0',
+          'left:0',
+          'width:100%',
+          'height:100%',
+          'background:rgba(0,0,0,0.5)',
+          'z-index:2147483648',
+          'display:flex',
+          'align-items:center',
+          'justify-content:center'
+        ].join(';'));
+        
+        // Create modal container
+        const modal = createElement('div', [
+          'background:#fff',
+          'border-radius:8px',
+          'box-shadow:0 8px 30px rgba(0,0,0,0.3)',
+          'width:90%',
+          'max-width:600px',
+          'max-height:80vh',
+          'display:flex',
+          'flex-direction:column',
+          'overflow:hidden'
+        ].join(';'));
+        
+        // Create header
+        const header = createElement('div', [
+          'background:#f1f3f4',
+          'padding:16px 20px',
+          'border-bottom:1px solid #ddd',
+          'display:flex',
+          'justify-content:space-between',
+          'align-items:center'
+        ].join(';'));
+        
+        const headerTitle = createElement('h2', [
+          'margin:0',
+          'font-size:18px',
+          'font-weight:600',
+          'color:#333'
+        ].join(';'), title);
+        
+        const closeButton = createElement('button', [
+          'background:transparent',
+          'border:none',
+          'font-size:28px',
+          'cursor:pointer',
+          'color:#5f6368',
+          'padding:0',
+          'line-height:1',
+          'width:32px',
+          'height:32px',
+          'display:flex',
+          'align-items:center',
+          'justify-content:center',
+          'border-radius:4px'
+        ].join(';'), '×', () => {
+          this.close();
+          if (onClose) onClose();
+        });
+        closeButton.onmouseover = () => {
+          closeButton.style.background = '#e8eaed';
+        };
+        closeButton.onmouseout = () => {
+          closeButton.style.background = 'transparent';
+        };
+        
+        header.appendChild(headerTitle);
+        header.appendChild(closeButton);
+        modal.appendChild(header);
+        
+        // Create tab navigation
+        if (tabs && tabs.length > 1) {
+          const tabNav = createElement('div', [
+            'display:flex',
+            'background:#fff',
+            'border-bottom:1px solid #ddd',
+            'padding:0 20px'
+          ].join(';'));
+          
+          const tabContents = [];
+          let activeTabIndex = 0;
+          
+          // Create tab buttons and content areas
+          tabs.forEach((tab, index) => {
+            // Tab button
+            const tabButton = createElement('button', [
+              'padding:12px 20px',
+              'border:none',
+              'background:transparent',
+              'cursor:pointer',
+              'font-size:14px',
+              'font-weight:500',
+              'color:#5f6368',
+              'border-bottom:2px solid transparent',
+              'transition:all 0.2s'
+            ].join(';'), tab.label, () => {
+              // Switch to this tab
+              activeTabIndex = index;
+              updateTabs();
+            });
+            
+            if (index === 0) {
+              tabButton.style.color = '#1a73e8';
+              tabButton.style.borderBottomColor = '#1a73e8';
+            }
+            
+            tabButton.onmouseover = () => {
+              if (index !== activeTabIndex) {
+                tabButton.style.background = '#f8f9fa';
+              }
+            };
+            tabButton.onmouseout = () => {
+              if (index !== activeTabIndex) {
+                tabButton.style.background = 'transparent';
+              }
+            };
+            
+            tabNav.appendChild(tabButton);
+            
+            // Tab content
+            const tabContent = createElement('div', [
+              'padding:20px',
+              'overflow-y:auto',
+              'flex:1',
+              'display:' + (index === 0 ? 'block' : 'none')
+            ].join(';'));
+            
+            // Add content from tab configuration
+            if (typeof tab.content === 'function') {
+              tab.content(tabContent);
+            } else if (typeof tab.content === 'string') {
+              tabContent.innerHTML = tab.content;
+            }
+            
+            tabContents.push({ button: tabButton, content: tabContent });
+          });
+          
+          // Function to update active tab
+          const updateTabs = () => {
+            tabContents.forEach((item, index) => {
+              if (index === activeTabIndex) {
+                item.button.style.color = '#1a73e8';
+                item.button.style.borderBottomColor = '#1a73e8';
+                item.content.style.display = 'block';
+              } else {
+                item.button.style.color = '#5f6368';
+                item.button.style.borderBottomColor = 'transparent';
+                item.content.style.display = 'none';
+              }
+            });
+          };
+          
+          modal.appendChild(tabNav);
+          
+          // Add all tab contents
+          tabContents.forEach(item => {
+            modal.appendChild(item.content);
+          });
+        } else if (tabs && tabs.length === 1) {
+          // Single tab, just show content without tabs
+          const content = createElement('div', [
+            'padding:20px',
+            'overflow-y:auto',
+            'flex:1'
+          ].join(';'));
+          
+          if (typeof tabs[0].content === 'function') {
+            tabs[0].content(content);
+          } else if (typeof tabs[0].content === 'string') {
+            content.innerHTML = tabs[0].content;
+          }
+          
+          modal.appendChild(content);
+        }
+        
+        overlay.appendChild(modal);
+        
+        // Click overlay to close
+        overlay.onclick = (e) => {
+          if (e.target === overlay) {
+            this.close();
+            if (onClose) onClose();
+          }
+        };
+        
+        // ESC key to close
+        const escHandler = (e) => {
+          if (e.key === KeyHandler.ESC) {
+            this.close();
+            if (onClose) onClose();
+          }
+        };
+        document.addEventListener('keydown', escHandler);
+        
+        shadow.appendChild(overlay);
+        this.activeModal = { overlay, escHandler };
+      },
+      
+      // Close the active modal
+      close: function() {
+        if (this.activeModal) {
+          document.removeEventListener('keydown', this.activeModal.escHandler);
+          this.activeModal.overlay.remove();
+          this.activeModal = null;
+        }
+      }
+    };
+
     const wrap = createElement('div', [
       'position:fixed',
       'z-index:2147483647',
@@ -263,24 +487,137 @@
       'font-weight:normal',
       'flex-shrink:0'
     ].join(';'), '⚙️ 設定', () => {
-      const message = [
-        'ローカルメモ',
-        'バージョン: v12',
-        '',
-        'localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット',
-        '',
-        'v12の新機能:',
-        '- Ctrl+Enter で保存できるように改善（見やすいヒント付き）',
-        '- ESC キーで編集モードをキャンセル可能',
-        '- キーボードショートカットの集中管理で拡張性向上',
-        '',
-        'v11の機能:',
-        '- 一覧表示時、編集ボタンを押すとスクロール位置をその対象まで連れていく',
-        '- 一覧表示時、更新日を表示しない（シンプルなUI）',
-        '- 全表示時、作成日・更新日を表示（洗練されたUXで情報過多を防止）',
-        '- 作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示'
-      ].join('\n');
-      alert(message);
+      // Open settings popup with tabs
+      PopupModal.create({
+        title: '設定',
+        tabs: [
+          {
+            label: '⚙️ 設定',
+            content: (container) => {
+              // Settings tab content (placeholder for future settings)
+              const settingsContent = createElement('div', [
+                'font-size:14px',
+                'line-height:1.8',
+                'color:#333'
+              ].join(';'));
+              
+              const settingsTitle = createElement('h3', [
+                'margin:0 0 16px 0',
+                'font-size:16px',
+                'font-weight:600',
+                'color:#333'
+              ].join(';'), '設定項目');
+              
+              const settingsText = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:14px'
+              ].join(';'), '今後の設定項目がここに追加されます。');
+              
+              settingsContent.appendChild(settingsTitle);
+              settingsContent.appendChild(settingsText);
+              container.appendChild(settingsContent);
+            }
+          },
+          {
+            label: '📋 更新履歴',
+            content: (container) => {
+              // Update history tab content
+              const historyContent = createElement('div', [
+                'font-size:14px',
+                'line-height:1.8',
+                'color:#333'
+              ].join(';'));
+              
+              const appTitle = createElement('h3', [
+                'margin:0 0 8px 0',
+                'font-size:18px',
+                'font-weight:600',
+                'color:#333'
+              ].join(';'), 'ローカルメモ');
+              
+              const appDescription = createElement('p', [
+                'margin:0 0 20px 0',
+                'color:#5f6368',
+                'font-size:14px'
+              ].join(';'), 'localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット');
+              
+              historyContent.appendChild(appTitle);
+              historyContent.appendChild(appDescription);
+              
+              // Version history
+              const versions = [
+                {
+                  version: 'v14',
+                  features: [
+                    '設定のポップアップ化（設定タブ・更新履歴タブ）',
+                    'Escapeキーでポップアップを閉じる機能を追加',
+                    'タブシステムによる拡張可能な設定UI'
+                  ]
+                },
+                {
+                  version: 'v13',
+                  features: [
+                    '既存機能の安定性向上'
+                  ]
+                },
+                {
+                  version: 'v12',
+                  features: [
+                    'Ctrl+Enter で保存できるように改善（見やすいヒント付き）',
+                    'ESC キーで編集モードをキャンセル可能',
+                    'キーボードショートカットの集中管理で拡張性向上'
+                  ]
+                },
+                {
+                  version: 'v11',
+                  features: [
+                    '一覧表示時、編集ボタンを押すとスクロール位置をその対象まで連れていく',
+                    '一覧表示時、更新日を表示しない（シンプルなUI）',
+                    '全表示時、作成日・更新日を表示（洗練されたUXで情報過多を防止）',
+                    '作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示'
+                  ]
+                }
+              ];
+              
+              versions.forEach(versionInfo => {
+                const versionSection = createElement('div', [
+                  'margin-bottom:20px',
+                  'padding-bottom:20px',
+                  'border-bottom:1px solid #e8eaed'
+                ].join(';'));
+                
+                const versionTitle = createElement('h4', [
+                  'margin:0 0 10px 0',
+                  'font-size:16px',
+                  'font-weight:600',
+                  'color:#1a73e8'
+                ].join(';'), versionInfo.version);
+                
+                const featureList = createElement('ul', [
+                  'margin:0',
+                  'padding-left:20px',
+                  'list-style-type:disc'
+                ].join(';'));
+                
+                versionInfo.features.forEach(feature => {
+                  const listItem = createElement('li', [
+                    'margin-bottom:6px',
+                    'color:#333'
+                  ].join(';'), feature);
+                  featureList.appendChild(listItem);
+                });
+                
+                versionSection.appendChild(versionTitle);
+                versionSection.appendChild(featureList);
+                historyContent.appendChild(versionSection);
+              });
+              
+              container.appendChild(historyContent);
+            }
+          }
+        ]
+      });
     });
     settingsButton.title = 'バージョン情報を表示';
     buttonRow.appendChild(settingsButton);
