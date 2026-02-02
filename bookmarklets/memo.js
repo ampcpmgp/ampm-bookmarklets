@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v14
+// v15
 // 2026-02-02
 
 (function() {
@@ -149,6 +149,302 @@
         };
       }
       return button;
+    };
+
+    // Reusable function to create emoji picker UI
+    const createEmojiPicker = (initialEmoji, onEmojiChange) => {
+      let selectedEmoji = initialEmoji || '';
+      
+      // Container for emoji row and dropdown
+      const container = createElement('div', [
+        'position:relative',
+        'margin-bottom:8px'
+      ].join(';'));
+      
+      // Emoji button row with title input
+      const emojiTitleRow = createElement('div', [
+        'display:flex',
+        'gap:6px',
+        'align-items:center'
+      ].join(';'));
+      
+      // Emoji button
+      const emojiButton = createElement('button', [
+        'width:42px',
+        'height:42px',
+        'border:1px solid #1a73e8',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#fff',
+        'font-size:24px',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'transition:all 0.2s',
+        'flex-shrink:0',
+        'padding:0'
+      ].join(';'), selectedEmoji || '➕', () => {
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+      });
+      emojiButton.onmouseover = () => {
+        emojiButton.style.background = '#f5f5f5';
+        emojiButton.style.transform = 'scale(1.05)';
+      };
+      emojiButton.onmouseout = () => {
+        emojiButton.style.background = '#fff';
+        emojiButton.style.transform = 'scale(1)';
+      };
+      
+      // Title input
+      const titleInput = createElement('input', [
+        'flex:1',
+        'padding:10px',
+        'border:1px solid #1a73e8',
+        'border-radius:4px',
+        'font-size:15px',
+        'font-weight:600',
+        'background:#fff',
+        'color:#333',
+        'font-family:sans-serif',
+        'box-sizing:border-box'
+      ].join(';'));
+      titleInput.type = 'text';
+      titleInput.placeholder = 'タイトル（省略可）';
+      
+      emojiTitleRow.appendChild(emojiButton);
+      emojiTitleRow.appendChild(titleInput);
+      
+      // Emoji dropdown
+      const dropdown = createElement('div', [
+        'display:none',
+        'position:absolute',
+        'top:48px',
+        'left:0',
+        'right:0',
+        'background:#fff',
+        'border:1px solid #ccc',
+        'border-radius:6px',
+        'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
+        'padding:8px',
+        'z-index:1000',
+        'box-sizing:border-box'
+      ].join(';'));
+      
+      // Random button
+      const randomButton = createButtonWithHover([
+        'width:100%',
+        'padding:8px',
+        'margin-bottom:8px',
+        'font-size:13px',
+        'border:1px solid #ddd',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#f59e0b',
+        'color:#fff',
+        'font-weight:500',
+        'transition:background 0.2s'
+      ].join(';'), '🎲 ランダム選択', () => {
+        selectedEmoji = getRandomEmoji();
+        emojiButton.textContent = selectedEmoji;
+        dropdown.style.display = 'none';
+        if (onEmojiChange) onEmojiChange(selectedEmoji);
+      }, '#d97706', '#f59e0b');
+      dropdown.appendChild(randomButton);
+      
+      // Clear button
+      const clearButton = createButtonWithHover([
+        'width:100%',
+        'padding:8px',
+        'margin-bottom:8px',
+        'font-size:13px',
+        'border:1px solid #ddd',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#ef4444',
+        'color:#fff',
+        'font-weight:500',
+        'transition:background 0.2s'
+      ].join(';'), '🗑️ 削除', () => {
+        selectedEmoji = '';
+        emojiButton.textContent = '➕';
+        dropdown.style.display = 'none';
+        if (onEmojiChange) onEmojiChange(selectedEmoji);
+      }, '#dc2626', '#ef4444');
+      dropdown.appendChild(clearButton);
+      
+      // Emoji grid
+      const emojiGrid = createElement('div', [
+        'display:grid',
+        'grid-template-columns:repeat(7, 1fr)',
+        'gap:4px',
+        'max-height:200px',
+        'overflow-y:auto',
+        'overflow-x:hidden',
+        'padding:4px'
+      ].join(';'));
+      
+      EMOJIS.forEach(emoji => {
+        const emojiBtn = createElement('button', [
+          'padding:8px',
+          'font-size:20px',
+          'border:1px solid transparent',
+          'border-radius:4px',
+          'cursor:pointer',
+          'background:transparent',
+          'transition:all 0.2s',
+          'line-height:1',
+          'min-width:0',
+          'box-sizing:border-box'
+        ].join(';'), emoji, () => {
+          selectedEmoji = emoji;
+          emojiButton.textContent = emoji;
+          dropdown.style.display = 'none';
+          if (onEmojiChange) onEmojiChange(selectedEmoji);
+        });
+        emojiBtn.onmouseover = () => {
+          emojiBtn.style.background = '#f0f0f0';
+          emojiBtn.style.borderColor = '#ccc';
+          emojiBtn.style.transform = 'scale(1.15)';
+        };
+        emojiBtn.onmouseout = () => {
+          emojiBtn.style.background = 'transparent';
+          emojiBtn.style.borderColor = 'transparent';
+          emojiBtn.style.transform = 'scale(1)';
+        };
+        emojiGrid.appendChild(emojiBtn);
+      });
+      
+      dropdown.appendChild(emojiGrid);
+      container.appendChild(emojiTitleRow);
+      container.appendChild(dropdown);
+      
+      return {
+        container,
+        titleInput,
+        getEmoji: () => selectedEmoji,
+        setEmoji: (emoji) => {
+          selectedEmoji = emoji;
+          emojiButton.textContent = emoji || '➕';
+        }
+      };
+    };
+
+    // Create edit UI components (reusable for both inline and full edit)
+    const createEditUI = (item, onSave, onCancel) => {
+      // Create emoji picker
+      const emojiPicker = createEmojiPicker(item.emoji);
+      
+      // Text area
+      const textArea = createElement('textarea', [
+        'width:100%',
+        'min-height:80px',
+        'padding:10px',
+        'margin-bottom:8px',
+        'border:1px solid #1a73e8',
+        'border-radius:4px',
+        'resize:vertical',
+        'font-size:13px',
+        'background:#fff',
+        'color:#333',
+        'font-family:sans-serif',
+        'box-sizing:border-box'
+      ].join(';'));
+      textArea.value = item.text;
+      
+      // Set initial title
+      emojiPicker.titleInput.value = item.title || '';
+      
+      // Action buttons container
+      const actionsContainer = createElement('div', [
+        'display:flex',
+        'gap:6px',
+        'margin-bottom:8px'
+      ].join(';'));
+      
+      // Save button
+      const saveButton = createElement('button', [
+        'padding:6px 12px',
+        'font-size:12px',
+        'border:none',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#34a853',
+        'color:#fff',
+        'white-space:nowrap',
+        'font-weight:500'
+      ].join(';'), '✓ 保存 (Ctrl+Enter)', () => {
+        const newTitle = emojiPicker.titleInput.value.trim();
+        const newText = textArea.value.trim();
+        if (!newText) return;
+        onSave({
+          title: newTitle,
+          text: newText,
+          emoji: emojiPicker.getEmoji()
+        });
+      });
+      
+      // Cancel button
+      const cancelButton = createElement('button', [
+        'padding:6px 12px',
+        'font-size:12px',
+        'border:none',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#ea4335',
+        'color:#fff',
+        'white-space:nowrap',
+        'font-weight:500'
+      ].join(';'), '✗ キャンセル (ESC)', onCancel);
+      
+      // Keyboard handlers
+      const handleKeyDown = (e) => {
+        if (e.key === KeyHandler.ESC) {
+          e.preventDefault();
+          e.stopPropagation();
+          onCancel();
+          return;
+        }
+        if (KeyHandler.isCtrlEnter(e)) {
+          e.preventDefault();
+          saveButton.click();
+          return;
+        }
+        e.stopPropagation();
+      };
+      
+      emojiPicker.titleInput.onkeydown = (e) => {
+        if (e.key === KeyHandler.ESC) {
+          e.preventDefault();
+          e.stopPropagation();
+          onCancel();
+          return;
+        }
+        if (KeyHandler.isCtrlEnter(e)) {
+          e.preventDefault();
+          textArea.focus();
+          return;
+        }
+        e.stopPropagation();
+      };
+      
+      textArea.onkeydown = handleKeyDown;
+      
+      actionsContainer.appendChild(saveButton);
+      actionsContainer.appendChild(cancelButton);
+      
+      // Assemble container
+      const container = createElement('div');
+      container.appendChild(emojiPicker.container);
+      container.appendChild(textArea);
+      container.appendChild(actionsContainer);
+      
+      return {
+        container,
+        titleInput: emojiPicker.titleInput,
+        textArea,
+        saveButton,
+        cancelButton
+      };
     };
 
     // Popup Modal System - Reusable component for displaying modal dialogs with tabs
@@ -988,339 +1284,33 @@
         'background:#1a73e8',
         'color:#fff'
       ].join(';'), isCompactMode ? '✏️' : 'Edit', () => {
-        // Switch to full mode if in compact mode
-        if (isCompactMode) {
-          isTitleOnlyMode = false;
-          titleOnlyButton.textContent = '📋 一覧';
-          titleOnlyButton.style.background = '#34a853';
-          emojiTitleRowContainer.style.display = 'block';
-          input.style.display = 'block';
-          saveButton.style.display = 'block';
-          
-          // Save view mode
-          saveViewMode(isTitleOnlyMode);
-          
-          renderList(data);
-          
-          // Wait for render, then find and scroll to target item
-          setTimeout(() => {
-            const allItems = listContainer.querySelectorAll('li');
-            // Find the item at the same original index
-            const sortedData = [...data].sort((a, b) => {
-              if (a.pinned && !b.pinned) return -1;
-              if (!a.pinned && b.pinned) return 1;
-              return data.indexOf(a) - data.indexOf(b);
-            });
-            const targetIndex = sortedData.indexOf(item);
-            if (targetIndex >= 0 && targetIndex < allItems.length) {
-              const targetItem = allItems[targetIndex];
-              
-              // Scroll to the target item smoothly
-              targetItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              
-              // Add a highlight effect
-              targetItem.style.transition = 'background 0.5s';
-              const originalBg = item.pinned ? '#fffbf0' : '#fff';
-              targetItem.style.background = '#e3f2fd';
-              setTimeout(() => {
-                targetItem.style.background = originalBg;
-              }, 1000);
-              
-              // Trigger edit after scrolling
-              const editBtn = Array.from(targetItem.querySelectorAll('button')).find(btn => 
-                btn.textContent === 'Edit' || btn.textContent === '✏️'
-              );
-              if (editBtn) editBtn.click();
-            }
-          }, 100);
-          return;
-        }
-        
-        // Full mode edit (existing logic)
         // Enter edit mode
         KeyHandler.isEditMode = true;
         
         const listItem = actions.parentElement;
         const textWrapper = listItem.querySelector('div');
         
-        // Edit emoji (initialize to existing emoji or empty)
-        let editEmoji = item.emoji || '';
-        
-        // Edit Emoji + Title Row Container (for proper dropdown containment)
-        const editEmojiTitleRowContainer = createElement('div', [
-          'position:relative',
-          'margin-bottom:8px'
-        ].join(';'));
-        
-        // Edit emoji + title row
-        const editEmojiTitleRow = createElement('div', [
-          'display:flex',
-          'gap:6px',
-          'align-items:center'
-        ].join(';'));
-        
-        const editEmojiButton = createElement('button', [
-          'width:42px',
-          'height:42px',
-          'border:1px solid #1a73e8',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#fff',
-          'font-size:24px',
-          'display:flex',
-          'align-items:center',
-          'justify-content:center',
-          'transition:all 0.2s',
-          'flex-shrink:0',
-          'padding:0'
-        ].join(';'), editEmoji || '➕', () => {
-          editEmojiDropdown.style.display = editEmojiDropdown.style.display === 'none' ? 'block' : 'none';
-        });
-        editEmojiButton.onmouseover = () => {
-          editEmojiButton.style.background = '#f5f5f5';
-          editEmojiButton.style.transform = 'scale(1.05)';
-        };
-        editEmojiButton.onmouseout = () => {
-          editEmojiButton.style.background = '#fff';
-          editEmojiButton.style.transform = 'scale(1)';
-        };
-        editEmojiTitleRow.appendChild(editEmojiButton);
-        
-        const editTitleInput = createElement('input', [
-          'flex:1',
-          'padding:10px',
-          'border:1px solid #1a73e8',
-          'border-radius:4px',
-          'font-size:15px',
-          'font-weight:600',
-          'background:#fff',
-          'color:#333',
-          'font-family:sans-serif',
-          'box-sizing:border-box'
-        ].join(';'));
-        editTitleInput.type = 'text';
-        editTitleInput.placeholder = 'タイトル（省略可）';
-        editTitleInput.value = item.title || '';
-        editEmojiTitleRow.appendChild(editTitleInput);
-        
-        // Edit emoji dropdown
-        const editEmojiDropdown = createElement('div', [
-          'display:none',
-          'position:absolute',
-          'top:48px',
-          'left:0',
-          'right:0',
-          'background:#fff',
-          'border:1px solid #ccc',
-          'border-radius:6px',
-          'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
-          'padding:8px',
-          'z-index:1000',
-          'box-sizing:border-box'
-        ].join(';'));
-        
-        const editRandomPickerButton = createElement('button', [
-          'width:100%',
-          'padding:8px',
-          'margin-bottom:8px',
-          'font-size:13px',
-          'border:1px solid #ddd',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#f59e0b',
-          'color:#fff',
-          'font-weight:500',
-          'transition:background 0.2s'
-        ].join(';'), '🎲 ランダム選択', () => {
-          const emoji = getRandomEmoji();
-          editEmoji = emoji;
-          editEmojiButton.textContent = emoji;
-          editEmojiDropdown.style.display = 'none';
-        });
-        editRandomPickerButton.onmouseover = () => {
-          editRandomPickerButton.style.background = '#d97706';
-        };
-        editRandomPickerButton.onmouseout = () => {
-          editRandomPickerButton.style.background = '#f59e0b';
-        };
-        editEmojiDropdown.appendChild(editRandomPickerButton);
-        
-        // Clear button in edit picker
-        const editClearPickerButton = createElement('button', [
-          'width:100%',
-          'padding:8px',
-          'margin-bottom:8px',
-          'font-size:13px',
-          'border:1px solid #ddd',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#ef4444',
-          'color:#fff',
-          'font-weight:500',
-          'transition:background 0.2s'
-        ].join(';'), '🗑️ 削除', () => {
-          editEmoji = '';
-          editEmojiButton.textContent = '➕';
-          editEmojiDropdown.style.display = 'none';
-        });
-        editClearPickerButton.onmouseover = () => {
-          editClearPickerButton.style.background = '#dc2626';
-        };
-        editClearPickerButton.onmouseout = () => {
-          editClearPickerButton.style.background = '#ef4444';
-        };
-        editEmojiDropdown.appendChild(editClearPickerButton);
-        
-        const editEmojiGrid = createElement('div', [
-          'display:grid',
-          'grid-template-columns:repeat(7, 1fr)',
-          'gap:4px',
-          'max-height:200px',
-          'overflow-y:auto',
-          'overflow-x:hidden',
-          'padding:4px'
-        ].join(';'));
-        
-        EMOJIS.forEach(emoji => {
-          const emojiBtn = createElement('button', [
-            'padding:8px',
-            'font-size:20px',
-            'border:1px solid transparent',
-            'border-radius:4px',
-            'cursor:pointer',
-            'background:transparent',
-            'transition:all 0.2s',
-            'line-height:1',
-            'min-width:0',
-            'box-sizing:border-box'
-          ].join(';'), emoji, () => {
-            editEmoji = emoji;
-            editEmojiButton.textContent = emoji;
-            editEmojiDropdown.style.display = 'none';
-          });
-          emojiBtn.onmouseover = () => {
-            emojiBtn.style.background = '#f0f0f0';
-            emojiBtn.style.borderColor = '#ccc';
-            emojiBtn.style.transform = 'scale(1.15)';
-          };
-          emojiBtn.onmouseout = () => {
-            emojiBtn.style.background = 'transparent';
-            emojiBtn.style.borderColor = 'transparent';
-            emojiBtn.style.transform = 'scale(1)';
-          };
-          editEmojiGrid.appendChild(emojiBtn);
-        });
-        
-        editEmojiDropdown.appendChild(editEmojiGrid);
-        editEmojiTitleRowContainer.appendChild(editEmojiTitleRow);
-        editEmojiTitleRowContainer.appendChild(editEmojiDropdown);
-        
-        const editArea = createElement('textarea', [
-          'width:100%',
-          'min-height:80px',
-          'padding:10px',
-          'margin-bottom:8px',
-          'border:1px solid #1a73e8',
-          'border-radius:4px',
-          'resize:vertical',
-          'font-size:13px',
-          'background:#fff',
-          'color:#333',
-          'font-family:sans-serif',
-          'box-sizing:border-box'
-        ].join(';'));
-        editArea.value = item.text;
-        
-        const editActions = createElement('div', [
-          'display:flex',
-          'gap:6px',
-          'margin-bottom:8px'
-        ].join(';'));
-        
-        const saveEditButton = createElement('button', [
-          'padding:6px 12px',
-          'font-size:12px',
-          'border:none',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#34a853',
-          'color:#fff',
-          'white-space:nowrap',
-          'font-weight:500'
-        ].join(';'), '✓ 保存 (Ctrl+Enter)', () => {
-          const newTitle = editTitleInput.value.trim();
-          const newText = editArea.value.trim();
-          if (!newText) return;
+        // Create edit UI using refactored helper
+        const editUI = createEditUI(item, (updatedData) => {
+          // Save handler
           const currentData = load();
           if (currentData[originalIndex]) {
-            currentData[originalIndex].title = newTitle;
-            currentData[originalIndex].text = newText;
-            currentData[originalIndex].emoji = editEmoji;
+            currentData[originalIndex].title = updatedData.title;
+            currentData[originalIndex].text = updatedData.text;
+            currentData[originalIndex].emoji = updatedData.emoji;
             currentData[originalIndex].updatedDate = new Date().toISOString();
-            save(currentData); // save() calls renderList() which exits edit UI
+            save(currentData);
             KeyHandler.isEditMode = false;
           }
-        });
-        
-        const cancelEditButton = createElement('button', [
-          'padding:6px 12px',
-          'font-size:12px',
-          'border:none',
-          'border-radius:4px',
-          'cursor:pointer',
-          'background:#ea4335',
-          'color:#fff',
-          'white-space:nowrap',
-          'font-weight:500'
-        ].join(';'), '✗ キャンセル (ESC)', () => {
+        }, () => {
+          // Cancel handler
           KeyHandler.isEditMode = false;
           renderList(load());
         });
         
-        // Set up keyboard handlers after buttons are created
-        editTitleInput.onkeydown = (e) => {
-          if (e.key === KeyHandler.ESC) {
-            e.preventDefault();
-            e.stopPropagation();
-            // Directly execute cancel logic
-            KeyHandler.isEditMode = false;
-            renderList(load());
-            return;
-          }
-          if (KeyHandler.isCtrlEnter(e)) {
-            e.preventDefault();
-            editArea.focus();
-            return;
-          }
-          e.stopPropagation();
-        };
-        
-        editArea.onkeydown = (e) => {
-          if (e.key === KeyHandler.ESC) {
-            e.preventDefault();
-            e.stopPropagation();
-            // Directly execute cancel logic
-            KeyHandler.isEditMode = false;
-            renderList(load());
-            return;
-          }
-          if (KeyHandler.isCtrlEnter(e)) {
-            e.preventDefault();
-            saveEditButton.click();
-            return;
-          }
-          e.stopPropagation();
-        };
-        
-        editActions.appendChild(saveEditButton);
-        editActions.appendChild(cancelEditButton);
-        
-        // Replace content with edit mode
-        const editContainer = createElement('div');
-        editContainer.appendChild(editEmojiTitleRowContainer);
-        editContainer.appendChild(editArea);
-        textWrapper.replaceChildren(editContainer);
-        actions.replaceChildren(editActions);
+        // Replace content with edit UI
+        textWrapper.replaceChildren(editUI.container);
+        actions.replaceChildren(editUI.saveButton, editUI.cancelButton);
       });
       editButton.title = '編集する';
 
