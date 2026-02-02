@@ -200,28 +200,28 @@
      * Apply hover transform effect to an element with proper centering
      * @param {HTMLElement} element - The element to apply hover effect to
      * @param {number} scale - The scale factor on hover (e.g., 1.15)
-     * @param {string} bgColor - Optional background color on hover
-     * @param {string} borderColor - Optional border color on hover
+     * @param {string} hoverBgColor - Optional background color on hover
+     * @param {string} hoverBorderColor - Optional border color on hover
      */
-    const applyHoverEffect = (element, scale = 1.15, bgColor = null, borderColor = null) => {
+    const applyHoverEffect = (element, scale = 1.15, hoverBgColor = null, hoverBorderColor = null) => {
       // Set transform-origin to ensure centered scaling
       element.style.transformOrigin = 'center center';
       
+      // Store original values before applying hover effects
+      const originalBg = element.style.background || '';
+      const originalBorder = element.style.borderColor || '';
+      
       element.onmouseover = () => {
         element.style.transform = `scale(${scale})`;
-        if (bgColor) element.style.background = bgColor;
-        if (borderColor) element.style.borderColor = borderColor;
+        if (hoverBgColor) element.style.background = hoverBgColor;
+        if (hoverBorderColor) element.style.borderColor = hoverBorderColor;
       };
       
       element.onmouseout = () => {
         element.style.transform = 'scale(1)';
-        if (bgColor) element.style.background = element._originalBg || 'transparent';
-        if (borderColor) element.style.borderColor = element._originalBorder || 'transparent';
+        if (hoverBgColor) element.style.background = originalBg;
+        if (hoverBorderColor) element.style.borderColor = originalBorder;
       };
-      
-      // Store original values for restoration
-      if (bgColor) element._originalBg = element.style.background || 'transparent';
-      if (borderColor) element._originalBorder = element.style.borderColor || 'transparent';
     };
 
     /**
