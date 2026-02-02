@@ -886,11 +886,6 @@
           'margin-bottom:8px'
         ].join(';'));
         
-        // Helper to exit edit mode cleanly
-        const exitEditMode = () => {
-          KeyHandler.isEditMode = false;
-        };
-        
         const saveEditButton = createElement('button', [
           'padding:6px 12px',
           'font-size:12px',
@@ -912,8 +907,8 @@
             currentData[originalIndex].emoji = editEmoji;
             currentData[originalIndex].updatedDate = new Date().toISOString();
             save(currentData); // save() calls renderList() which exits edit UI
+            KeyHandler.isEditMode = false;
           }
-          exitEditMode();
         });
         
         const cancelEditButton = createElement('button', [
@@ -927,7 +922,7 @@
           'white-space:nowrap',
           'font-weight:500'
         ].join(';'), '✗ キャンセル (ESC)', () => {
-          exitEditMode();
+          KeyHandler.isEditMode = false;
           renderList(load());
         });
         
@@ -936,8 +931,8 @@
           if (e.key === KeyHandler.ESC) {
             e.preventDefault();
             e.stopPropagation();
-            // Directly execute cancel logic instead of clicking button
-            exitEditMode();
+            // Directly execute cancel logic
+            KeyHandler.isEditMode = false;
             renderList(load());
             return;
           }
@@ -953,8 +948,8 @@
           if (e.key === KeyHandler.ESC) {
             e.preventDefault();
             e.stopPropagation();
-            // Directly execute cancel logic instead of clicking button
-            exitEditMode();
+            // Directly execute cancel logic
+            KeyHandler.isEditMode = false;
             renderList(load());
             return;
           }
