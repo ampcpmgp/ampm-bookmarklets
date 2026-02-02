@@ -151,7 +151,16 @@
       return button;
     };
 
-    // Reusable function to create emoji picker UI
+    /**
+     * Create a reusable emoji picker UI component
+     * @param {string} initialEmoji - The initial emoji to display (empty string for none)
+     * @param {Function} onEmojiChange - Optional callback function called when emoji changes
+     * @returns {Object} - Object containing:
+     *   - container: DOM element with the picker UI
+     *   - titleInput: Input element for title text
+     *   - getEmoji: Function to get currently selected emoji
+     *   - setEmoji: Function to set emoji programmatically
+     */
     const createEmojiPicker = (initialEmoji, onEmojiChange) => {
       let selectedEmoji = initialEmoji || '';
       
@@ -329,7 +338,18 @@
       };
     };
 
-    // Create edit UI components (reusable for both inline and full edit)
+    /**
+     * Create edit UI components for inline memo editing
+     * @param {Object} item - The memo item to edit with properties: title, text, emoji
+     * @param {Function} onSave - Callback function called when save is clicked, receives updated data object
+     * @param {Function} onCancel - Callback function called when cancel is clicked or ESC is pressed
+     * @returns {Object} - Object containing:
+     *   - container: DOM element with complete edit UI
+     *   - titleInput: Input element for title
+     *   - textArea: Textarea element for memo content
+     *   - saveButton: Save button element
+     *   - cancelButton: Cancel button element
+     */
     const createEditUI = (item, onSave, onCancel) => {
       // Create emoji picker
       const emojiPicker = createEmojiPicker(item.emoji);
