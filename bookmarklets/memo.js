@@ -36,6 +36,9 @@
       // Track edit mode state to prevent ESC from closing popup during edit
       isEditMode: false,
       
+      // Track modal open state to prevent ESC from closing popup when modal is open
+      isModalOpen: false,
+      
       // Check if Ctrl+Enter was pressed
       isCtrlEnter: (e) => {
         return (e.ctrlKey || e.metaKey) && e.key === 'Enter';
@@ -55,8 +58,8 @@
     // Set up document key handler now that close() is defined
     KeyHandler.handleDocumentKey = (e) => {
       if (e.key === KeyHandler.ESC) {
-        // Don't close popup if in edit mode - let edit field handlers handle it
-        if (!KeyHandler.isEditMode) {
+        // Don't close popup if in edit mode or if a modal is open
+        if (!KeyHandler.isEditMode && !KeyHandler.isModalOpen) {
           close();
         }
       }
@@ -163,6 +166,9 @@
         if (this.activeModal) {
           this.close();
         }
+        
+        // Set modal open flag to prevent main popup from closing
+        KeyHandler.isModalOpen = true;
         
         // Create overlay
         const overlay = createElement('div', [
@@ -385,6 +391,8 @@
             document.body.style.removeProperty('overflow');
           }
           this.activeModal = null;
+          // Reset modal open flag
+          KeyHandler.isModalOpen = false;
         }
       }
     };
@@ -1321,6 +1329,13 @@
         editContainer.appendChild(editArea);
         textWrapper.replaceChildren(editContainer);
         actions.replaceChildren(editActions);
+        
+        // Focus the text area after DOM update
+        setTimeout(() => {
+          editArea.focus();
+          // Move cursor to end of text
+          editArea.selectionStart = editArea.selectionEnd = editArea.value.length;
+        }, 0);
       });
       editButton.title = '編集する';
 
