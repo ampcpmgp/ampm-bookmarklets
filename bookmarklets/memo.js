@@ -1211,7 +1211,9 @@
           'align-items:center',
           'gap:3px'
         ].join(';'));
-        createdSpan.innerHTML = `<span style="opacity:0.7">作成:</span> ${createdDateStr}`;
+        const createdLabel = createElement('span', 'opacity:0.7', '作成:');
+        createdSpan.appendChild(createdLabel);
+        createdSpan.appendChild(document.createTextNode(' ' + createdDateStr));
         timestampContainer.appendChild(createdSpan);
         
         // Show update date only if different from creation date
@@ -1224,7 +1226,9 @@
             'align-items:center',
             'gap:3px'
           ].join(';'));
-          updatedSpan.innerHTML = `<span style="opacity:0.7">更新:</span> ${updatedDateStr}`;
+          const updatedLabel = createElement('span', 'opacity:0.7', '更新:');
+          updatedSpan.appendChild(updatedLabel);
+          updatedSpan.appendChild(document.createTextNode(' ' + updatedDateStr));
           timestampContainer.appendChild(updatedSpan);
         }
         
