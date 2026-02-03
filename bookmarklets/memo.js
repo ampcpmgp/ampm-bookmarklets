@@ -1391,6 +1391,9 @@
       ].join(';'), isCompactMode ? '✏️' : 'Edit', () => {
         // Shared edit logic for both compact and full display modes
         
+        // Track if we're starting from list view (compact mode)
+        const startedFromListView = isCompactMode;
+        
         // If in compact mode (list view), switch to full display mode first
         if (isCompactMode) {
           // Switch to full display mode
@@ -1433,18 +1436,6 @@
         // Check if this edit was initiated from list view
         const returnToListView = editButton._fromListView || false;
         
-        // Helper function to switch back to list view
-        const switchBackToListView = () => {
-          isTitleOnlyMode = true;
-          titleOnlyButton.textContent = '📝 全表示';
-          titleOnlyButton.style.background = '#1a73e8';
-          
-          // Hide input fields
-          emojiTitleRowContainer.style.display = 'none';
-          input.style.display = 'none';
-          saveButton.style.display = 'none';
-        };
-        
         // Create edit UI using refactored helper
         const editUI = createEditUI(item, (updatedData) => {
           // Save handler
@@ -1460,18 +1451,32 @@
           
           // If we came from list view, return to list view after save
           if (returnToListView) {
-            switchBackToListView();
+            isTitleOnlyMode = true;
+            titleOnlyButton.textContent = '📝 全表示';
+            titleOnlyButton.style.background = '#1a73e8';
+            
+            // Hide input fields
+            emojiTitleRowContainer.style.display = 'none';
+            input.style.display = 'none';
+            saveButton.style.display = 'none';
+            
+            // Render list view
+            renderList(load());
           }
-          
-          // Render list view
-          renderList(load());
         }, () => {
           // Cancel handler
           KeyHandler.isEditMode = false;
           
           // If we came from list view, return to list view on cancel
           if (returnToListView) {
-            switchBackToListView();
+            isTitleOnlyMode = true;
+            titleOnlyButton.textContent = '📝 全表示';
+            titleOnlyButton.style.background = '#1a73e8';
+            
+            // Hide input fields
+            emojiTitleRowContainer.style.display = 'none';
+            input.style.display = 'none';
+            saveButton.style.display = 'none';
           }
           
           renderList(load());
