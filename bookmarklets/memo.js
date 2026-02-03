@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v21
+// v22
 // 2026-02-03
+// v22: Implemented Popover API - added popover="manual" attribute with showPopover()/hidePopover() calls for proper display management and cleanup
 // v21: Fixed stacking context issue - removed isolation:isolate to ensure proper z-index layering above CDK overlay containers
 // v20: Improved textarea height for better editing experience - increased to 300px min-height for comfortable editing of 20+ line memos, refactored common textarea styling
 // v19: Fixed z-index issue - all elements now use centralized Z_INDEX constants to ensure they always appear above page dialogs
@@ -44,7 +45,16 @@
       'outline:none',
       'background:transparent'
     ].join(';');
+    
+    // Use Popover API for proper display management
+    // Setting popover="manual" ensures element visibility control
+    host.setAttribute('popover', 'manual');
+    
     document.body.appendChild(host);
+    
+    // Show the popover after appending to DOM
+    // This is required to make the element visible when using popover API
+    host.showPopover();
 
     // Centralized keyboard handler for maintainability
     const KeyHandler = {
@@ -67,6 +77,10 @@
 
     const close = () => {
       document.removeEventListener('keydown', KeyHandler.handleDocumentKey);
+      // Hide popover before removing to ensure proper cleanup
+      if (host.matches(':popover-open')) {
+        host.hidePopover();
+      }
       host.remove();
     };
     
