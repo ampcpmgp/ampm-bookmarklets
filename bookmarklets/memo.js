@@ -410,11 +410,11 @@
      * @param {Function} onSave - Callback function called when save is clicked, receives updated data object
      * @param {Function} onCancel - Callback function called when cancel is clicked or ESC is pressed
      * @returns {Object} - Object containing:
-     *   - container: DOM element with complete edit UI
+     *   - container: DOM element with edit UI (emoji picker and textarea only)
      *   - titleInput: Input element for title
      *   - textArea: Textarea element for memo content
-     *   - saveButton: Save button element
-     *   - cancelButton: Cancel button element
+     *   - saveButton: Save button element (separate from container)
+     *   - cancelButton: Cancel button element (separate from container)
      */
     const createEditUI = (item, onSave, onCancel) => {
       // Create emoji picker
@@ -425,7 +425,6 @@
         'width:100%',
         'min-height:80px',
         'padding:10px',
-        'margin-bottom:8px',
         'border:1px solid #1a73e8',
         'border-radius:4px',
         'resize:vertical',
@@ -439,13 +438,6 @@
       
       // Set initial title
       emojiPicker.titleInput.value = item.title || '';
-      
-      // Action buttons container
-      const actionsContainer = createElement('div', [
-        'display:flex',
-        'gap:6px',
-        'margin-bottom:8px'
-      ].join(';'));
       
       // Save button
       const saveButton = createElement('button', [
@@ -515,20 +507,17 @@
       
       textArea.onkeydown = handleKeyDown;
       
-      actionsContainer.appendChild(saveButton);
-      actionsContainer.appendChild(cancelButton);
-      
       // Assemble container with proper layout styling
+      // Container now only includes emoji picker and textarea, NOT the buttons
       const container = createElement('div', [
         'display:flex',
         'flex-direction:column',
         'width:100%',
-        'box-sizing:border-box',
-        'position:relative'
+        'gap:8px',
+        'box-sizing:border-box'
       ].join(';'));
       container.appendChild(emojiPicker.container);
       container.appendChild(textArea);
-      container.appendChild(actionsContainer);
       
       return {
         container,
@@ -1405,8 +1394,18 @@
           renderList(load());
         });
         
-        // Replace content with edit UI
+        // Clean layout: Replace content wrapper with edit UI (which contains emoji picker and textarea)
+        // and replace action buttons with save/cancel buttons
         textWrapper.replaceChildren(editUI.container);
+        
+        // Clear and rebuild actions container with proper flex layout
+        actions.style.cssText = [
+          'display:flex',
+          'gap:6px',
+          'justify-content:flex-start',
+          'flex-wrap:wrap',
+          'margin-top:0'
+        ].join(';');
         actions.replaceChildren(editUI.saveButton, editUI.cancelButton);
         
         // Focus on textarea using requestAnimationFrame for reliable DOM update timing
@@ -1578,7 +1577,8 @@
         ].join(';'));
 
         const textWrapper = createElement('div', [
-          'position:relative'
+          'width:100%',
+          'box-sizing:border-box'
         ].join(';'));
 
         // Display title and/or emoji if they exist
