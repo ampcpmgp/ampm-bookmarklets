@@ -1,9 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v18
+// v17
 // 2026-02-03
-// v18: Fixed list view edit button - now switches to full display mode with shared edit UI
+// v17: Fixed edit mode layout - buttons no longer overlap edit area
 
 (function() {
   try {
@@ -945,16 +945,6 @@
               // Version history
               const versions = [
                 {
-                  version: 'v18',
-                  features: [
-                    '一覧表示時の編集ボタンの不具合を修正：クリック時に全表示モードに切り替えて編集',
-                    '編集UI完全共通化：一覧表示と全表示で同じ編集インターフェースを使用',
-                    '保存後は一覧表示に自動的に戻る（一覧から編集開始した場合）',
-                    'キャンセル時も一覧表示に戻る動作を実装',
-                    'ESCキーとCtrl+Enterのサポートを維持'
-                  ]
-                },
-                {
                   version: 'v17',
                   features: [
                     '編集モード時のレイアウト修正：ボタンが編集エリアに重ならず綺麗に表示されるよう改善',
@@ -1389,52 +1379,11 @@
         'background:#1a73e8',
         'color:#fff'
       ].join(';'), isCompactMode ? '✏️' : 'Edit', () => {
-        // Shared edit logic for both compact and full display modes
-        
-        // Track if we're starting from list view (compact mode)
-        const startedFromListView = isCompactMode;
-        
-        // If in compact mode (list view), switch to full display mode first
-        if (isCompactMode) {
-          // Switch to full display mode
-          isTitleOnlyMode = false;
-          titleOnlyButton.textContent = '📋 一覧';
-          titleOnlyButton.style.background = '#34a853';
-          
-          // Show input fields
-          emojiTitleRowContainer.style.display = 'block';
-          input.style.display = 'block';
-          saveButton.style.display = 'block';
-          
-          // Don't save view mode preference when switching for edit
-          // We want to return to list view after save
-          
-          // Re-render in full display mode
-          renderList(load());
-          
-          // After re-rendering, find the same item and trigger edit on it
-          requestAnimationFrame(() => {
-            const allItems = listContainer.querySelectorAll('li');
-            if (allItems[originalIndex]) {
-              const editBtn = allItems[originalIndex].querySelector('button[style*="background:#1a73e8"]');
-              if (editBtn) {
-                // Mark that this edit session came from list view
-                editBtn._fromListView = true;
-                editBtn.click();
-              }
-            }
-          });
-          return;
-        }
-        
-        // Full display mode edit logic
+        // Enter edit mode
         KeyHandler.isEditMode = true;
         
         const listItem = actions.parentElement;
         const textWrapper = listItem.querySelector('div');
-        
-        // Check if this edit was initiated from list view
-        const returnToListView = editButton._fromListView || false;
         
         // Create edit UI using refactored helper
         const editUI = createEditUI(item, (updatedData) => {
@@ -1448,37 +1397,9 @@
             save(currentData);
             KeyHandler.isEditMode = false;
           }
-          
-          // If we came from list view, return to list view after save
-          if (returnToListView) {
-            isTitleOnlyMode = true;
-            titleOnlyButton.textContent = '📝 全表示';
-            titleOnlyButton.style.background = '#1a73e8';
-            
-            // Hide input fields
-            emojiTitleRowContainer.style.display = 'none';
-            input.style.display = 'none';
-            saveButton.style.display = 'none';
-            
-            // Render list view
-            renderList(load());
-          }
         }, () => {
           // Cancel handler
           KeyHandler.isEditMode = false;
-          
-          // If we came from list view, return to list view on cancel
-          if (returnToListView) {
-            isTitleOnlyMode = true;
-            titleOnlyButton.textContent = '📝 全表示';
-            titleOnlyButton.style.background = '#1a73e8';
-            
-            // Hide input fields
-            emojiTitleRowContainer.style.display = 'none';
-            input.style.display = 'none';
-            saveButton.style.display = 'none';
-          }
-          
           renderList(load());
         });
         
