@@ -522,7 +522,6 @@
       const container = createElement('div', [
         'display:flex',
         'flex-direction:column',
-        'gap:0',
         'width:100%',
         'box-sizing:border-box',
         'position:relative'
@@ -1400,12 +1399,12 @@
         textWrapper.replaceChildren(editUI.container);
         actions.replaceChildren(editUI.saveButton, editUI.cancelButton);
         
-        // Focus on textarea after a brief delay to ensure DOM is updated
-        setTimeout(() => {
+        // Focus on textarea using requestAnimationFrame for reliable DOM update timing
+        requestAnimationFrame(() => {
           editUI.textArea.focus();
           // Move cursor to end of text
           editUI.textArea.setSelectionRange(editUI.textArea.value.length, editUI.textArea.value.length);
-        }, 0);
+        });
       });
       editButton.title = '編集する';
 
