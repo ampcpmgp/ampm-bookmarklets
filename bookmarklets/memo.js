@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v18
+// v19
 // 2026-02-03
+// v19: Fixed z-index issue - all elements now use centralized Z_INDEX constants to ensure they always appear above page dialogs
 // v18: Refactored edit mode UI - simplified layout with emoji, title, body, and save/cancel buttons in a single container
 // v17: Fixed edit mode layout - buttons no longer overlap edit area
 
@@ -15,6 +16,19 @@
       return;
     }
 
+    // Centralized z-index management for maintaining proper layering
+    // Ensures bookmarklet elements always appear above page dialogs (even those with z-index: 1000)
+    const Z_INDEX = {
+      // Maximum safe z-index value (2^31 - 1)
+      MAX: 2147483647,
+      // Base level for all bookmarklet elements
+      BASE: 2147483647,
+      // Modal overlay must be higher than base to cover everything
+      MODAL_OVERLAY: 2147483647,
+      // Dropdowns inherit base level - no need for separate lower value
+      DROPDOWN: 2147483647
+    };
+
     const host = document.createElement('div');
     host.id = ID;
     host.style.cssText = [
@@ -23,7 +37,7 @@
       'left:0',
       'width:0',
       'height:0',
-      'z-index:2147483647',
+      `z-index:${Z_INDEX.BASE}`,
       'border:none',
       'outline:none',
       'background:transparent',
@@ -309,7 +323,7 @@
         'border-radius:6px',
         'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
         'padding:8px',
-        'z-index:1000',
+        `z-index:${Z_INDEX.DROPDOWN}`,
         'box-sizing:border-box'
       ].join(';'));
       
@@ -574,7 +588,7 @@
           'width:100%',
           'height:100%',
           'background:rgba(0,0,0,0.5)',
-          'z-index:2147483648',
+          `z-index:${Z_INDEX.MODAL_OVERLAY}`,
           'display:flex',
           'align-items:center',
           'justify-content:center'
@@ -795,7 +809,7 @@
 
     const wrap = createElement('div', [
       'position:fixed',
-      'z-index:2147483647',
+      `z-index:${Z_INDEX.BASE}`,
       'top:20px',
       'right:20px',
       'width:360px',
@@ -1176,7 +1190,7 @@
       'border-radius:6px',
       'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
       'padding:8px',
-      'z-index:1000',
+      `z-index:${Z_INDEX.DROPDOWN}`,
       'box-sizing:border-box'
     ].join(';'));
 
