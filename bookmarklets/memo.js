@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v17
+// v18
 // 2026-02-03
+// v18: Refactored edit mode UI - simplified layout with emoji, title, body, and save/cancel buttons in a single container
 // v17: Fixed edit mode layout - buttons no longer overlap edit area
 
 (function() {
@@ -406,16 +407,14 @@
     };
 
     /**
-     * Create edit UI components for inline memo editing
+     * Create edit UI components for inline memo editing with improved layout
      * @param {Object} item - The memo item to edit with properties: title, text, emoji
      * @param {Function} onSave - Callback function called when save is clicked, receives updated data object
      * @param {Function} onCancel - Callback function called when cancel is clicked or ESC is pressed
      * @returns {Object} - Object containing:
-     *   - container: DOM element with edit UI (emoji picker and textarea only)
+     *   - container: DOM element with complete edit UI (emoji picker, textarea, and buttons)
      *   - titleInput: Input element for title
      *   - textArea: Textarea element for memo content
-     *   - saveButton: Save button element (separate from container)
-     *   - cancelButton: Cancel button element (separate from container)
      */
     const createEditUI = (item, onSave, onCancel) => {
       // Create emoji picker
@@ -424,7 +423,7 @@
       // Text area
       const textArea = createElement('textarea', [
         'width:100%',
-        'min-height:80px',
+        'min-height:100px',
         'padding:10px',
         'border:1px solid #1a73e8',
         'border-radius:4px',
@@ -433,24 +432,35 @@
         'background:#fff',
         'color:#333',
         'font-family:sans-serif',
-        'box-sizing:border-box'
+        'box-sizing:border-box',
+        'margin-bottom:12px'
       ].join(';'));
       textArea.value = item.text;
+      textArea.placeholder = 'メモ内容を入力...';
       
       // Set initial title
       emojiPicker.titleInput.value = item.title || '';
       
+      // Create button container with proper styling
+      const buttonContainer = createElement('div', [
+        'display:flex',
+        'gap:8px',
+        'justify-content:flex-start',
+        'flex-wrap:wrap'
+      ].join(';'));
+      
       // Save button
       const saveButton = createElement('button', [
-        'padding:6px 12px',
-        'font-size:12px',
+        'padding:8px 16px',
+        'font-size:13px',
         'border:none',
         'border-radius:4px',
         'cursor:pointer',
         'background:#34a853',
         'color:#fff',
         'white-space:nowrap',
-        'font-weight:500'
+        'font-weight:500',
+        'transition:background 0.2s'
       ].join(';'), '✓ 保存 (Ctrl+Enter)', () => {
         const newTitle = emojiPicker.titleInput.value.trim();
         const newText = textArea.value.trim();
@@ -462,18 +472,30 @@
         });
       });
       
+      // Add hover effect to save button
+      saveButton.onmouseover = () => saveButton.style.background = '#2d8f47';
+      saveButton.onmouseout = () => saveButton.style.background = '#34a853';
+      
       // Cancel button
       const cancelButton = createElement('button', [
-        'padding:6px 12px',
-        'font-size:12px',
+        'padding:8px 16px',
+        'font-size:13px',
         'border:none',
         'border-radius:4px',
         'cursor:pointer',
         'background:#ea4335',
         'color:#fff',
         'white-space:nowrap',
-        'font-weight:500'
+        'font-weight:500',
+        'transition:background 0.2s'
       ].join(';'), '✗ キャンセル (ESC)', onCancel);
+      
+      // Add hover effect to cancel button
+      cancelButton.onmouseover = () => cancelButton.style.background = '#d33828';
+      cancelButton.onmouseout = () => cancelButton.style.background = '#ea4335';
+      
+      buttonContainer.appendChild(saveButton);
+      buttonContainer.appendChild(cancelButton);
       
       // Keyboard handlers
       const handleKeyDown = (e) => {
@@ -509,7 +531,7 @@
       textArea.onkeydown = handleKeyDown;
       
       // Assemble container with proper layout styling
-      // Container now only includes emoji picker and textarea, NOT the buttons
+      // Container now includes emoji picker, textarea, AND buttons in a clean vertical layout
       const container = createElement('div', [
         'display:flex',
         'flex-direction:column',
@@ -519,13 +541,12 @@
       ].join(';'));
       container.appendChild(emojiPicker.container);
       container.appendChild(textArea);
+      container.appendChild(buttonContainer);
       
       return {
         container,
         titleInput: emojiPicker.titleInput,
-        textArea,
-        saveButton,
-        cancelButton
+        textArea
       };
     };
 
@@ -1383,7 +1404,6 @@
         KeyHandler.isEditMode = true;
         
         const listItem = actions.parentElement;
-        const textWrapper = listItem.querySelector('div');
         
         // Create edit UI using refactored helper
         const editUI = createEditUI(item, (updatedData) => {
@@ -1403,19 +1423,9 @@
           renderList(load());
         });
         
-        // Clean layout: Replace content wrapper with edit UI (which contains emoji picker and textarea)
-        // and replace action buttons with save/cancel buttons
-        textWrapper.replaceChildren(editUI.container);
-        
-        // Clear and rebuild actions container with proper flex layout
-        actions.style.cssText = [
-          'display:flex',
-          'gap:6px',
-          'justify-content:flex-start',
-          'flex-wrap:wrap',
-          'margin-top:0'
-        ].join(';');
-        actions.replaceChildren(editUI.saveButton, editUI.cancelButton);
+        // Replace entire list item content with edit UI
+        // The new edit UI is self-contained with emoji picker, textarea, and buttons all in one container
+        listItem.replaceChildren(editUI.container);
         
         // Focus on textarea using requestAnimationFrame for reliable DOM update timing
         requestAnimationFrame(() => {
