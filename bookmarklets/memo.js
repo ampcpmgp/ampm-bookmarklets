@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v19
+// v20
 // 2026-02-03
+// v20: Improved textarea height for better editing experience - increased to 300px min-height for comfortable editing of 20+ line memos, refactored common textarea styling
 // v19: Fixed z-index issue - all elements now use centralized Z_INDEX constants to ensure they always appear above page dialogs
 // v18: Refactored edit mode UI - simplified layout with emoji, title, body, and save/cancel buttons in a single container
 // v17: Fixed edit mode layout - buttons no longer overlap edit area
@@ -90,6 +91,19 @@
     const KEY = 'my_local_storage_notes';
     const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const MAX = 300;
+    
+    // UI/UX constants for textarea dimensions
+    // Optimized for comfortable editing of 20+ line memos
+    const TEXTAREA_CONFIG = {
+      // Minimum height for edit textarea (allows ~15 lines at 13px font)
+      MIN_HEIGHT: '300px',
+      // Font size for consistent readability
+      FONT_SIZE: '13px',
+      // Line height for comfortable reading
+      LINE_HEIGHT: '1.6',
+      // Padding for comfortable typing
+      PADDING: '10px'
+    };
 
     // Comprehensive emoji collection for title decoration
     // Organized by category for better UX
@@ -242,6 +256,46 @@
         if (hoverBgColor) element.style.background = originalBg;
         if (hoverBorderColor) element.style.borderColor = originalBorder;
       };
+    };
+
+    /**
+     * Create a textarea element with optimized styling for comfortable memo editing
+     * Uses centralized TEXTAREA_CONFIG for consistent UI/UX across the app
+     * @param {Object} options - Configuration options
+     * @param {string} options.placeholder - Placeholder text
+     * @param {string} options.value - Initial value
+     * @param {string} options.borderColor - Border color (default: #1a73e8)
+     * @param {string} options.marginBottom - Bottom margin (default: 12px)
+     * @returns {HTMLTextAreaElement} - Configured textarea element
+     */
+    const createTextarea = (options = {}) => {
+      const {
+        placeholder = 'メモ内容を入力...',
+        value = '',
+        borderColor = '#1a73e8',
+        marginBottom = '12px'
+      } = options;
+      
+      const textarea = createElement('textarea', [
+        'width:100%',
+        `min-height:${TEXTAREA_CONFIG.MIN_HEIGHT}`,
+        `padding:${TEXTAREA_CONFIG.PADDING}`,
+        `border:1px solid ${borderColor}`,
+        'border-radius:4px',
+        'resize:vertical',
+        `font-size:${TEXTAREA_CONFIG.FONT_SIZE}`,
+        'background:#fff',
+        'color:#333',
+        'font-family:sans-serif',
+        'box-sizing:border-box',
+        `margin-bottom:${marginBottom}`,
+        `line-height:${TEXTAREA_CONFIG.LINE_HEIGHT}`
+      ].join(';'));
+      
+      textarea.value = value;
+      textarea.placeholder = placeholder;
+      
+      return textarea;
     };
 
     /**
@@ -434,23 +488,13 @@
       // Create emoji picker
       const emojiPicker = createEmojiPicker(item.emoji);
       
-      // Text area
-      const textArea = createElement('textarea', [
-        'width:100%',
-        'min-height:100px',
-        'padding:10px',
-        'border:1px solid #1a73e8',
-        'border-radius:4px',
-        'resize:vertical',
-        'font-size:13px',
-        'background:#fff',
-        'color:#333',
-        'font-family:sans-serif',
-        'box-sizing:border-box',
-        'margin-bottom:12px'
-      ].join(';'));
-      textArea.value = item.text;
-      textArea.placeholder = 'メモ内容を入力...';
+      // Text area - use centralized textarea creation for consistent UI/UX
+      const textArea = createTextarea({
+        placeholder: 'メモ内容を入力...',
+        value: item.text,
+        borderColor: '#1a73e8',
+        marginBottom: '12px'
+      });
       
       // Set initial title
       emojiPicker.titleInput.value = item.title || '';
@@ -1288,23 +1332,14 @@
 
     body.appendChild(emojiTitleRowContainer);
 
-    const input = createElement('textarea', [
-      'width:100%',
-      'height:80px',
-      'min-height:80px',
-      'flex-shrink:0',
-      'padding:10px',
-      'margin-bottom:10px',
-      'border:1px solid #ccc',
-      'border-radius:4px',
-      'resize:vertical',
-      'font-size:14px',
-      'background:#fff',
-      'color:#333',
-      'font-family:sans-serif',
-      'box-sizing:border-box'
-    ].join(';'));
-    input.placeholder = 'テキストを入力...';
+    // Use centralized textarea creation for consistent UI/UX
+    const input = createTextarea({
+      placeholder: 'テキストを入力...',
+      value: '',
+      borderColor: '#ccc',
+      marginBottom: '10px'
+    });
+    input.style.flexShrink = '0';
     input.onkeydown = (e) => {
       if (e.key === KeyHandler.ESC) {
         close();
