@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v20
+// v21
 // 2026-02-03
+// v21: Fixed stacking context issue - removed isolation:isolate to ensure proper z-index layering above CDK overlay containers
 // v20: Improved textarea height for better editing experience - increased to 300px min-height for comfortable editing of 20+ line memos, refactored common textarea styling
 // v19: Fixed z-index issue - all elements now use centralized Z_INDEX constants to ensure they always appear above page dialogs
 // v18: Refactored edit mode UI - simplified layout with emoji, title, body, and save/cancel buttons in a single container
@@ -41,8 +42,7 @@
       `z-index:${Z_INDEX.BASE}`,
       'border:none',
       'outline:none',
-      'background:transparent',
-      'isolation:isolate'
+      'background:transparent'
     ].join(';');
     document.body.appendChild(host);
 
