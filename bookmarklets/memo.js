@@ -95,7 +95,7 @@
     // UI/UX constants for textarea dimensions
     // Optimized for comfortable editing of 20+ line memos
     const TEXTAREA_CONFIG = {
-      // Minimum height for edit textarea (allows ~15 lines at 13px font)
+      // Minimum height for edit textarea (allows ~13+ visible lines with scrolling for more)
       MIN_HEIGHT: '300px',
       // Font size for consistent readability
       FONT_SIZE: '13px',
