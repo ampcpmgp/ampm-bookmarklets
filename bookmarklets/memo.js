@@ -1818,13 +1818,14 @@
             pinnedItemsIndex++;
           }
           
-          // Content area (clickable to expand)
+          // Content area (clickable to expand for unpinned items)
+          // For pinned items, cursor is handled by drag handle
           const contentArea = createElement('div', [
             'flex:1',
             'display:flex',
             'align-items:center',
             'gap:8px',
-            item.pinned ? 'cursor:default' : 'cursor:pointer',
+            item.pinned ? '' : 'cursor:pointer',
             'min-width:0',
             'overflow:hidden'
           ].join(';'));
