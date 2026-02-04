@@ -3,7 +3,7 @@
 // 📝
 // v24
 // 2026-02-04
-// v24: Fixed button layout consistency - removed flex-wrap from edit button container to ensure save/cancel buttons always display horizontally in both list and full view modes for polished UI/UX
+// v24: Fixed button layout - removed flex-wrap for consistent horizontal display in edit mode
 // v23: Implemented auto-height textarea - textareas now start compact (60px) and dynamically grow with content up to 300px max, with smooth transitions and clean refactored implementation
 // v22: Implemented Popover API - added popover="manual" attribute with showPopover()/hidePopover() calls for proper display management and cleanup
 // v21: Fixed stacking context issue - removed isolation:isolate to ensure proper z-index layering above CDK overlay containers
@@ -564,8 +564,7 @@
       // Set initial title
       emojiPicker.titleInput.value = item.title || '';
       
-      // Create button container with proper styling
-      // Buttons always display horizontally for consistent UI/UX
+      // Create button container - no flex-wrap to prevent button wrapping
       const buttonContainer = createElement('div', [
         'display:flex',
         'gap:8px',
