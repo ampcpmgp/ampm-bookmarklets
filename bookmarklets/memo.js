@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v22
-// 2026-02-03
+// v23
+// 2026-02-04
+// v23: Implemented auto-height textarea - textareas now start compact (60px) and dynamically grow with content up to 300px max, with smooth transitions and clean refactored implementation
 // v22: Implemented Popover API - added popover="manual" attribute with showPopover()/hidePopover() calls for proper display management and cleanup
 // v21: Fixed stacking context issue - removed isolation:isolate to ensure proper z-index layering above CDK overlay containers
 // v20: Improved textarea height for better editing experience - increased to 300px min-height for comfortable editing of 20+ line memos, refactored common textarea styling
@@ -107,10 +108,12 @@
     const MAX = 300;
     
     // UI/UX constants for textarea dimensions
-    // Optimized for comfortable editing of 20+ line memos
+    // Optimized for comfortable editing with auto-height adjustment
     const TEXTAREA_CONFIG = {
-      // Minimum height for edit textarea (allows ~13+ visible lines with scrolling for more)
-      MIN_HEIGHT: '300px',
+      // Initial minimum height when empty (compact for better UX)
+      MIN_HEIGHT: '60px',
+      // Maximum height before scrolling (allows ~13+ visible lines)
+      MAX_HEIGHT: '300px',
       // Font size for consistent readability
       FONT_SIZE: '13px',
       // Line height for comfortable reading
@@ -273,16 +276,58 @@
     };
 
     /**
+     * Setup auto-height adjustment for textarea elements
+     * Automatically adjusts textarea height based on content, with smooth transitions
+     * @param {HTMLTextAreaElement} textarea - The textarea element to enhance
+     */
+    const setupAutoHeight = (textarea) => {
+      /**
+       * Adjust textarea height based on content
+       * Ensures smooth UX by:
+       * - Starting small when empty (MIN_HEIGHT)
+       * - Growing with content up to MAX_HEIGHT
+       * - Enabling scroll when content exceeds MAX_HEIGHT
+       */
+      const adjustHeight = () => {
+        // Reset height to recalculate scrollHeight accurately
+        textarea.style.height = 'auto';
+        
+        // Get the actual content height
+        const scrollHeight = textarea.scrollHeight;
+        
+        // Parse max height from config (remove 'px' suffix)
+        const maxHeight = parseInt(TEXTAREA_CONFIG.MAX_HEIGHT);
+        
+        // Set height to content size, capped at max height
+        if (scrollHeight <= maxHeight) {
+          textarea.style.height = scrollHeight + 'px';
+          textarea.style.overflowY = 'hidden';
+        } else {
+          textarea.style.height = TEXTAREA_CONFIG.MAX_HEIGHT;
+          textarea.style.overflowY = 'auto';
+        }
+      };
+      
+      // Adjust on input
+      textarea.addEventListener('input', adjustHeight);
+      
+      // Initial adjustment for pre-filled content
+      // Use setTimeout to ensure textarea is rendered before measuring
+      setTimeout(() => adjustHeight(), 0);
+    };
+
+    /**
      * Create a textarea element with optimized styling for comfortable memo editing
      * Uses centralized TEXTAREA_CONFIG for consistent UI/UX across the app
+     * Features auto-height adjustment that grows with content
      * @param {Object} options - Configuration options
      * @param {string} options.placeholder - Placeholder text
      * @param {string} options.value - Initial value
      * @param {string} options.borderColor - Border color (default: #1a73e8)
      * @param {string} options.marginBottom - Bottom margin (default: 12px)
-     * @returns {HTMLTextAreaElement} - Configured textarea element
+     * @returns {HTMLTextAreaElement} - Configured textarea element with auto-height
      */
-    const createTextarea = (options = {}) => {
+     const createTextarea = (options = {}) => {
       const {
         placeholder = 'メモ内容を入力...',
         value = '',
@@ -303,11 +348,16 @@
         'font-family:sans-serif',
         'box-sizing:border-box',
         `margin-bottom:${marginBottom}`,
-        `line-height:${TEXTAREA_CONFIG.LINE_HEIGHT}`
+        `line-height:${TEXTAREA_CONFIG.LINE_HEIGHT}`,
+        'overflow-y:hidden',
+        'transition:height 0.1s ease'
       ].join(';'));
       
       textarea.value = value;
       textarea.placeholder = placeholder;
+      
+      // Enable auto-height adjustment
+      setupAutoHeight(textarea);
       
       return textarea;
     };
