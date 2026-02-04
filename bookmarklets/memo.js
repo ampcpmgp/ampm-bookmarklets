@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v24
+// v25
 // 2026-02-04
+// v25: Implemented drag & drop for pinned items - pinned items can now be reordered via drag & drop with visual feedback, clean refactored DragDropManager for maintainability
 // v24: Fixed button layout - removed flex-wrap for consistent horizontal display in edit mode
 // v23: Implemented auto-height textarea - textareas now start compact (60px) and dynamically grow with content up to 300px max, with smooth transitions and clean refactored implementation
 // v22: Implemented Popover API - added popover="manual" attribute with showPopover()/hidePopover() calls for proper display management and cleanup
@@ -176,6 +177,183 @@
       '🌺', '🌸', '🌼', '🌻', '🌷', '🌹', '🥀', '💐', '🍂', '🍁',
       '🔮', '🌟', '🌠', '🎇', '🎆'
     ];
+
+    // Drag & Drop Manager for pinned items reordering
+    // Provides clean, maintainable drag & drop functionality with visual feedback
+    const DragDropManager = {
+      // State tracking for drag operations
+      draggedElement: null,
+      draggedIndex: null,
+      dropIndicator: null,
+      
+      /**
+       * Initialize drag & drop functionality for a list item
+       * @param {HTMLElement} listItem - The list item element
+       * @param {number} pinnedIndex - Index within pinned items array
+       * @param {Array} allData - Complete data array
+       * @param {Function} onReorder - Callback when reorder occurs
+       */
+      setupDraggable(listItem, pinnedIndex, allData, onReorder) {
+        // Only pinned items are draggable
+        listItem.setAttribute('draggable', 'true');
+        listItem.style.cursor = 'move';
+        
+        // Add drag handle indicator (visual cue for draggability)
+        const dragHandle = createElement('div', [
+          'position:absolute',
+          'left:4px',
+          'top:50%',
+          'transform:translateY(-50%)',
+          'font-size:14px',
+          'color:#bbb',
+          'pointer-events:none',
+          'user-select:none'
+        ].join(';'), '⋮⋮');
+        listItem.style.position = 'relative';
+        listItem.style.paddingLeft = '24px';
+        listItem.insertBefore(dragHandle, listItem.firstChild);
+        
+        // Drag start event
+        listItem.addEventListener('dragstart', (e) => {
+          this.draggedElement = listItem;
+          this.draggedIndex = pinnedIndex;
+          
+          // Visual feedback: semi-transparent
+          listItem.style.opacity = '0.4';
+          
+          // Set drag data
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/html', listItem.innerHTML);
+        });
+        
+        // Drag end event
+        listItem.addEventListener('dragend', () => {
+          // Restore opacity
+          if (this.draggedElement) {
+            this.draggedElement.style.opacity = '1';
+          }
+          
+          // Clean up
+          this.draggedElement = null;
+          this.draggedIndex = null;
+          this.removeDropIndicator();
+        });
+        
+        // Drag over event
+        listItem.addEventListener('dragover', (e) => {
+          if (!this.draggedElement || this.draggedElement === listItem) {
+            return;
+          }
+          
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          
+          // Show drop indicator
+          this.showDropIndicator(listItem, e.clientY);
+        });
+        
+        // Drag leave event
+        listItem.addEventListener('dragleave', (e) => {
+          // Only remove indicator if leaving the entire element
+          if (e.target === listItem) {
+            this.removeDropIndicator();
+          }
+        });
+        
+        // Drop event
+        listItem.addEventListener('drop', (e) => {
+          if (!this.draggedElement || this.draggedElement === listItem) {
+            return;
+          }
+          
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Calculate drop position
+          const targetIndex = pinnedIndex;
+          const sourceIndex = this.draggedIndex;
+          
+          if (sourceIndex !== targetIndex) {
+            // Perform reorder
+            this.reorderPinnedItems(sourceIndex, targetIndex, allData, onReorder);
+          }
+          
+          this.removeDropIndicator();
+        });
+      },
+      
+      /**
+       * Show visual indicator for drop position
+       * @param {HTMLElement} targetElement - Element being hovered over
+       * @param {number} mouseY - Mouse Y position
+       */
+      showDropIndicator(targetElement, mouseY) {
+        // Remove existing indicator
+        this.removeDropIndicator();
+        
+        // Create drop indicator line
+        const indicator = createElement('div', [
+          'position:absolute',
+          'left:0',
+          'right:0',
+          'height:3px',
+          'background:#4285f4',
+          'border-radius:2px',
+          'pointer-events:none',
+          'z-index:1000',
+          'box-shadow:0 0 4px rgba(66,133,244,0.5)'
+        ].join(';'));
+        
+        // Determine if drop should be before or after
+        const rect = targetElement.getBoundingClientRect();
+        const midpoint = rect.top + rect.height / 2;
+        
+        if (mouseY < midpoint) {
+          // Drop before
+          indicator.style.top = '-2px';
+        } else {
+          // Drop after
+          indicator.style.bottom = '-2px';
+        }
+        
+        targetElement.style.position = 'relative';
+        targetElement.appendChild(indicator);
+        this.dropIndicator = indicator;
+      },
+      
+      /**
+       * Remove drop indicator from DOM
+       */
+      removeDropIndicator() {
+        if (this.dropIndicator && this.dropIndicator.parentNode) {
+          this.dropIndicator.parentNode.removeChild(this.dropIndicator);
+        }
+        this.dropIndicator = null;
+      },
+      
+      /**
+       * Reorder pinned items in the data array
+       * @param {number} fromIndex - Source index within pinned items
+       * @param {number} toIndex - Target index within pinned items
+       * @param {Array} allData - Complete data array
+       * @param {Function} onReorder - Callback after reordering
+       */
+      reorderPinnedItems(fromIndex, toIndex, allData, onReorder) {
+        // Extract pinned and unpinned items
+        const pinnedItems = allData.filter(item => item.pinned);
+        const unpinnedItems = allData.filter(item => !item.pinned);
+        
+        // Reorder pinned items
+        const [movedItem] = pinnedItems.splice(fromIndex, 1);
+        pinnedItems.splice(toIndex, 0, movedItem);
+        
+        // Reconstruct data array: pinned first, then unpinned
+        const newData = [...pinnedItems, ...unpinnedItems];
+        
+        // Trigger callback with new data
+        onReorder(newData);
+      }
+    };
 
     const load = () => {
       try {
@@ -1597,7 +1775,10 @@
 
       if (isTitleOnlyMode) {
         // Title-only mode: show titles with compact action buttons
-        sortedData.forEach((item) => {
+        // Track pinned items index for drag & drop
+        let pinnedItemsIndex = 0;
+        
+        sortedData.forEach((item, sortedIndex) => {
           const originalIndex = data.indexOf(item);
           
           const listItem = createElement('li', [
@@ -1615,13 +1796,22 @@
             item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
           ].join(';'));
           
+          // Setup drag & drop for pinned items only
+          if (item.pinned) {
+            const currentPinnedIndex = pinnedItemsIndex;
+            DragDropManager.setupDraggable(listItem, currentPinnedIndex, data, (newData) => {
+              save(newData);
+            });
+            pinnedItemsIndex++;
+          }
+          
           // Content area (clickable to expand)
           const contentArea = createElement('div', [
             'flex:1',
             'display:flex',
             'align-items:center',
             'gap:8px',
-            'cursor:pointer',
+            item.pinned ? 'cursor:default' : 'cursor:pointer',
             'min-width:0',
             'overflow:hidden'
           ].join(';'));
@@ -1667,18 +1857,22 @@
           
           contentArea.appendChild(titleText);
           
-          contentArea.onclick = () => {
-            isTitleOnlyMode = false;
-            titleOnlyButton.textContent = '📋 一覧';
-            titleOnlyButton.style.background = '#34a853';
-            
-            // Show input fields
-            emojiTitleRowContainer.style.display = 'block';
-            input.style.display = 'block';
-            saveButton.style.display = 'block';
-            
-            renderList(data);
-          };
+          // Only make unpinned items clickable to expand in title-only mode
+          // Pinned items use drag handle and should not expand on click
+          if (!item.pinned) {
+            contentArea.onclick = () => {
+              isTitleOnlyMode = false;
+              titleOnlyButton.textContent = '📋 一覧';
+              titleOnlyButton.style.background = '#34a853';
+              
+              // Show input fields
+              emojiTitleRowContainer.style.display = 'block';
+              input.style.display = 'block';
+              saveButton.style.display = 'block';
+              
+              renderList(data);
+            };
+          }
           
           listItem.appendChild(contentArea);
           
@@ -1692,6 +1886,10 @@
         return;
       }
 
+      // Full view mode: show complete memo items with all details
+      // Track pinned items index for drag & drop
+      let pinnedItemsIndex = 0;
+      
       sortedData.forEach((item) => {
         const originalIndex = data.indexOf(item);
         
@@ -1707,6 +1905,15 @@
           'box-sizing:border-box',
           item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
         ].join(';'));
+
+        // Setup drag & drop for pinned items only
+        if (item.pinned) {
+          const currentPinnedIndex = pinnedItemsIndex;
+          DragDropManager.setupDraggable(listItem, currentPinnedIndex, data, (newData) => {
+            save(newData);
+          });
+          pinnedItemsIndex++;
+        }
 
         const textWrapper = createElement('div', [
           'width:100%',
