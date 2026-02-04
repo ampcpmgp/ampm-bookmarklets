@@ -269,9 +269,22 @@
           e.preventDefault();
           e.stopPropagation();
           
-          // Calculate drop position
-          const targetIndex = pinnedIndex;
+          // Calculate drop position based on mouse Y position
+          const rect = listItem.getBoundingClientRect();
+          const midpoint = rect.top + rect.height / 2;
+          
+          let targetIndex = pinnedIndex;
           const sourceIndex = this.draggedIndex;
+          
+          // If dropping after midpoint, adjust target index
+          if (e.clientY >= midpoint) {
+            targetIndex = pinnedIndex + 1;
+          }
+          
+          // Adjust for items moving down (need to account for removal of source)
+          if (sourceIndex < targetIndex) {
+            targetIndex--;
+          }
           
           if (sourceIndex !== targetIndex) {
             // Perform reorder
