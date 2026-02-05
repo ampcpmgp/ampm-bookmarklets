@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v26
+// v27
 // 2026-02-05
 
 (function() {
@@ -107,11 +107,21 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v26',
+      CURRENT: 'v27',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-05',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v27',
+          date: '2026-02-05',
+          features: [
+            'ESCキー動作の修正：全表示モードで新規メモ作成中にESCキーを押してもブックマークレット全体が閉じず、入力フォームのみクリアするよう改善',
+            'KeyHandler.isNewMemoCreatingフラグの活用：全表示モードでも一覧モードと同様に新規作成状態を追跡',
+            'clearFullViewForm関数の導入：フォームクリア処理の一元化で保守性向上',
+            '絵文字選択時やテキスト入力時に新規作成フラグを自動設定してユーザー体験を向上'
+          ]
+        },
         {
           version: 'v26',
           date: '2026-02-05',
@@ -1552,9 +1562,27 @@
     ].join(';'));
     titleInput.type = 'text';
     titleInput.placeholder = 'タイトル（省略可）';
+    
+    // Helper function to clear the full view form and reset creation state
+    const clearFullViewForm = () => {
+      titleInput.value = '';
+      // input is defined later, so we'll check if it exists
+      if (input) input.value = '';
+      currentEmoji = '';
+      emojiButton.textContent = '➕';
+      KeyHandler.isNewMemoCreating = false;
+    };
+    
     titleInput.onkeydown = (e) => {
       if (e.key === KeyHandler.ESC) {
-        close();
+        e.preventDefault();
+        e.stopPropagation();
+        // If user is creating a memo, clear the form instead of closing bookmarklet
+        if (KeyHandler.isNewMemoCreating) {
+          clearFullViewForm();
+        } else {
+          close();
+        }
         return;
       }
       if (KeyHandler.isCtrlEnter(e)) {
@@ -1564,6 +1592,14 @@
       }
       e.stopPropagation();
     };
+    
+    // Track when user starts creating a memo in full view
+    titleInput.oninput = () => {
+      if (titleInput.value.trim() && !isTitleOnlyMode) {
+        KeyHandler.isNewMemoCreating = true;
+      }
+    };
+    
     emojiTitleRow.appendChild(titleInput);
 
     // Emoji dropdown picker
@@ -1600,6 +1636,10 @@
       currentEmoji = emoji;
       emojiButton.textContent = emoji;
       emojiDropdown.style.display = 'none';
+      // Track that user is creating a memo
+      if (!isTitleOnlyMode) {
+        KeyHandler.isNewMemoCreating = true;
+      }
     });
     randomPickerButton.onmouseover = () => {
       randomPickerButton.style.background = '#d97706';
@@ -1662,6 +1702,10 @@
         currentEmoji = emoji;
         emojiButton.textContent = emoji;
         emojiDropdown.style.display = 'none';
+        // Track that user is creating a memo
+        if (!isTitleOnlyMode) {
+          KeyHandler.isNewMemoCreating = true;
+        }
       });
       
       // Apply centered hover effect with background and border
@@ -1686,7 +1730,14 @@
     input.style.flexShrink = '0';
     input.onkeydown = (e) => {
       if (e.key === KeyHandler.ESC) {
-        close();
+        e.preventDefault();
+        e.stopPropagation();
+        // If user is creating a memo, clear the form instead of closing bookmarklet
+        if (KeyHandler.isNewMemoCreating) {
+          clearFullViewForm();
+        } else {
+          close();
+        }
         return;
       }
       if (KeyHandler.isCtrlEnter(e)) {
@@ -1696,6 +1747,14 @@
       }
       e.stopPropagation();
     };
+    
+    // Track when user starts creating a memo in full view
+    input.oninput = () => {
+      if (input.value.trim() && !isTitleOnlyMode) {
+        KeyHandler.isNewMemoCreating = true;
+      }
+    };
+    
     body.appendChild(input);
 
     const saveButton = createElement('button', [
@@ -1724,11 +1783,8 @@
       const now = new Date().toISOString();
       data.unshift({ title: title, text: value, createdDate: now, updatedDate: now, pinned: false, emoji: currentEmoji });
       save(data);
-      titleInput.value = '';
-      input.value = '';
-      // Reset to empty state after saving
-      currentEmoji = '';
-      emojiButton.textContent = '➕';
+      // Use clearFullViewForm to reset state consistently
+      clearFullViewForm();
     });
     body.appendChild(saveButton);
 
