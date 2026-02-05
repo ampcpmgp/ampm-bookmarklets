@@ -2002,7 +2002,7 @@
 
         const data = load();
         if (data.length >= MAX) {
-          alert(`最大${MAX}件です`);
+          alert(`メモの保存に失敗しました。最大${MAX}件です`);
           return;
         }
 
@@ -2058,11 +2058,8 @@
           cancelCompactButton.click();
           return;
         }
-        if (KeyHandler.isCtrlEnter(e)) {
-          e.preventDefault();
-          compactTextarea.focus();
-          return;
-        }
+        // Note: Ctrl+Enter in title field is intentionally not bound
+        // to avoid confusion (it saves in textarea but would move focus here)
         e.stopPropagation();
       };
 
