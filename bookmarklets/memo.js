@@ -1562,22 +1562,12 @@
     ].join(';'));
     titleInput.type = 'text';
     titleInput.placeholder = 'タイトル（省略可）';
-    
-    // Helper function to clear the full view form and reset creation state
-    const clearFullViewForm = () => {
-      titleInput.value = '';
-      // input is defined later, so we'll check if it exists
-      if (input) input.value = '';
-      currentEmoji = '';
-      emojiButton.textContent = '➕';
-      KeyHandler.isNewMemoCreating = false;
-    };
-    
     titleInput.onkeydown = (e) => {
       if (e.key === KeyHandler.ESC) {
         e.preventDefault();
         e.stopPropagation();
         // If user is creating a memo, clear the form instead of closing bookmarklet
+        // clearFullViewForm is defined after input element is created
         if (KeyHandler.isNewMemoCreating) {
           clearFullViewForm();
         } else {
@@ -1756,6 +1746,16 @@
     };
     
     body.appendChild(input);
+    
+    // Helper function to clear the full view form and reset creation state
+    // Defined here after both titleInput and input are created
+    const clearFullViewForm = () => {
+      titleInput.value = '';
+      input.value = '';
+      currentEmoji = '';
+      emojiButton.textContent = '➕';
+      KeyHandler.isNewMemoCreating = false;
+    };
 
     const saveButton = createElement('button', [
       'flex-shrink:0',
