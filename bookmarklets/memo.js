@@ -60,6 +60,9 @@
       // Track if settings/modal dialog is open
       isModalOpen: false,
       
+      // Track if new memo creation form is active
+      isNewMemoCreating: false,
+      
       // Check if Ctrl+Enter was pressed
       isCtrlEnter: (e) => {
         return (e.ctrlKey || e.metaKey) && e.key === 'Enter';
@@ -83,9 +86,9 @@
     // Set up document key handler now that close() is defined
     KeyHandler.handleDocumentKey = (e) => {
       if (e.key === KeyHandler.ESC) {
-        // Don't close popup if in edit mode or if modal dialog is open
-        // Let edit field handlers and modal handlers handle it
-        if (!KeyHandler.isEditMode && !KeyHandler.isModalOpen) {
+        // Don't close popup if in edit mode, modal dialog is open, or creating new memo
+        // Let respective handlers manage ESC behavior in those contexts
+        if (!KeyHandler.isEditMode && !KeyHandler.isModalOpen && !KeyHandler.isNewMemoCreating) {
           close();
         }
       }
@@ -1327,10 +1330,14 @@
         emojiTitleRowContainer.style.display = 'none';
         input.style.display = 'none';
         saveButton.style.display = 'none';
+        // Reset flag when entering list view
+        KeyHandler.isNewMemoCreating = false;
       } else {
         emojiTitleRowContainer.style.display = 'block';
         input.style.display = 'block';
         saveButton.style.display = 'block';
+        // Reset flag when entering full view
+        KeyHandler.isNewMemoCreating = false;
       }
       
       renderList(load());
@@ -2104,6 +2111,7 @@
           content: ''
         };
         
+        KeyHandler.isNewMemoCreating = false; // Re-enable ESC to close bookmarklet
         save(data);
       };
 
@@ -2114,6 +2122,7 @@
           title: '',
           content: ''
         };
+        KeyHandler.isNewMemoCreating = false; // Re-enable ESC to close bookmarklet
         renderList(load());
       };
 
@@ -2121,6 +2130,7 @@
       compactTextarea.onkeydown = (e) => {
         if (e.key === KeyHandler.ESC) {
           e.preventDefault();
+          e.stopPropagation(); // Prevent event from reaching document handler
           cancelCompactButton.click();
           return;
         }
@@ -2135,6 +2145,7 @@
       compactTitleInput.onkeydown = (e) => {
         if (e.key === KeyHandler.ESC) {
           e.preventDefault();
+          e.stopPropagation(); // Prevent event from reaching document handler
           cancelCompactButton.click();
           return;
         }
@@ -2191,6 +2202,7 @@
             'gap:6px'
           ].join(';'), '➕ 新規メモを追加', () => {
             compactFormState.visible = true;
+            KeyHandler.isNewMemoCreating = true; // Prevent ESC from closing bookmarklet
             renderList(data);
             // Focus on the textarea after rendering
             setTimeout(() => {
@@ -2302,6 +2314,9 @@
               emojiTitleRowContainer.style.display = 'block';
               input.style.display = 'block';
               saveButton.style.display = 'block';
+              
+              // Reset flag when switching to full view
+              KeyHandler.isNewMemoCreating = false;
               
               renderList(data);
             };
