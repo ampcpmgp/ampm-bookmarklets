@@ -234,7 +234,7 @@ const html = `<!DOCTYPE html>
       transition: max-height 0.3s ease-out;
     }
     .update-history-content.expanded {
-      max-height: 1000px;
+      max-height: 5000px;
       transition: max-height 0.5s ease-in;
     }
     .update-history-content ul {
