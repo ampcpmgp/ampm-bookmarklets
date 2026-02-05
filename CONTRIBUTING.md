@@ -49,6 +49,31 @@
 - 更新日時はバージョン情報と共に GitHub Pages のタイトル横に表示されます
 - バージョン情報と更新日時を分けて管理することで、修正の履歴を明確に追跡できます
 
+#### 更新履歴（6行目以降、オプション）
+- 6行目以降に更新履歴を記述できます（オプション）
+- フォーマット: `// vX: 更新内容の説明`（vの後に数字、コロン、説明）
+- 更新履歴は GitHub Pages の各カードに「更新履歴」セクションとして表示されます
+- クリックすることで展開/折りたたみが可能です
+- バージョンが増えるたびに、最新の変更内容を追加することで、変更履歴を詳細に管理できます
+
+### 更新履歴を含むファイル形式の例
+
+```javascript
+// My Bookmarklet Title
+// This is a description of what this bookmarklet does
+// 🚀
+// v3
+// 2026-02-04
+// v3: Added support for dark mode - UI now automatically adapts to system theme
+// v2: Fixed bug with special characters - now properly handles Unicode
+// v1: Initial release - basic functionality implemented
+
+(function() {
+  // Your code here
+  alert('Hello!');
+})();
+```
+
 ## ビルド
 
 ローカルでビルドする場合:

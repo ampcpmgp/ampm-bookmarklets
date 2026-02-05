@@ -3,6 +3,7 @@
 // 📋
 // v1
 // 2026-01-27
+// v1: Initial release - copy page title and URL as Markdown link
 
 (function() {
   try {

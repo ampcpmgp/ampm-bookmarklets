@@ -24,21 +24,34 @@ files.forEach(file => {
   const filePath = path.join(bookmarkletsDir, file);
   const content = fs.readFileSync(filePath, 'utf-8');
   
-  // Extract title, description, emoji, version, and update date from first five comment lines
-  // Expected comment order: 1) title, 2) description, 3) emoji, 4) version, 5) update date
+  // Extract metadata from comment lines
+  // Expected format:
+  // 1-5: Standard metadata (title, description, emoji, version, update date)
+  // 6+: Optional update history entries (format: "// vX: description")
   const lines = content.split('\n');
   let title = file.replace('.js', '');
   let description = '';
   let emoji = '📎'; // Default emoji
   let version = ''; // Version information
   let updateDate = ''; // Update date information
+  let updateHistory = []; // Update history entries
   let commentCount = 0;
-  const MAX_COMMENT_LINES = 5;
+  const MAX_STANDARD_COMMENTS = 5;
   
-  for (let i = 0; i < lines.length && commentCount < MAX_COMMENT_LINES; i++) {
+  // Regular expression to match update history format: "vX: description"
+  const updateHistoryPattern = /^v\d+:\s*.+/;
+  
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (line.startsWith('//')) {
-      const text = line.substring(2).trim();
+    if (!line.startsWith('//')) {
+      // Stop parsing when we reach non-comment code
+      break;
+    }
+    
+    const text = line.substring(2).trim();
+    
+    // Parse standard metadata (first 5 comment lines)
+    if (commentCount < MAX_STANDARD_COMMENTS) {
       if (commentCount === 0) {
         title = text;
       } else if (commentCount === 1) {
@@ -51,6 +64,9 @@ files.forEach(file => {
         updateDate = text;
       }
       commentCount++;
+    } else if (updateHistoryPattern.test(text)) {
+      // Parse update history entries (after standard metadata)
+      updateHistory.push(text);
     }
   }
   
@@ -76,9 +92,30 @@ files.forEach(file => {
     emoji,
     version,
     updateDate,
+    updateHistory,
     code: bookmarkletUrl
   });
 });
+
+// Helper function to generate update history HTML
+function generateUpdateHistoryHtml(updateHistory) {
+  if (!updateHistory || updateHistory.length === 0) {
+    return '';
+  }
+  
+  const historyItems = updateHistory.map(entry => `        <li>${escapeHtml(entry)}</li>`).join('\n');
+  
+  return `      <div class="update-history">
+        <div class="update-history-title" onclick="this.nextElementSibling.classList.toggle('expanded')">
+          📝 更新履歴 <span class="update-history-toggle">(クリックして表示)</span>
+        </div>
+        <div class="update-history-content">
+          <ul>
+${historyItems}
+          </ul>
+        </div>
+      </div>`;
+}
 
 // Generate index.html
 const html = `<!DOCTYPE html>
@@ -169,6 +206,54 @@ const html = `<!DOCTYPE html>
       padding: 0.75rem 1rem;
       font-size: 1.2rem;
     }
+    .update-history {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e0e0e0;
+    }
+    .update-history-title {
+      font-size: 0.9rem;
+      color: #666;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .update-history-toggle {
+      font-size: 0.8rem;
+      color: #999;
+    }
+    .update-history-content {
+      font-size: 0.85rem;
+      color: #777;
+      line-height: 1.6;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .update-history-content.expanded {
+      max-height: 1000px;
+      transition: max-height 0.5s ease-in;
+    }
+    .update-history-content ul {
+      list-style: none;
+      padding-left: 0;
+      margin-top: 0.5rem;
+    }
+    .update-history-content li {
+      padding: 0.3rem 0;
+      padding-left: 1rem;
+      position: relative;
+    }
+    .update-history-content li:before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: #667eea;
+      font-weight: bold;
+    }
     .instructions {
       background: rgba(255,255,255,0.95);
       border-radius: 12px;
@@ -211,6 +296,7 @@ ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
       <p class="bookmarklet-description">${escapeHtml(bm.description)}</p>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)} ${escapeHtml(bm.title)}${bm.version ? ` ${escapeHtml(bm.version)}` : ''}</a>
       <a href="${escapeHtml(bm.code)}" class="bookmarklet-link emoji-only" onclick="alert('このリンクをブックマークバーにドラッグしてください'); return false;">${escapeHtml(bm.emoji)}</a>
+${generateUpdateHistoryHtml(bm.updateHistory)}
     </div>
 `).join('\n')}
     
