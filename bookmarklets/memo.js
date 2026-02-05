@@ -1873,6 +1873,7 @@
     };
 
     // Helper function to reset compact form state - ensures consistency
+    // Note: Uses closure over compactFormState and KeyHandler (defined above)
     const resetCompactFormState = () => {
       compactFormState = {
         visible: false,
