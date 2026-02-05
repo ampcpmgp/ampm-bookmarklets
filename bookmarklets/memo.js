@@ -3,16 +3,6 @@
 // 📝
 // v26
 // 2026-02-05
-// v26: Added compact new memo creation form in list view - users can now add memos directly from list view with a clean, compact UI
-// v25: Implemented drag & drop for pinned items - pinned items can now be reordered via drag & drop with visual feedback, clean refactored DragDropManager for maintainability
-// v24: Fixed button layout - removed flex-wrap for consistent horizontal display in edit mode
-// v23: Implemented auto-height textarea - textareas now start compact (60px) and dynamically grow with content up to 300px max, with smooth transitions and clean refactored implementation
-// v22: Implemented Popover API - added popover="manual" attribute with showPopover()/hidePopover() calls for proper display management and cleanup
-// v21: Fixed stacking context issue - removed isolation:isolate to ensure proper z-index layering above CDK overlay containers
-// v20: Improved textarea height for better editing experience - increased to 300px min-height for comfortable editing of 20+ line memos, refactored common textarea styling
-// v19: Fixed z-index issue - all elements now use centralized Z_INDEX constants to ensure they always appear above page dialogs
-// v18: Refactored edit mode UI - simplified layout with emoji, title, body, and save/cancel buttons in a single container
-// v17: Fixed edit mode layout - buttons no longer overlap edit area
 
 (function() {
   try {
@@ -22,6 +12,21 @@
       old._close ? old._close() : old.remove();
       return;
     }
+
+    // 更新履歴データ定義
+    // バージョンごとの変更内容を日本語で記録
+    const UPDATE_HISTORY = [
+      { version: 'v26', description: 'リスト表示にコンパクトな新規メモ作成フォームを追加 - クリーンでコンパクトなUIでリスト表示から直接メモを追加可能に' },
+      { version: 'v25', description: 'ピン留めアイテムのドラッグ&ドロップ実装 - ピン留めアイテムをビジュアルフィードバック付きでドラッグ&ドロップで並び替え可能に、メンテナンス性向上のためDragDropManagerをクリーンにリファクタ' },
+      { version: 'v24', description: 'ボタンレイアウトの修正 - 編集モードで一貫した横並び表示のためflex-wrapを削除' },
+      { version: 'v23', description: '自動高さ調整テキストエリアの実装 - テキストエリアがコンパクト(60px)から始まり、最大300pxまでコンテンツに応じて動的に拡大、スムーズなトランジションとクリーンなリファクタ実装' },
+      { version: 'v22', description: 'Popover APIの実装 - 適切な表示管理とクリーンアップのためpopover="manual"属性とshowPopover()/hidePopover()呼び出しを追加' },
+      { version: 'v21', description: 'スタッキングコンテキスト問題の修正 - CDKオーバーレイコンテナより上に適切なz-indexレイヤリングを確保するためisolation:isolateを削除' },
+      { version: 'v20', description: 'より良い編集体験のためのテキストエリア高さ改善 - 20行以上のメモを快適に編集できるよう300pxのmin-heightに増加、共通テキストエリアスタイリングをリファクタ' },
+      { version: 'v19', description: 'z-index問題の修正 - すべての要素が集中管理されたZ_INDEX定数を使用し、ページダイアログより常に上に表示されることを保証' },
+      { version: 'v18', description: '編集モードUIのリファクタ - 絵文字、タイトル、本文、保存/キャンセルボタンを単一コンテナに配置したシンプルなレイアウト' },
+      { version: 'v17', description: '編集モードレイアウトの修正 - ボタンが編集エリアと重ならないように修正' }
+    ];
 
     // Centralized z-index management for maintaining proper layering
     // Ensures bookmarklet elements always appear above page dialogs (even those with z-index: 1000)
