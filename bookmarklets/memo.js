@@ -1,8 +1,9 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v25
-// 2026-02-04
+// v26
+// 2026-02-05
+// v26: Added compact new memo creation form in list view - users can now add memos directly from list view with a clean, compact UI
 // v25: Implemented drag & drop for pinned items - pinned items can now be reordered via drag & drop with visual feedback, clean refactored DragDropManager for maintainability
 // v24: Fixed button layout - removed flex-wrap for consistent horizontal display in edit mode
 // v23: Implemented auto-height textarea - textareas now start compact (60px) and dynamically grow with content up to 300px max, with smooth transitions and clean refactored implementation
@@ -1775,6 +1776,308 @@
       return actions;
     };
 
+    // Compact new memo form state for list view
+    let compactFormState = {
+      visible: false,
+      emoji: '',
+      title: '',
+      content: ''
+    };
+
+    /**
+     * Creates a compact new memo form for list view
+     * @returns {HTMLElement} Compact form container
+     */
+    const createCompactNewMemoForm = () => {
+      const formContainer = createElement('li', [
+        'background:#f0f7ff',
+        'border:1px solid #1a73e8',
+        'margin-bottom:8px',
+        'padding:8px',
+        'border-radius:6px',
+        'display:flex',
+        'flex-direction:column',
+        'gap:6px',
+        'box-sizing:border-box'
+      ].join(';'));
+
+      // First row: Emoji + Title input
+      const firstRow = createElement('div', [
+        'display:flex',
+        'gap:6px',
+        'align-items:center'
+      ].join(';'));
+
+      // Compact emoji button
+      const compactEmojiButton = createElement('button', [
+        'width:32px',
+        'height:32px',
+        'border:1px solid #ccc',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#fff',
+        'font-size:18px',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'transition:all 0.2s',
+        'flex-shrink:0',
+        'padding:0'
+      ].join(';'), compactFormState.emoji || '➕');
+
+      // Compact title input
+      const compactTitleInput = createElement('input', [
+        'flex:1',
+        'padding:6px 8px',
+        'border:1px solid #ccc',
+        'border-radius:4px',
+        'font-size:13px',
+        'font-weight:600',
+        'background:#fff',
+        'color:#333',
+        'font-family:sans-serif',
+        'box-sizing:border-box'
+      ].join(';'));
+      compactTitleInput.type = 'text';
+      compactTitleInput.placeholder = 'タイトル（省略可）';
+      compactTitleInput.value = compactFormState.title;
+
+      firstRow.appendChild(compactEmojiButton);
+      firstRow.appendChild(compactTitleInput);
+
+      // Second row: Compact textarea
+      const compactTextarea = createTextarea({
+        placeholder: 'メモ内容...',
+        value: compactFormState.content,
+        borderColor: '#ccc',
+        marginBottom: '0'
+      });
+      compactTextarea.style.minHeight = '60px';
+      compactTextarea.style.fontSize = '13px';
+
+      // Third row: Action buttons (Save and Cancel)
+      const buttonRow = createElement('div', [
+        'display:flex',
+        'gap:4px',
+        'justify-content:flex-end'
+      ].join(';'));
+
+      const saveCompactButton = createElement('button', [
+        'padding:6px 12px',
+        'background:#1a73e8',
+        'color:#fff',
+        'border:none',
+        'border-radius:4px',
+        'cursor:pointer',
+        'font-weight:500',
+        'font-size:12px',
+        'transition:background 0.2s'
+      ].join(';'), '💾 保存');
+
+      const cancelCompactButton = createElement('button', [
+        'padding:6px 12px',
+        'background:#5f6368',
+        'color:#fff',
+        'border:none',
+        'border-radius:4px',
+        'cursor:pointer',
+        'font-weight:500',
+        'font-size:12px',
+        'transition:background 0.2s'
+      ].join(';'), '✗ キャンセル');
+
+      buttonRow.appendChild(saveCompactButton);
+      buttonRow.appendChild(cancelCompactButton);
+
+      // Emoji picker dropdown for compact form
+      const compactEmojiDropdown = createElement('div', [
+        'display:none',
+        'position:absolute',
+        'top:38px',
+        'left:8px',
+        'background:#fff',
+        'border:1px solid #ccc',
+        'border-radius:6px',
+        'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
+        'padding:8px',
+        `z-index:${Z_INDEX.DROPDOWN}`,
+        'box-sizing:border-box',
+        'width:280px'
+      ].join(';'));
+
+      // Random button
+      const compactRandomButton = createElement('button', [
+        'width:100%',
+        'padding:6px',
+        'margin-bottom:6px',
+        'font-size:12px',
+        'border:1px solid #ddd',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#f59e0b',
+        'color:#fff',
+        'font-weight:500',
+        'transition:background 0.2s'
+      ].join(';'), '🎲 ランダム選択', () => {
+        const emoji = getRandomEmoji();
+        compactFormState.emoji = emoji;
+        compactEmojiButton.textContent = emoji;
+        compactEmojiDropdown.style.display = 'none';
+      });
+
+      // Clear button
+      const compactClearButton = createElement('button', [
+        'width:100%',
+        'padding:6px',
+        'margin-bottom:6px',
+        'font-size:12px',
+        'border:1px solid #ddd',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#ef4444',
+        'color:#fff',
+        'font-weight:500',
+        'transition:background 0.2s'
+      ].join(';'), '🗑️ 削除', () => {
+        compactFormState.emoji = '';
+        compactEmojiButton.textContent = '➕';
+        compactEmojiDropdown.style.display = 'none';
+      });
+
+      // Emoji grid
+      const compactEmojiGrid = createElement('div', [
+        'display:grid',
+        'grid-template-columns:repeat(7, 1fr)',
+        'gap:4px',
+        'max-height:180px',
+        'overflow-y:auto',
+        'overflow-x:hidden',
+        'padding:4px'
+      ].join(';'));
+
+      EMOJIS.forEach(emoji => {
+        const emojiBtn = createElement('button', [
+          'padding:6px',
+          'font-size:16px',
+          'border:1px solid transparent',
+          'border-radius:4px',
+          'cursor:pointer',
+          'background:transparent',
+          'transition:all 0.2s',
+          'line-height:1',
+          'min-width:0',
+          'box-sizing:border-box'
+        ].join(';'), emoji, () => {
+          compactFormState.emoji = emoji;
+          compactEmojiButton.textContent = emoji;
+          compactEmojiDropdown.style.display = 'none';
+        });
+        applyHoverEffect(emojiBtn, 1.15, '#f0f0f0', '#ccc');
+        compactEmojiGrid.appendChild(emojiBtn);
+      });
+
+      compactEmojiDropdown.appendChild(compactRandomButton);
+      compactEmojiDropdown.appendChild(compactClearButton);
+      compactEmojiDropdown.appendChild(compactEmojiGrid);
+
+      // Event handlers
+      compactEmojiButton.onclick = () => {
+        compactEmojiDropdown.style.display = compactEmojiDropdown.style.display === 'none' ? 'block' : 'none';
+      };
+
+      compactTitleInput.oninput = () => {
+        compactFormState.title = compactTitleInput.value;
+      };
+
+      compactTextarea.oninput = () => {
+        compactFormState.content = compactTextarea.value;
+      };
+
+      saveCompactButton.onclick = () => {
+        const content = compactTextarea.value.trim();
+        if (!content) {
+          alert('メモ内容を入力してください');
+          return;
+        }
+
+        const data = load();
+        if (data.length >= MAX) {
+          alert(`最大${MAX}件です`);
+          return;
+        }
+
+        const now = new Date().toISOString();
+        data.unshift({
+          title: compactTitleInput.value.trim(),
+          text: content,
+          createdDate: now,
+          updatedDate: now,
+          pinned: false,
+          emoji: compactFormState.emoji
+        });
+        
+        // Reset form state BEFORE calling save() so renderList() sees the updated state
+        compactFormState = {
+          visible: false,
+          emoji: '',
+          title: '',
+          content: ''
+        };
+        
+        save(data);
+      };
+
+      cancelCompactButton.onclick = () => {
+        compactFormState = {
+          visible: false,
+          emoji: '',
+          title: '',
+          content: ''
+        };
+        renderList(load());
+      };
+
+      // Keyboard shortcuts
+      compactTextarea.onkeydown = (e) => {
+        if (e.key === KeyHandler.ESC) {
+          e.preventDefault();
+          cancelCompactButton.click();
+          return;
+        }
+        if (KeyHandler.isCtrlEnter(e)) {
+          e.preventDefault();
+          saveCompactButton.click();
+          return;
+        }
+        e.stopPropagation();
+      };
+
+      compactTitleInput.onkeydown = (e) => {
+        if (e.key === KeyHandler.ESC) {
+          e.preventDefault();
+          cancelCompactButton.click();
+          return;
+        }
+        if (KeyHandler.isCtrlEnter(e)) {
+          e.preventDefault();
+          compactTextarea.focus();
+          return;
+        }
+        e.stopPropagation();
+      };
+
+      // Append elements to form
+      const firstRowContainer = createElement('div', 'position:relative');
+      firstRowContainer.appendChild(firstRow);
+      firstRowContainer.appendChild(compactEmojiDropdown);
+
+      formContainer.appendChild(firstRowContainer);
+      formContainer.appendChild(compactTextarea);
+      formContainer.appendChild(buttonRow);
+
+      return formContainer;
+    };
+
     const renderList = (data) => {
       title.textContent = `Memo (${data.length}/${MAX})`;
       listContainer.replaceChildren();
@@ -1787,6 +2090,45 @@
       });
 
       if (isTitleOnlyMode) {
+        // Add "New Memo" button at the top of list view
+        if (compactFormState.visible) {
+          // Show compact form
+          listContainer.appendChild(createCompactNewMemoForm());
+        } else {
+          // Show "Add New Memo" button
+          const addButton = createElement('button', [
+            'width:100%',
+            'padding:10px',
+            'margin-bottom:8px',
+            'background:#1a73e8',
+            'color:#fff',
+            'border:none',
+            'border-radius:6px',
+            'cursor:pointer',
+            'font-weight:600',
+            'font-size:13px',
+            'transition:background 0.2s',
+            'display:flex',
+            'align-items:center',
+            'justify-content:center',
+            'gap:6px'
+          ].join(';'), '➕ 新規メモを追加', () => {
+            compactFormState.visible = true;
+            renderList(data);
+            // Focus on the textarea after rendering
+            setTimeout(() => {
+              const textarea = listContainer.querySelector('textarea');
+              if (textarea) textarea.focus();
+            }, 0);
+          });
+          addButton.onmouseover = () => {
+            addButton.style.background = '#1557b0';
+          };
+          addButton.onmouseout = () => {
+            addButton.style.background = '#1a73e8';
+          };
+          listContainer.appendChild(addButton);
+        }
         // Title-only mode: show titles with compact action buttons
         // Track pinned items index for drag & drop
         let pinnedItemsIndex = 0;
