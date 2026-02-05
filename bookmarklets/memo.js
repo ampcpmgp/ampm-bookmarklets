@@ -1583,9 +1583,9 @@
       e.stopPropagation();
     };
     
-    // Track when user starts creating a memo in full view
+    // Track when user starts interacting with the form in full view
     titleInput.oninput = () => {
-      if (titleInput.value.trim() && !isTitleOnlyMode) {
+      if (!isTitleOnlyMode) {
         KeyHandler.isNewMemoCreating = true;
       }
     };
@@ -1738,9 +1738,9 @@
       e.stopPropagation();
     };
     
-    // Track when user starts creating a memo in full view
+    // Track when user starts interacting with the form in full view
     input.oninput = () => {
-      if (input.value.trim() && !isTitleOnlyMode) {
+      if (!isTitleOnlyMode) {
         KeyHandler.isNewMemoCreating = true;
       }
     };
