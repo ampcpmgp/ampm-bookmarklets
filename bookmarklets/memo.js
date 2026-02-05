@@ -1330,13 +1330,20 @@
         emojiTitleRowContainer.style.display = 'none';
         input.style.display = 'none';
         saveButton.style.display = 'none';
-        // Reset flag when entering list view
+        // Reset new memo creation state when entering list view
+        // Note: compactFormState.visible remains unchanged to preserve form state if user switches back
         KeyHandler.isNewMemoCreating = false;
       } else {
         emojiTitleRowContainer.style.display = 'block';
         input.style.display = 'block';
         saveButton.style.display = 'block';
-        // Reset flag when entering full view
+        // Reset compact form state when entering full view
+        compactFormState = {
+          visible: false,
+          emoji: '',
+          title: '',
+          content: ''
+        };
         KeyHandler.isNewMemoCreating = false;
       }
       
@@ -2315,7 +2322,13 @@
               input.style.display = 'block';
               saveButton.style.display = 'block';
               
-              // Reset flag when switching to full view
+              // Reset compact form state when switching to full view
+              compactFormState = {
+                visible: false,
+                emoji: '',
+                title: '',
+                content: ''
+              };
               KeyHandler.isNewMemoCreating = false;
               
               renderList(data);
