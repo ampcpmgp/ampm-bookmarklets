@@ -1330,21 +1330,15 @@
         emojiTitleRowContainer.style.display = 'none';
         input.style.display = 'none';
         saveButton.style.display = 'none';
-        // Reset new memo creation state when entering list view
-        // Note: compactFormState.visible remains unchanged to preserve form state if user switches back
+        // When entering list view, just reset the flag but preserve compactFormState
+        // This allows users to resume editing if they accidentally switch views
         KeyHandler.isNewMemoCreating = false;
       } else {
         emojiTitleRowContainer.style.display = 'block';
         input.style.display = 'block';
         saveButton.style.display = 'block';
-        // Reset compact form state when entering full view
-        compactFormState = {
-          visible: false,
-          emoji: '',
-          title: '',
-          content: ''
-        };
-        KeyHandler.isNewMemoCreating = false;
+        // When switching to full view, completely reset compact form state
+        resetCompactFormState();
       }
       
       renderList(load());
@@ -1878,6 +1872,17 @@
       content: ''
     };
 
+    // Helper function to reset compact form state - ensures consistency
+    const resetCompactFormState = () => {
+      compactFormState = {
+        visible: false,
+        emoji: '',
+        title: '',
+        content: ''
+      };
+      KeyHandler.isNewMemoCreating = false;
+    };
+
     /**
      * Creates a compact new memo form for list view
      * @returns {HTMLElement} Compact form container
@@ -2111,25 +2116,12 @@
         });
         
         // Reset form state BEFORE calling save() so renderList() sees the updated state
-        compactFormState = {
-          visible: false,
-          emoji: '',
-          title: '',
-          content: ''
-        };
-        
-        KeyHandler.isNewMemoCreating = false; // Re-enable ESC to close bookmarklet
+        resetCompactFormState();
         save(data);
       };
 
       cancelCompactButton.onclick = () => {
-        compactFormState = {
-          visible: false,
-          emoji: '',
-          title: '',
-          content: ''
-        };
-        KeyHandler.isNewMemoCreating = false; // Re-enable ESC to close bookmarklet
+        resetCompactFormState();
         renderList(load());
       };
 
@@ -2323,13 +2315,7 @@
               saveButton.style.display = 'block';
               
               // Reset compact form state when switching to full view
-              compactFormState = {
-                visible: false,
-                emoji: '',
-                title: '',
-                content: ''
-              };
-              KeyHandler.isNewMemoCreating = false;
+              resetCompactFormState();
               
               renderList(data);
             };
