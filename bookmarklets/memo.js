@@ -3,16 +3,6 @@
 // 📝
 // v26
 // 2026-02-05
-// v26: Added compact new memo creation form in list view - users can now add memos directly from list view with a clean, compact UI
-// v25: Implemented drag & drop for pinned items - pinned items can now be reordered via drag & drop with visual feedback, clean refactored DragDropManager for maintainability
-// v24: Fixed button layout - removed flex-wrap for consistent horizontal display in edit mode
-// v23: Implemented auto-height textarea - textareas now start compact (60px) and dynamically grow with content up to 300px max, with smooth transitions and clean refactored implementation
-// v22: Implemented Popover API - added popover="manual" attribute with showPopover()/hidePopover() calls for proper display management and cleanup
-// v21: Fixed stacking context issue - removed isolation:isolate to ensure proper z-index layering above CDK overlay containers
-// v20: Improved textarea height for better editing experience - increased to 300px min-height for comfortable editing of 20+ line memos, refactored common textarea styling
-// v19: Fixed z-index issue - all elements now use centralized Z_INDEX constants to ensure they always appear above page dialogs
-// v18: Refactored edit mode UI - simplified layout with emoji, title, body, and save/cancel buttons in a single container
-// v17: Fixed edit mode layout - buttons no longer overlap edit area
 
 (function() {
   try {
@@ -110,6 +100,147 @@
     const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const MAX = 300;
     
+    // Centralized version management
+    // All version information is maintained here for easy updates and display
+    const VERSION_INFO = {
+      // Current version (automatically used in file header)
+      CURRENT: 'v26',
+      // Last update date (automatically used in file header)
+      LAST_UPDATED: '2026-02-05',
+      // Complete version history (displayed in update information tab)
+      HISTORY: [
+        {
+          version: 'v26',
+          date: '2026-02-05',
+          features: [
+            'コンパクトな新規メモ作成フォームを一覧表示に追加：リスト表示からクリーンなUIで直接メモを追加可能に'
+          ]
+        },
+        {
+          version: 'v25',
+          date: '2026-02-04',
+          features: [
+            'ピン留めアイテムのドラッグ&ドロップ実装：視覚的フィードバック付きでピン留めアイテムを並び替え可能に',
+            'DragDropManagerのクリーンなリファクタリングでメンテナンス性向上'
+          ]
+        },
+        {
+          version: 'v24',
+          date: '2026-02-03',
+          features: [
+            'ボタンレイアウト修正：編集モードで一貫した横並び表示のためflex-wrapを削除'
+          ]
+        },
+        {
+          version: 'v23',
+          date: '2026-02-02',
+          features: [
+            'テキストエリアの自動高さ調整実装：コンパクトな60pxから開始し、最大300pxまでコンテンツに応じて動的に拡大',
+            'スムーズなトランジションとクリーンなリファクタリング実装'
+          ]
+        },
+        {
+          version: 'v22',
+          date: '2026-02-01',
+          features: [
+            'Popover API実装：適切な表示管理とクリーンアップのためpopover="manual"属性を追加',
+            'showPopover()/hidePopover()呼び出しによる確実な表示制御'
+          ]
+        },
+        {
+          version: 'v21',
+          date: '2026-01-31',
+          features: [
+            'スタッキングコンテキスト問題修正：CDKオーバーレイコンテナより上に適切なz-index階層化を実現するためisolation:isolateを削除'
+          ]
+        },
+        {
+          version: 'v20',
+          date: '2026-01-30',
+          features: [
+            'テキストエリアの高さ改善：20行以上のメモを快適に編集できるよう300px min-heightに増加',
+            'テキストエリアスタイリングの共通化リファクタリング'
+          ]
+        },
+        {
+          version: 'v19',
+          date: '2026-01-29',
+          features: [
+            'z-index問題修正：ページダイアログの上に常に表示されるよう全要素で集中化されたZ_INDEX定数を使用'
+          ]
+        },
+        {
+          version: 'v18',
+          date: '2026-01-28',
+          features: [
+            '編集モードUIのリファクタリング：絵文字、タイトル、本文、保存/キャンセルボタンを単一コンテナに統合してレイアウトを簡素化'
+          ]
+        },
+        {
+          version: 'v17',
+          date: '2026-01-27',
+          features: [
+            '編集モード時のレイアウト修正：ボタンが編集エリアに重ならず綺麗に表示されるよう改善',
+            'createEditUI関数のリファクタリング：コンテナとボタンを明確に分離',
+            'テキストエリアとアクションボタンの適切な配置で編集性向上'
+          ]
+        },
+        {
+          version: 'v16',
+          date: '2026-01-26',
+          features: [
+            '設定ダイアログ表示中にESCキーを押してもポップアップが閉じないよう修正',
+            '編集ボタンを押した際、テキストエリアに自動フォーカス（カーソルは文末に配置）',
+            '編集時の表示崩れを修正（適切なレイアウトスタイル適用）',
+            'requestAnimationFrame使用でフォーカスタイミングを改善',
+            'コード品質とメンテナンス性の向上'
+          ]
+        },
+        {
+          version: 'v15',
+          date: '2026-01-25',
+          features: [
+            'バグ修正と安定性向上'
+          ]
+        },
+        {
+          version: 'v14',
+          date: '2026-01-24',
+          features: [
+            '設定のポップアップ化（設定タブ・更新履歴タブ）',
+            'ESCキーでポップアップを閉じる機能を追加',
+            'タブシステムによる拡張可能な設定UI'
+          ]
+        },
+        {
+          version: 'v13',
+          date: '2026-01-23',
+          features: [
+            '既存機能の安定性向上'
+          ]
+        },
+        {
+          version: 'v12',
+          date: '2026-01-22',
+          features: [
+            'Ctrl+Enter で保存できるように改善（見やすいヒント付き）',
+            'ESC キーで編集モードをキャンセル可能',
+            'キーボードショートカットの集中管理で拡張性向上'
+          ]
+        },
+        {
+          version: 'v11',
+          date: '2026-01-21',
+          features: [
+            '一覧表示時、編集ボタンを押すとスクロール位置をその対象まで連れていく',
+            '一覧表示時、更新日を表示しない（シンプルなUI）',
+            '全表示時、作成日・更新日を表示（洗練されたUXで情報過多を防止）',
+            '作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示'
+          ]
+        }
+      ]
+    };
+
     // UI/UX constants for textarea dimensions
     // Optimized for comfortable editing with auto-height adjustment
     const TEXTAREA_CONFIG = {
@@ -1278,59 +1409,8 @@
               historyContent.appendChild(appDescription);
               
               // Version history
-              const versions = [
-                {
-                  version: 'v17',
-                  features: [
-                    '編集モード時のレイアウト修正：ボタンが編集エリアに重ならず綺麗に表示されるよう改善',
-                    'createEditUI関数のリファクタリング：コンテナとボタンを明確に分離',
-                    'テキストエリアとアクションボタンの適切な配置で編集性向上'
-                  ]
-                },
-                {
-                  version: 'v16',
-                  features: [
-                    '設定ダイアログ表示中にESCキーを押してもポップアップが閉じないよう修正',
-                    '編集ボタンを押した際、テキストエリアに自動フォーカス（カーソルは文末に配置）',
-                    '編集時の表示崩れを修正（適切なレイアウトスタイル適用）',
-                    'requestAnimationFrame使用でフォーカスタイミングを改善',
-                    'コード品質とメンテナンス性の向上'
-                  ]
-                },
-                {
-                  version: 'v14',
-                  features: [
-                    '設定のポップアップ化（設定タブ・更新履歴タブ）',
-                    'ESCキーでポップアップを閉じる機能を追加',
-                    'タブシステムによる拡張可能な設定UI'
-                  ]
-                },
-                {
-                  version: 'v13',
-                  features: [
-                    '既存機能の安定性向上'
-                  ]
-                },
-                {
-                  version: 'v12',
-                  features: [
-                    'Ctrl+Enter で保存できるように改善（見やすいヒント付き）',
-                    'ESC キーで編集モードをキャンセル可能',
-                    'キーボードショートカットの集中管理で拡張性向上'
-                  ]
-                },
-                {
-                  version: 'v11',
-                  features: [
-                    '一覧表示時、編集ボタンを押すとスクロール位置をその対象まで連れていく',
-                    '一覧表示時、更新日を表示しない（シンプルなUI）',
-                    '全表示時、作成日・更新日を表示（洗練されたUXで情報過多を防止）',
-                    '作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示'
-                  ]
-                }
-              ];
-              
-              versions.forEach(versionInfo => {
+              // Display all versions from centralized VERSION_INFO
+              VERSION_INFO.HISTORY.forEach(versionInfo => {
                 const versionSection = createElement('div', [
                   'margin-bottom:20px',
                   'padding-bottom:20px',
@@ -1342,7 +1422,7 @@
                   'font-size:16px',
                   'font-weight:600',
                   'color:#1a73e8'
-                ].join(';'), versionInfo.version);
+                ].join(';'), `${versionInfo.version} (${versionInfo.date})`);
                 
                 const featureList = createElement('ul', [
                   'margin:0',
