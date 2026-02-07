@@ -26,6 +26,15 @@
       DROPDOWN: 2147483647
     };
 
+    // Centralized color constants for UI consistency
+    // All save buttons should use the same primary blue color
+    const COLORS = {
+      // Primary action button color (save, add, primary actions)
+      SAVE_BUTTON: '#1a73e8',
+      // Darker shade for hover state on save buttons
+      SAVE_BUTTON_HOVER: '#1557b0'
+    };
+
     const host = document.createElement('div');
     host.id = ID;
     host.style.cssText = [
@@ -914,7 +923,7 @@
         'border:none',
         'border-radius:4px',
         'cursor:pointer',
-        'background:#34a853',
+        `background:${COLORS.SAVE_BUTTON}`,
         'color:#fff',
         'white-space:nowrap',
         'font-weight:500',
@@ -931,8 +940,8 @@
       });
       
       // Add hover effect to save button
-      saveButton.onmouseover = () => saveButton.style.background = '#2d8f47';
-      saveButton.onmouseout = () => saveButton.style.background = '#34a853';
+      saveButton.onmouseover = () => saveButton.style.background = COLORS.SAVE_BUTTON_HOVER;
+      saveButton.onmouseout = () => saveButton.style.background = COLORS.SAVE_BUTTON;
       
       // Cancel button
       const cancelButton = createElement('button', [
@@ -1577,7 +1586,8 @@
       }
       if (KeyHandler.isCtrlEnter(e)) {
         e.preventDefault();
-        input.focus();
+        // Save the memo directly (saveButton is defined later, so we trigger it via click in its handler)
+        saveButton.click();
         return;
       }
       e.stopPropagation();
@@ -1761,7 +1771,7 @@
       'flex-shrink:0',
       'width:100%',
       'padding:8px',
-      'background:#1a73e8',
+      `background:${COLORS.SAVE_BUTTON}`,
       'color:#fff',
       'border:none',
       'border-radius:4px',
@@ -2020,7 +2030,7 @@
 
       const saveCompactButton = createElement('button', [
         'padding:6px 12px',
-        'background:#1a73e8',
+        `background:${COLORS.SAVE_BUTTON}`,
         'color:#fff',
         'border:none',
         'border-radius:4px',
@@ -2244,7 +2254,7 @@
             'width:100%',
             'padding:10px',
             'margin-bottom:8px',
-            'background:#1a73e8',
+            `background:${COLORS.SAVE_BUTTON}`,
             'color:#fff',
             'border:none',
             'border-radius:6px',
@@ -2267,10 +2277,10 @@
             }, 0);
           });
           addButton.onmouseover = () => {
-            addButton.style.background = '#1557b0';
+            addButton.style.background = COLORS.SAVE_BUTTON_HOVER;
           };
           addButton.onmouseout = () => {
-            addButton.style.background = '#1a73e8';
+            addButton.style.background = COLORS.SAVE_BUTTON;
           };
           listContainer.appendChild(addButton);
         }
