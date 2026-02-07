@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v27
-// 2026-02-05
+// v28
+// 2026-02-07
 
 (function() {
   try {
@@ -339,6 +339,8 @@
       draggedElement: null,
       draggedIndex: null,
       dropIndicator: null,
+      // Track all draggable elements for enable/disable functionality
+      draggableElements: new Set(),
       
       /**
        * Initialize drag & drop functionality for a list item
@@ -351,6 +353,9 @@
         // Only pinned items are draggable
         listItem.setAttribute('draggable', 'true');
         listItem.style.cursor = 'move';
+        
+        // Track this element for enable/disable functionality
+        this.draggableElements.add(listItem);
         
         // Add drag handle indicator (visual cue for draggability)
         const dragHandle = createElement('div', [
@@ -519,6 +524,36 @@
         
         // Trigger callback with new data
         onReorder(newData);
+      },
+      
+      /**
+       * Disable drag & drop for all tracked elements
+       * Used when entering edit mode to prevent interference with text selection
+       */
+      disableAll() {
+        this.draggableElements.forEach(element => {
+          element.setAttribute('draggable', 'false');
+          element.style.cursor = 'default';
+        });
+      },
+      
+      /**
+       * Enable drag & drop for all tracked elements
+       * Used when exiting edit mode to restore drag functionality
+       */
+      enableAll() {
+        this.draggableElements.forEach(element => {
+          element.setAttribute('draggable', 'true');
+          element.style.cursor = 'move';
+        });
+      },
+      
+      /**
+       * Clear all tracked draggable elements
+       * Called when re-rendering the list to start fresh
+       */
+      clearTracking() {
+        this.draggableElements.clear();
       }
     };
 
@@ -1875,6 +1910,9 @@
         // Enter edit mode
         KeyHandler.isEditMode = true;
         
+        // Disable drag & drop during edit to prevent interference with text selection
+        DragDropManager.disableAll();
+        
         const listItem = actions.parentElement;
         
         // Create edit UI using refactored helper
@@ -1888,10 +1926,14 @@
             currentData[originalIndex].updatedDate = new Date().toISOString();
             save(currentData);
             KeyHandler.isEditMode = false;
+            // Re-enable drag & drop after saving
+            DragDropManager.enableAll();
           }
         }, () => {
           // Cancel handler
           KeyHandler.isEditMode = false;
+          // Re-enable drag & drop after canceling
+          DragDropManager.enableAll();
           renderList(load());
         });
         
@@ -2248,6 +2290,9 @@
     const renderList = (data) => {
       title.textContent = `Memo (${data.length}/${MAX})`;
       listContainer.replaceChildren();
+      
+      // Clear drag-drop tracking when re-rendering list
+      DragDropManager.clearTracking();
 
       // Sort: pinned items first, then by original order
       const sortedData = [...data].sort((a, b) => {
