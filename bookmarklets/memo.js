@@ -1584,12 +1584,7 @@
         }
         return;
       }
-      if (KeyHandler.isCtrlEnter(e)) {
-        e.preventDefault();
-        // Save the memo directly (saveButton is defined later, so we trigger it via click in its handler)
-        saveButton.click();
-        return;
-      }
+      // Note: Ctrl+Enter handler will be added after saveButton is created
       e.stopPropagation();
     };
     
@@ -1797,6 +1792,24 @@
       clearFullViewForm();
     });
     body.appendChild(saveButton);
+
+    // Now that saveButton is created, add Ctrl+Enter handler to titleInput
+    // This allows saving the memo from the title input field
+    const originalTitleKeydown = titleInput.onkeydown;
+    titleInput.onkeydown = (e) => {
+      // Check Ctrl+Enter first before calling original handler
+      // This ensures Ctrl+Enter is handled before e.stopPropagation() in the original handler
+      if (KeyHandler.isCtrlEnter(e)) {
+        e.preventDefault();
+        saveButton.click();
+        return;
+      }
+      
+      // Call original handler if it exists (handles ESC and stopPropagation)
+      if (originalTitleKeydown) {
+        originalTitleKeydown(e);
+      }
+    };
 
     const listContainer = createElement('ul', [
       'list-style:none',
