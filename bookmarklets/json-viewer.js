@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v17
+// v18
 // 2026-02-08
 
 (function() {
@@ -63,9 +63,21 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v17',
+      CURRENT: 'v18',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v18',
+          date: '2026-02-08',
+          features: [
+            '✨ 配列の中身がテキストデータの場合、リスト形式（ul/li）でマークダウンを出力する機能を追加',
+            '共通処理をリファクタリング：配列要素タイプ判定関数を抽出し可読性向上',
+            'プリミティブ型（文字列、数値、真偽値、null）の配列を自動検出',
+            'マークダウンリスト記法（- item）でテキスト配列を出力',
+            '非常にクリーンな実装：既存機能に影響なく安全に機能追加',
+            'メンテナンス性の高いコード構造を維持'
+          ]
+        },
         {
           version: 'v17',
           date: '2026-02-08',
@@ -285,6 +297,31 @@
       }
     }
 
+    // Check if array contains only primitive (text-like) data
+    // Returns true if all elements are string, number, boolean, or null
+    function isTextDataArray(arr) {
+      if (!Array.isArray(arr) || arr.length === 0) {
+        return false;
+      }
+      
+      return arr.every(item => {
+        const type = typeof item;
+        return item === null || 
+               type === 'string' || 
+               type === 'number' || 
+               type === 'boolean';
+      });
+    }
+
+    // Convert primitive value to markdown text representation
+    function primitiveToMarkdownText(value) {
+      if (value === null) return '*null*';
+      if (typeof value === 'string') return escapeMarkdown(value);
+      if (typeof value === 'boolean') return `**${value}**`;
+      if (typeof value === 'number') return `\`${value}\``;
+      return String(value);
+    }
+
     // JSON to Markdown converter with path tracking
     function jsonToMarkdown(data, level = 0, parentPath = '') {
       const indent = '  '.repeat(level);
@@ -335,6 +372,16 @@
           return `${indent}*Empty Array*\n`;
         }
         
+        // Check if array contains only text data - if so, output as markdown list
+        if (isTextDataArray(data)) {
+          data.forEach(item => {
+            const textValue = primitiveToMarkdownText(item);
+            markdown += `${indent}- ${textValue}\n`;
+          });
+          return markdown;
+        }
+        
+        // For arrays with complex data, use the existing recursive approach
         data.forEach((item, index) => {
           const indexKey = `[${index}]`;
           const currentPath = buildPath(parentPath, indexKey);
