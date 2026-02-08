@@ -169,7 +169,7 @@
       if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
       
       try {
-        const parsed = JSON.parse(str);
+        const parsed = JSON.parse(trimmed);
         // Only consider objects and arrays as JSON (not primitives)
         return typeof parsed === 'object' && parsed !== null;
       } catch (e) {
@@ -344,7 +344,7 @@
       
       return text.replace(codeBlockPattern, (match, language, code) => {
         const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
-        // Trim to remove leading/trailing whitespace including indentation
+        // Trim removes markdown indentation while preserving internal code structure
         const escapedCode = escapeHtml(code.trim());
         return `<pre${langClass}><code>${escapedCode}</code></pre>`;
       });
