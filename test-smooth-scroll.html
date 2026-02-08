@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Viewer - Smooth Scroll Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 40px 20px;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #1a73e8;
+            margin: 0 0 10px 0;
+        }
+        .version {
+            display: inline-block;
+            background: #1a73e8;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .test-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .feature-list {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #1a73e8;
+        }
+        .feature-list li {
+            margin: 10px 0;
+            line-height: 1.6;
+        }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #1557b0;
+        }
+        .test-data {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐛 JSON Viewer <span class="version">v16</span></h1>
+        <p style="margin: 10px 0 0 0; color: #666;">
+            目次（Table of Contents）のスムーススクロール機能 完全修正版
+        </p>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ 修正内容</h2>
+        <div class="feature-list">
+            <ul>
+                <li>🐛 <strong>目次（Table of Contents）のスムーススクロール機能を完全修正</strong></li>
+                <li>✨ 正確なスクロール位置計算：offsetTopを使用した信頼性の高い位置計算</li>
+                <li>🌙 ダークモード対応強化：クリック時に現在のテーマ設定を動的に取得</li>
+                <li>🔧 共通ユーティリティ関数の追加：isDarkModeActive()で一貫したテーマ検出</li>
+                <li>📝 リファクタリング：スクロール処理の明確化とコードの可読性向上</li>
+                <li>🛡️ 確実で安全な実装：エッジケースを考慮した堅牢な処理</li>
+                <li>💎 高品質でメンテナンス可能なコード構造</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 テスト手順</h2>
+        <div class="instructions">
+            <h3>スムーススクロールのテスト方法</h3>
+            <ol>
+                <li><strong>「JSON Viewerを起動」</strong>ボタンをクリック</li>
+                <li>ウィジェットが起動し、複数の見出しを含むJSONデータが表示されます</li>
+                <li><strong>目次（📑 目次）</strong>セクションを確認</li>
+                <li>目次の各項目をクリックしてテスト：
+                    <ul>
+                        <li>該当する見出しまで<strong>スムーススクロール</strong>すること</li>
+                        <li>見出しに<strong>ハイライト効果</strong>が表示されること</li>
+                        <li>スクロール位置が正確で、見出しが上部に表示されること</li>
+                    </ul>
+                </li>
+                <li>異なる階層の見出し（h1, h2, h3）で動作を確認</li>
+            </ol>
+        </div>
+        
+        <button id="launch-btn" onclick="launchViewer()">🚀 JSON Viewerを起動</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 テストデータ</h2>
+        <p>以下のJSONデータが自動的に読み込まれます（複数の階層を持つ見出しが生成されます）：</p>
+        <div class="test-data" id="test-json">{
+  "プロジェクト情報": {
+    "名前": "AMPM Bookmarklets",
+    "バージョン": "v16",
+    "説明": "便利なブックマークレット集"
+  },
+  "ユーザーデータ": {
+    "基本情報": {
+      "名前": "田中太郎",
+      "年齢": 30,
+      "メール": "tanaka@example.com"
+    },
+    "プロフィール": {
+      "職業": "ソフトウェアエンジニア",
+      "スキル": ["JavaScript", "Python", "Go", "React"],
+      "経験年数": 8
+    }
+  },
+  "プロジェクト一覧": [
+    {
+      "プロジェクト名": "Project Alpha",
+      "ステータス": "進行中",
+      "メンバー数": 5,
+      "開始日": "2024-01-15"
+    },
+    {
+      "プロジェクト名": "Project Beta",
+      "ステータス": "完了",
+      "メンバー数": 3,
+      "開始日": "2023-09-01"
+    }
+  ],
+  "設定": {
+    "通知設定": {
+      "メール通知": true,
+      "プッシュ通知": false,
+      "SMS通知": true
+    },
+    "プライバシー設定": {
+      "プロフィール公開": true,
+      "メール表示": false,
+      "アクティビティ表示": true
+    },
+    "テーマ設定": {
+      "ダークモード": "auto",
+      "カラースキーム": "blue",
+      "フォントサイズ": "medium"
+    }
+  },
+  "統計情報": {
+    "総プロジェクト数": 15,
+    "完了プロジェクト数": 10,
+    "進行中プロジェクト数": 5,
+    "総作業時間": "1200時間"
+  }
+}</div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 技術的な改善点</h2>
+        <div class="feature-list">
+            <h3>修正前の問題:</h3>
+            <ul>
+                <li>❌ <code>getBoundingClientRect()</code>を使用した不正確な位置計算</li>
+                <li>❌ ビューポート座標とスクロール位置の不適切な組み合わせ</li>
+                <li>❌ ダークモード状態が作成時にキャプチャされ、動的に更新されない</li>
+            </ul>
+            
+            <h3>修正後の改善:</h3>
+            <ul>
+                <li class="success">✅ <code>offsetTop</code>を使用した正確な位置計算</li>
+                <li class="success">✅ DOMツリーを走査して累積オフセットを計算</li>
+                <li class="success">✅ クリック時にダークモード状態を動的に取得</li>
+                <li class="success">✅ 共通ユーティリティ関数による一貫性の向上</li>
+                <li class="success">✅ エッジケースを考慮した堅牢な実装</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function launchViewer() {
+            // Get JSON data
+            const jsonData = document.getElementById('test-json').textContent;
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(jsonData).then(() => {
+                // Load and execute the bookmarklet
+                const script = document.createElement('script');
+                script.src = 'bookmarklets/json-viewer.js';
+                script.onload = () => {
+                    console.log('JSON Viewer loaded successfully');
+                };
+                script.onerror = () => {
+                    alert('Error loading bookmarklet. Please check the console.');
+                };
+                document.head.appendChild(script);
+            }).catch(err => {
+                console.error('Failed to copy to clipboard:', err);
+                alert('クリップボードへのコピーに失敗しました');
+            });
+        }
+    </script>
+</body>
+</html>
