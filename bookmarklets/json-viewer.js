@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v12
+// v13
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,20 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v12',
+      CURRENT: 'v13',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v13',
+          date: '2026-02-08',
+          features: [
+            'ヘディングの構造化と目次（Table of Contents）機能を追加',
+            'スムーススクロールで目次項目から該当ヘディングへジャンプ',
+            '目次の折りたたみ/展開機能で使いやすさを向上',
+            '共通処理をリファクタリングし、可読性とメンテナンス性を向上',
+            'セキュリティを保ちながら安全なDOM操作を実現'
+          ]
+        },
         {
           version: 'v12',
           date: '2026-02-08',
@@ -554,6 +565,163 @@
       return html;
     }
 
+    // Extract headings from HTML and generate unique IDs
+    function extractHeadingsWithIds(html) {
+      const headings = [];
+      const idCounter = {};
+      
+      // Match all heading tags (h1-h6)
+      const headingPattern = /<(h[1-6])>(.*?)<\/\1>/gi;
+      let match;
+      
+      while ((match = headingPattern.exec(html)) !== null) {
+        const level = parseInt(match[1].charAt(1)); // Extract number from h1-h6
+        const text = match[2];
+        
+        // Generate a unique ID from the heading text
+        const baseId = generateHeadingId(text);
+        const uniqueId = makeIdUnique(baseId, idCounter);
+        
+        headings.push({
+          level,
+          text,
+          id: uniqueId
+        });
+      }
+      
+      return headings;
+    }
+
+    // Generate a valid ID from heading text
+    function generateHeadingId(text) {
+      // First, decode any HTML entities and remove all tags
+      const temp = document.createElement('div');
+      temp.textContent = text; // This handles HTML entities safely
+      const plainText = temp.textContent;
+      
+      // Remove any remaining angle brackets and convert to lowercase
+      const cleaned = plainText.replace(/[<>]/g, '').toLowerCase();
+      
+      // Replace non-alphanumeric characters with hyphens
+      const id = cleaned.replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+        .substring(0, 50); // Limit length
+      
+      return id || 'heading';
+    }
+
+    // Make ID unique by adding a counter if necessary
+    function makeIdUnique(baseId, idCounter) {
+      if (!idCounter[baseId]) {
+        idCounter[baseId] = 0;
+        return baseId;
+      }
+      idCounter[baseId]++;
+      return `${baseId}-${idCounter[baseId]}`;
+    }
+
+    // Add IDs to headings in HTML
+    function addIdsToHeadings(html, headings) {
+      let result = html;
+      let headingIndex = 0;
+      
+      // Replace each heading with an ID-annotated version
+      result = result.replace(/<(h[1-6])>(.*?)<\/\1>/gi, (match, tag, content) => {
+        if (headingIndex < headings.length) {
+          const heading = headings[headingIndex];
+          headingIndex++;
+          return `<${tag} id="${escapeHtml(heading.id)}">${content}</${tag}>`;
+        }
+        return match;
+      });
+      
+      return result;
+    }
+
+    // Create Table of Contents DOM element
+    function createTocElement(headings) {
+      if (headings.length === 0) {
+        return null;
+      }
+
+      const tocContainer = document.createElement('div');
+      tocContainer.className = 'toc-container';
+      
+      // TOC Header
+      const tocHeader = document.createElement('div');
+      tocHeader.className = 'toc-header';
+      
+      const tocTitle = createElementWithText('span', '📑 目次', 'toc-title');
+      const tocToggle = createElementWithText('span', '▼', 'toc-toggle');
+      
+      tocHeader.appendChild(tocTitle);
+      tocHeader.appendChild(tocToggle);
+      
+      // TOC Content
+      const tocContent = document.createElement('div');
+      tocContent.className = 'toc-content';
+      
+      const tocList = document.createElement('ul');
+      tocList.className = 'toc-list';
+      
+      headings.forEach(heading => {
+        const tocItem = document.createElement('li');
+        tocItem.className = `toc-item toc-level-${heading.level}`;
+        
+        const tocLink = document.createElement('a');
+        tocLink.className = 'toc-link';
+        tocLink.href = `#${heading.id}`;
+        
+        // Safely set text content (textContent already handles HTML safely)
+        const temp = document.createElement('div');
+        temp.textContent = heading.text;
+        tocLink.textContent = temp.textContent;
+        
+        // Smooth scroll to target
+        tocLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          // Find the target heading in the shadow root
+          const shadowRoot = tocContent.getRootNode();
+          const targetElement = shadowRoot.querySelector(`#${heading.id}`);
+          if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Highlight the target briefly with a color that respects the theme
+            targetElement.style.transition = 'background-color 0.5s ease';
+            const originalBg = targetElement.style.backgroundColor;
+            // Use a semi-transparent primary color that works in both light and dark modes
+            targetElement.style.backgroundColor = 'rgba(26, 115, 232, 0.1)';
+            setTimeout(() => {
+              targetElement.style.backgroundColor = originalBg;
+            }, 1000);
+          }
+        });
+        
+        tocItem.appendChild(tocLink);
+        tocList.appendChild(tocItem);
+      });
+      
+      tocContent.appendChild(tocList);
+      
+      // Toggle functionality
+      let tocExpanded = true;
+      tocHeader.addEventListener('click', () => {
+        tocExpanded = !tocExpanded;
+        if (tocExpanded) {
+          tocContent.classList.remove('toc-collapsed');
+          tocToggle.textContent = '▼';
+        } else {
+          tocContent.classList.add('toc-collapsed');
+          tocToggle.textContent = '▶';
+        }
+      });
+      
+      tocContainer.appendChild(tocHeader);
+      tocContainer.appendChild(tocContent);
+      
+      return tocContainer;
+    }
+
     // Create widget container
     const host = document.createElement('div');
     host.id = ID;
@@ -726,6 +894,38 @@
         
         .toggle-icon {
           color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        /* Table of Contents Dark Mode */
+        .toc-container {
+          background: ${COLORS.DARK.BACKGROUND} !important;
+          border-color: ${COLORS.DARK.BORDER} !important;
+        }
+        
+        .toc-header {
+          background: ${COLORS.DARK.CONTAINER_BG} !important;
+        }
+        
+        .toc-header:hover {
+          background: ${COLORS.DARK.BACKGROUND} !important;
+        }
+        
+        .toc-title {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        .toc-toggle {
+          color: ${COLORS.DARK.TEXT_LIGHT} !important;
+        }
+        
+        .toc-link {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        .toc-link:hover {
+          background: ${COLORS.DARK.BACKGROUND} !important;
+          color: ${COLORS.DARK.PRIMARY} !important;
+          border-left-color: ${COLORS.DARK.PRIMARY} !important;
         }
       }
 
@@ -1022,6 +1222,118 @@
       .empty-state-text {
         font-size: 16px;
       }
+
+      /* Table of Contents Styles */
+      .toc-container {
+        background: ${COLORS.LIGHT.BACKGROUND};
+        border: 1px solid ${COLORS.LIGHT.BORDER};
+        border-radius: 8px;
+        margin-bottom: 20px;
+        overflow: hidden;
+      }
+
+      .toc-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: ${COLORS.LIGHT.CONTAINER_BG};
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s ease;
+      }
+
+      .toc-header:hover {
+        background: ${COLORS.LIGHT.BACKGROUND};
+      }
+
+      .toc-title {
+        font-weight: 600;
+        font-size: 16px;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .toc-toggle {
+        font-size: 12px;
+        color: ${COLORS.LIGHT.TEXT_LIGHT};
+        transition: transform 0.2s ease;
+      }
+
+      .toc-content {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 8px 0;
+        transition: max-height 0.3s ease, padding 0.3s ease;
+      }
+
+      .toc-content.toc-collapsed {
+        max-height: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      .toc-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .toc-item {
+        margin: 0;
+        padding: 0;
+      }
+
+      .toc-link {
+        display: block;
+        padding: 8px 16px;
+        color: ${COLORS.LIGHT.TEXT};
+        text-decoration: none;
+        transition: background-color 0.2s ease, border-left-color 0.2s ease;
+        border-left: 3px solid transparent;
+      }
+
+      .toc-link:hover {
+        background: ${COLORS.LIGHT.BACKGROUND};
+        color: ${COLORS.LIGHT.PRIMARY};
+        border-left-color: ${COLORS.LIGHT.PRIMARY};
+      }
+
+      /* Indentation for different heading levels */
+      .toc-level-1 .toc-link {
+        padding-left: 16px;
+        font-weight: 600;
+        font-size: 15px;
+      }
+
+      .toc-level-2 .toc-link {
+        padding-left: 32px;
+        font-size: 14px;
+      }
+
+      .toc-level-3 .toc-link {
+        padding-left: 48px;
+        font-size: 13px;
+      }
+
+      .toc-level-4 .toc-link {
+        padding-left: 64px;
+        font-size: 13px;
+      }
+
+      .toc-level-5 .toc-link {
+        padding-left: 80px;
+        font-size: 12px;
+      }
+
+      .toc-level-6 .toc-link {
+        padding-left: 96px;
+        font-size: 12px;
+      }
+
+      /* Smooth scrolling for the entire content */
+      .content {
+        scroll-behavior: smooth;
+      }
     `;
 
     root.appendChild(style);
@@ -1100,8 +1412,22 @@
       try {
         const jsonData = JSON.parse(jsonText);
         currentMarkdown = jsonToMarkdown(jsonData);
-        const html = markdownToHtml(currentMarkdown);
+        let html = markdownToHtml(currentMarkdown);
         
+        // Extract headings and add IDs
+        const headings = extractHeadingsWithIds(html);
+        html = addIdsToHeadings(html, headings);
+        
+        // Create main output container
+        const outputContainer = document.createElement('div');
+        
+        // Create TOC if there are headings
+        const tocElement = createTocElement(headings);
+        if (tocElement) {
+          outputContainer.appendChild(tocElement);
+        }
+        
+        // Create markdown output div
         const outputDiv = document.createElement('div');
         outputDiv.className = 'markdown-output';
         
@@ -1109,7 +1435,9 @@
         const htmlContent = createElementsFromHTML(html);
         outputDiv.appendChild(htmlContent);
         
-        setElementContent(content, outputDiv);
+        outputContainer.appendChild(outputDiv);
+        
+        setElementContent(content, outputContainer);
         
         // Close input section after successful parsing
         if (isInputExpanded) {
