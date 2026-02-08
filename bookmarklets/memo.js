@@ -689,8 +689,8 @@
     const parseTemplates = (text) => {
       const regex = /\$\{select:([^}]+)\}/g;
       const templates = [];
-      let match;
-      while ((match = regex.exec(text)) !== null) {
+      // Use matchAll for cleaner iteration
+      for (const match of text.matchAll(regex)) {
         const name = match[1].trim();
         if (name && !templates.find(t => t.name === name)) {
           templates.push({ name, placeholder: match[0] });
@@ -909,8 +909,8 @@
       Object.keys(values).forEach(name => {
         const placeholder = `\${select:${name}}`;
         const value = values[name] || '';
-        // Replace all occurrences
-        result = result.split(placeholder).join(value);
+        // Use replaceAll for efficient replacement
+        result = result.replaceAll(placeholder, value);
       });
       return result;
     };
