@@ -233,12 +233,12 @@
         if (isValidJSON(data)) {
           const formattedJSON = formatJSONForCodeBlock(data);
           const jsonLines = formattedJSON.split('\n');
-          markdown += `${indent}\`\`\`json\n`;
-          jsonLines.forEach(line => {
-            markdown += `${indent}${line}\n`;
-          });
-          markdown += `${indent}\`\`\`\n`;
-          return markdown;
+          const codeBlock = [
+            `${indent}\`\`\`json`,
+            ...jsonLines.map(line => `${indent}${line}`),
+            `${indent}\`\`\``
+          ].join('\n') + '\n';
+          return codeBlock;
         }
         
         // Handle multiline strings with simple line breaks
@@ -340,6 +340,7 @@
     function processCodeBlocks(text) {
       // Match code blocks with optional language specifier and flexible newline handling
       // Pattern: ```[language][\n]?[content]```
+      // Note: Non-greedy match works for single code blocks; nested blocks within blocks are not supported
       const codeBlockPattern = /```(\w*)\n?([\s\S]*?)```/g;
       
       return text.replace(codeBlockPattern, (match, language, code) => {
