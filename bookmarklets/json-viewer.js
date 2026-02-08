@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v1
+// v2
 // 2026-02-08
 
 (function() {
@@ -242,6 +242,7 @@
         font-size: 13px;
         resize: vertical;
         color: ${COLORS.TEXT};
+        background-color: white;
       }
 
       .json-input:focus {
@@ -374,33 +375,8 @@
 
     root.appendChild(style);
 
-    // Create UI
-    const container = document.createElement('div');
-    container.className = 'container';
-
-    container.innerHTML = `
-      <div class="header">
-        <div class="title">📊 JSON Viewer</div>
-        <button class="close-btn">閉じる</button>
-      </div>
-      <div class="input-section">
-        <div class="textarea-wrapper">
-          <textarea class="json-input" placeholder="JSONデータをここに貼り付けてください..."></textarea>
-        </div>
-        <div class="button-group">
-          <button class="btn btn-primary parse-btn">解析して表示</button>
-          <button class="btn btn-secondary clear-btn">クリア</button>
-          <button class="btn btn-secondary copy-markdown-btn">Markdownをコピー</button>
-        </div>
-      </div>
-      <div class="content">
-        <div class="empty-state">
-          <div class="empty-state-icon">📊</div>
-          <div class="empty-state-text">JSONデータを入力して「解析して表示」をクリックしてください</div>
-        </div>
-      </div>
-    `;
-
+    // Create UI using safe DOM manipulation
+    const container = createUIStructure();
     root.appendChild(container);
 
     // Get elements
@@ -425,12 +401,7 @@
       const jsonText = jsonInput.value.trim();
       
       if (!jsonText) {
-        content.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">📊</div>
-            <div class="empty-state-text">JSONデータを入力して「解析して表示」をクリックしてください</div>
-          </div>
-        `;
+        setElementContent(content, createEmptyStateView());
         currentMarkdown = '';
         return;
       }
@@ -440,17 +411,16 @@
         currentMarkdown = jsonToMarkdown(jsonData);
         const html = markdownToHtml(currentMarkdown);
         
-        content.innerHTML = `<div class="markdown-output">${html}</div>`;
+        const outputDiv = document.createElement('div');
+        outputDiv.className = 'markdown-output';
+        
+        // Safely parse HTML and append to output div
+        const htmlContent = createElementsFromHTML(html);
+        outputDiv.appendChild(htmlContent);
+        
+        setElementContent(content, outputDiv);
       } catch (error) {
-        content.innerHTML = `
-          <div class="error-message">
-            <strong>エラー:</strong> ${escapeHtml(error.message)}
-          </div>
-          <div class="empty-state">
-            <div class="empty-state-icon">⚠️</div>
-            <div class="empty-state-text">有効なJSONデータを入力してください</div>
-          </div>
-        `;
+        setElementContent(content, createErrorView(escapeHtml(error.message)));
         currentMarkdown = '';
       }
     };
@@ -458,12 +428,7 @@
     // Clear input
     const clearInput = () => {
       jsonInput.value = '';
-      content.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-icon">📊</div>
-          <div class="empty-state-text">JSONデータを入力して「解析して表示」をクリックしてください</div>
-        </div>
-      `;
+      setElementContent(content, createEmptyStateView());
       currentMarkdown = '';
     };
 
@@ -493,6 +458,132 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    // Helper function to safely create elements with text content
+    function createElementWithText(tag, text, className = '') {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text) element.textContent = text;
+      return element;
+    }
+
+    // Helper function to safely parse HTML string into DOM elements
+    function createElementsFromHTML(htmlString) {
+      const template = document.createElement('template');
+      template.innerHTML = htmlString;
+      return template.content;
+    }
+
+    // Helper function to safely set element content (text or HTML structure)
+    function setElementContent(element, content) {
+      // Clear existing content
+      while (element.firstChild) {
+        element.removeChild(element.firstChild);
+      }
+      
+      if (typeof content === 'string') {
+        // If content is a string, set as text content
+        element.textContent = content;
+      } else if (content instanceof DocumentFragment || content instanceof Node) {
+        // If content is a DOM node or fragment, append it
+        element.appendChild(content);
+      }
+    }
+
+    // Create empty state view
+    function createEmptyStateView() {
+      const container = document.createElement('div');
+      container.className = 'empty-state';
+      
+      const icon = createElementWithText('div', '📊', 'empty-state-icon');
+      const text = createElementWithText('div', 'JSONデータを入力して「解析して表示」をクリックしてください', 'empty-state-text');
+      
+      container.appendChild(icon);
+      container.appendChild(text);
+      
+      return container;
+    }
+
+    // Create error view
+    function createErrorView(errorMessage) {
+      const container = document.createElement('div');
+      
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error-message';
+      
+      const strong = document.createElement('strong');
+      strong.textContent = 'エラー:';
+      errorDiv.appendChild(strong);
+      errorDiv.appendChild(document.createTextNode(' ' + errorMessage));
+      
+      const emptyState = document.createElement('div');
+      emptyState.className = 'empty-state';
+      
+      const icon = createElementWithText('div', '⚠️', 'empty-state-icon');
+      const text = createElementWithText('div', '有効なJSONデータを入力してください', 'empty-state-text');
+      
+      emptyState.appendChild(icon);
+      emptyState.appendChild(text);
+      
+      container.appendChild(errorDiv);
+      container.appendChild(emptyState);
+      
+      return container;
+    }
+
+    // Create UI structure safely
+    function createUIStructure() {
+      const container = document.createElement('div');
+      container.className = 'container';
+      
+      // Header
+      const header = document.createElement('div');
+      header.className = 'header';
+      
+      const title = createElementWithText('div', '📊 JSON Viewer', 'title');
+      const closeBtn = createElementWithText('button', '閉じる', 'close-btn');
+      
+      header.appendChild(title);
+      header.appendChild(closeBtn);
+      
+      // Input section
+      const inputSection = document.createElement('div');
+      inputSection.className = 'input-section';
+      
+      const textareaWrapper = document.createElement('div');
+      textareaWrapper.className = 'textarea-wrapper';
+      
+      const textarea = document.createElement('textarea');
+      textarea.className = 'json-input';
+      textarea.placeholder = 'JSONデータをここに貼り付けてください...';
+      textareaWrapper.appendChild(textarea);
+      
+      const buttonGroup = document.createElement('div');
+      buttonGroup.className = 'button-group';
+      
+      const parseBtn = createElementWithText('button', '解析して表示', 'btn btn-primary parse-btn');
+      const clearBtn = createElementWithText('button', 'クリア', 'btn btn-secondary clear-btn');
+      const copyMarkdownBtn = createElementWithText('button', 'Markdownをコピー', 'btn btn-secondary copy-markdown-btn');
+      
+      buttonGroup.appendChild(parseBtn);
+      buttonGroup.appendChild(clearBtn);
+      buttonGroup.appendChild(copyMarkdownBtn);
+      
+      inputSection.appendChild(textareaWrapper);
+      inputSection.appendChild(buttonGroup);
+      
+      // Content section
+      const content = document.createElement('div');
+      content.className = 'content';
+      content.appendChild(createEmptyStateView());
+      
+      // Assemble container
+      container.appendChild(header);
+      container.appendChild(inputSection);
+      container.appendChild(content);
+      
+      return container;
     }
 
     // Event listeners

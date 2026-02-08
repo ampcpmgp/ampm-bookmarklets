@@ -58,3 +58,82 @@ node build.js
 ```
 
 `index.html` が生成されます。
+
+## セキュリティガイドライン
+
+### innerHTML の使用禁止
+
+ブックマークレットでは、セキュリティ上の理由から **innerHTML の直接使用を禁止** しています。
+
+#### 理由
+
+- innerHTML は XSS (クロスサイトスクリプティング) 攻撃のリスクがあります
+- 最近のブラウザでは Trusted Types API が有効な場合、innerHTML への代入でエラーが発生します
+  - エラー例: `Error: Failed to set the 'innerHTML' property on 'Element': This document requires 'TrustedHTML' assignment.`
+
+#### 推奨される代替方法
+
+1. **DOM API を使用した安全な要素作成**
+   ```javascript
+   // ❌ 悪い例
+   element.innerHTML = '<div>' + userInput + '</div>';
+   
+   // ✅ 良い例
+   const div = document.createElement('div');
+   div.textContent = userInput;
+   element.appendChild(div);
+   ```
+
+2. **ヘルパー関数の活用**
+   ```javascript
+   // 要素を安全に作成するヘルパー関数
+   function createElementWithText(tag, text, className = '') {
+     const element = document.createElement('tag');
+     if (className) element.className = className;
+     if (text) element.textContent = text;
+     return element;
+   }
+   
+   // template 要素を使った HTML 構造の作成
+   function createElementsFromHTML(htmlString) {
+     const template = document.createElement('template');
+     template.innerHTML = htmlString;  // template 内では安全
+     return template.content;
+   }
+   ```
+
+3. **textContent と appendChild の組み合わせ**
+   ```javascript
+   // 複数の要素を組み立てる
+   const container = document.createElement('div');
+   const title = document.createElement('h1');
+   title.textContent = 'タイトル';
+   const content = document.createElement('p');
+   content.textContent = 'コンテンツ';
+   
+   container.appendChild(title);
+   container.appendChild(content);
+   ```
+
+### エスケープ処理
+
+ユーザー入力や外部データを表示する際は、必ずエスケープ処理を行ってください。
+
+```javascript
+// HTML エスケープ関数の例
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+```
+
+### Shadow DOM の活用
+
+Shadow DOM を使用することで、ページのスタイルや JavaScript から隔離された安全な環境を作成できます。
+
+```javascript
+const host = document.createElement('div');
+const root = host.attachShadow({ mode: 'open' });
+// root 内で安全に DOM 操作を行う
+```
