@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v17
+// v18
 // 2026-02-08
 
 (function() {
@@ -63,9 +63,21 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v17',
+      CURRENT: 'v18',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v18',
+          date: '2026-02-08',
+          features: [
+            '🐛 目次スクロール機能の完全修正：全てのプロパティが確実にスクロール可能に',
+            'Shadow DOM環境での確実なスクロール実装：contentコンテナを直接スクロール',
+            '手動オフセット計算による正確な位置決め：offsetTopを使った信頼性の高い計算',
+            '[0].cloth.textAttributes等の深くネストされたプロパティも正しくスクロール',
+            'scrollToElement関数の追加：保守性の高い共通スクロール処理',
+            'コードの可読性とメンテナンス性を向上：明確な実装で将来のバグを防止'
+          ]
+        },
         {
           version: 'v17',
           date: '2026-02-08',
@@ -698,8 +710,35 @@
       return result;
     }
 
+    // Scroll helper function: reliably scrolls target element into view within a container
+    function scrollToElement(targetElement, container) {
+      if (!targetElement || !container) {
+        return;
+      }
+
+      // Calculate the position of the target element relative to the container
+      let targetOffsetTop = 0;
+      let element = targetElement;
+      
+      // Walk up the DOM tree to accumulate offset
+      while (element && element !== container && container.contains(element)) {
+        targetOffsetTop += element.offsetTop;
+        element = element.offsetParent;
+      }
+      
+      // Add a small offset to show some context above the heading
+      const scrollOffset = 10;
+      const targetScrollPosition = Math.max(0, targetOffsetTop - scrollOffset);
+      
+      // Smoothly scroll the container to the target position
+      container.scrollTo({
+        top: targetScrollPosition,
+        behavior: 'smooth'
+      });
+    }
+
     // Create Table of Contents DOM element
-    function createTocElement(headings, shadowRoot) {
+    function createTocElement(headings, shadowRoot, contentContainer) {
       if (headings.length === 0) {
         return null;
       }
@@ -741,17 +780,13 @@
         temp.textContent = heading.text;
         tocLink.textContent = temp.textContent;
         
-        // Simple and reliable scroll to heading
+        // Reliable scroll implementation: manually calculate and scroll the content container
         tocLink.addEventListener('click', (e) => {
           e.preventDefault();
           const targetElement = shadowRoot.querySelector(`#${heading.id}`);
-          if (targetElement) {
-            // Simple, reliable scroll: just scroll the element into view at the top
-            targetElement.scrollIntoView({
-              behavior: 'smooth',
-              block: 'start',
-              inline: 'nearest'
-            });
+          if (targetElement && contentContainer) {
+            // Calculate the target element's position relative to the content container
+            scrollToElement(targetElement, contentContainer);
             
             // Update active state immediately on click
             updateActiveState(heading.id);
@@ -1587,7 +1622,7 @@
         const outputContainer = document.createElement('div');
         
         // Create TOC if there are headings
-        const tocElement = createTocElement(headings, root);
+        const tocElement = createTocElement(headings, root, content);
         if (tocElement) {
           outputContainer.appendChild(tocElement);
         }
