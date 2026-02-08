@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v13
+// v14
 // 2026-02-08
 
 (function() {
@@ -38,29 +38,47 @@
         CODE_BG: '#f8f9fa',
         ERROR_BG: '#fff5f5'
       },
-      // Dark mode
+      // Dark mode - Improved contrast and visual boundaries
       DARK: {
         PRIMARY: '#4a9eff',
         PRIMARY_HOVER: '#357ae8',
         DANGER: '#ff5555',
         DANGER_HOVER: '#ff3333',
         SUCCESS: '#50fa7b',
-        BORDER: '#444',
+        BORDER: '#555',
+        BORDER_STRONG: '#666',
         BACKGROUND: '#2d2d2d',
-        CONTAINER_BG: '#1e1e1e',
-        TEXT: '#e0e0e0',
+        BACKGROUND_ELEVATED: '#353535',
+        CONTAINER_BG: '#1a1a1a',
+        TEXT: '#f0f0f0',
+        TEXT_SECONDARY: '#d0d0d0',
         TEXT_LIGHT: '#999',
-        INPUT_BG: '#2d2d2d',
-        CODE_BG: '#2d2d2d',
-        ERROR_BG: '#3d1f1f'
+        INPUT_BG: '#252525',
+        CODE_BG: '#282828',
+        CODE_BORDER: '#3a3a3a',
+        ERROR_BG: '#3d1f1f',
+        SECTION_SHADOW: 'rgba(0, 0, 0, 0.3)'
       }
     };
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v13',
+      CURRENT: 'v14',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v14',
+          date: '2026-02-08',
+          features: [
+            'ダークモードのUI/UX大幅改善：境界が不明瞭な問題を解決',
+            '視覚的階層を強化：コントラスト向上、明確なセクション境界、強化されたシャドウ効果',
+            'コードブロックの可視性向上：独自の背景色と明確な境界線',
+            'マークダウン要素の可読性向上：改善されたスペーシングと視覚的分離',
+            '洗練されたカラーパレット：より明確な区別のための拡張された色定数',
+            '共通スタイリングパターンのリファクタリングで保守性を向上',
+            '安全で信頼性の高い実装を維持'
+          ]
+        },
         {
           version: 'v13',
           date: '2026-02-08',
@@ -756,11 +774,12 @@
       @media (prefers-color-scheme: dark) {
         .container {
           background: ${COLORS.DARK.CONTAINER_BG} !important;
+          box-shadow: 0 8px 32px ${COLORS.DARK.SECTION_SHADOW}, 0 0 0 1px ${COLORS.DARK.BORDER_STRONG} !important;
         }
         
         .header {
-          background: ${COLORS.DARK.BACKGROUND} !important;
-          border-bottom: 1px solid ${COLORS.DARK.BORDER} !important;
+          background: ${COLORS.DARK.BACKGROUND_ELEVATED} !important;
+          border-bottom: 2px solid ${COLORS.DARK.BORDER_STRONG} !important;
         }
         
         .title {
@@ -769,28 +788,29 @@
         
         .input-section {
           background: ${COLORS.DARK.BACKGROUND} !important;
-          border-bottom: 1px solid ${COLORS.DARK.BORDER} !important;
+          border-bottom: 2px solid ${COLORS.DARK.BORDER_STRONG} !important;
         }
         
         .json-input {
           background-color: ${COLORS.DARK.INPUT_BG} !important;
-          border-color: ${COLORS.DARK.BORDER} !important;
+          border: 2px solid ${COLORS.DARK.BORDER} !important;
           color: ${COLORS.DARK.TEXT} !important;
         }
         
         .json-input:focus {
           border-color: ${COLORS.DARK.PRIMARY} !important;
-          box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1) !important;
+          box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.2) !important;
         }
         
         .btn-secondary {
-          background: ${COLORS.DARK.BACKGROUND} !important;
+          background: ${COLORS.DARK.BACKGROUND_ELEVATED} !important;
           color: ${COLORS.DARK.TEXT} !important;
-          border: 1px solid ${COLORS.DARK.BORDER} !important;
+          border: 2px solid ${COLORS.DARK.BORDER} !important;
         }
         
         .btn-secondary:hover {
-          background: #3d3d3d !important;
+          background: #404040 !important;
+          border-color: ${COLORS.DARK.BORDER_STRONG} !important;
         }
         
         .btn-primary {
@@ -810,7 +830,7 @@
         }
         
         .markdown-output {
-          color: ${COLORS.DARK.TEXT} !important;
+          color: ${COLORS.DARK.TEXT_SECONDARY} !important;
           font-size: 16px !important;
         }
         
@@ -821,11 +841,18 @@
         .markdown-output h5,
         .markdown-output h6 {
           color: ${COLORS.DARK.TEXT} !important;
+          padding: 12px 16px !important;
+          margin: 20px -8px 16px -8px !important;
+          background: ${COLORS.DARK.BACKGROUND_ELEVATED} !important;
+          border-radius: 6px !important;
+          border-left: 4px solid ${COLORS.DARK.PRIMARY} !important;
+          box-shadow: 0 2px 4px ${COLORS.DARK.SECTION_SHADOW} !important;
         }
         
         .markdown-output h1 {
-          border-bottom: 2px solid ${COLORS.DARK.BORDER} !important;
+          border-bottom: none !important;
           font-size: 28px !important;
+          border-left-width: 5px !important;
         }
 
         .markdown-output h2 {
@@ -861,31 +888,38 @@
           background: ${COLORS.DARK.CODE_BG} !important;
           color: #ff79c6 !important;
           font-size: 14px !important;
+          border: 1px solid ${COLORS.DARK.CODE_BORDER} !important;
+          padding: 3px 6px !important;
         }
 
         .markdown-output pre {
           background: ${COLORS.DARK.CODE_BG} !important;
-          border: 1px solid ${COLORS.DARK.BORDER} !important;
+          border: 2px solid ${COLORS.DARK.CODE_BORDER} !important;
+          box-shadow: 0 2px 8px ${COLORS.DARK.SECTION_SHADOW} !important;
+          margin: 16px 0 !important;
         }
 
         .markdown-output pre code {
           background: none !important;
-          color: ${COLORS.DARK.TEXT} !important;
+          color: ${COLORS.DARK.TEXT_SECONDARY} !important;
+          border: none !important;
+          padding: 0 !important;
         }
 
         .markdown-output ul,
         .markdown-output ol {
-          color: ${COLORS.DARK.TEXT} !important;
+          color: ${COLORS.DARK.TEXT_SECONDARY} !important;
         }
 
         .markdown-output li {
-          color: ${COLORS.DARK.TEXT} !important;
+          color: ${COLORS.DARK.TEXT_SECONDARY} !important;
+          margin: 6px 0 !important;
         }
         
         .error-message {
           color: ${COLORS.DARK.DANGER} !important;
           background: ${COLORS.DARK.ERROR_BG} !important;
-          border: 1px solid ${COLORS.DARK.DANGER} !important;
+          border: 2px solid ${COLORS.DARK.DANGER} !important;
         }
         
         .empty-state {
@@ -896,18 +930,24 @@
           color: ${COLORS.DARK.TEXT} !important;
         }
         
+        .input-header-title {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
         /* Table of Contents Dark Mode */
         .toc-container {
-          background: ${COLORS.DARK.BACKGROUND} !important;
-          border-color: ${COLORS.DARK.BORDER} !important;
+          background: ${COLORS.DARK.BACKGROUND_ELEVATED} !important;
+          border: 2px solid ${COLORS.DARK.BORDER_STRONG} !important;
+          box-shadow: 0 2px 8px ${COLORS.DARK.SECTION_SHADOW} !important;
         }
         
         .toc-header {
-          background: ${COLORS.DARK.CONTAINER_BG} !important;
+          background: ${COLORS.DARK.BACKGROUND} !important;
+          border-bottom: 1px solid ${COLORS.DARK.BORDER} !important;
         }
         
         .toc-header:hover {
-          background: ${COLORS.DARK.BACKGROUND} !important;
+          background: ${COLORS.DARK.BACKGROUND_ELEVATED} !important;
         }
         
         .toc-title {
@@ -919,13 +959,18 @@
         }
         
         .toc-link {
-          color: ${COLORS.DARK.TEXT} !important;
+          color: ${COLORS.DARK.TEXT_SECONDARY} !important;
+          border-left: 3px solid transparent !important;
         }
         
         .toc-link:hover {
           background: ${COLORS.DARK.BACKGROUND} !important;
           color: ${COLORS.DARK.PRIMARY} !important;
           border-left-color: ${COLORS.DARK.PRIMARY} !important;
+        }
+        
+        .content {
+          background: ${COLORS.DARK.CONTAINER_BG} !important;
         }
       }
 
@@ -1097,40 +1142,68 @@
 
       .markdown-output h1 {
         font-size: 28px;
-        margin: 16px 0 12px 0;
+        margin: 20px -8px 16px -8px;
+        padding: 12px 16px;
         color: ${COLORS.LIGHT.TEXT};
-        border-bottom: 2px solid ${COLORS.LIGHT.BORDER};
-        padding-bottom: 8px;
+        background: ${COLORS.LIGHT.BACKGROUND};
+        border-left: 5px solid ${COLORS.LIGHT.PRIMARY};
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       }
 
       .markdown-output h2 {
         font-size: 24px;
-        margin: 14px 0 10px 0;
+        margin: 20px -8px 16px -8px;
+        padding: 12px 16px;
         color: ${COLORS.LIGHT.TEXT};
+        background: ${COLORS.LIGHT.BACKGROUND};
+        border-left: 4px solid ${COLORS.LIGHT.PRIMARY};
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       }
 
       .markdown-output h3 {
         font-size: 20px;
-        margin: 12px 0 8px 0;
+        margin: 20px -8px 16px -8px;
+        padding: 12px 16px;
         color: ${COLORS.LIGHT.TEXT};
+        background: ${COLORS.LIGHT.BACKGROUND};
+        border-left: 4px solid ${COLORS.LIGHT.PRIMARY};
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       }
 
       .markdown-output h4 {
         font-size: 18px;
-        margin: 10px 0 6px 0;
+        margin: 20px -8px 16px -8px;
+        padding: 12px 16px;
         color: ${COLORS.LIGHT.TEXT};
+        background: ${COLORS.LIGHT.BACKGROUND};
+        border-left: 4px solid ${COLORS.LIGHT.PRIMARY};
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       }
 
       .markdown-output h5 {
         font-size: 16px;
-        margin: 8px 0 4px 0;
+        margin: 20px -8px 16px -8px;
+        padding: 12px 16px;
         color: ${COLORS.LIGHT.TEXT};
+        background: ${COLORS.LIGHT.BACKGROUND};
+        border-left: 4px solid ${COLORS.LIGHT.PRIMARY};
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       }
 
       .markdown-output h6 {
         font-size: 14px;
-        margin: 6px 0 4px 0;
+        margin: 20px -8px 16px -8px;
+        padding: 12px 16px;
         color: ${COLORS.LIGHT.TEXT};
+        background: ${COLORS.LIGHT.BACKGROUND};
+        border-left: 4px solid ${COLORS.LIGHT.PRIMARY};
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       }
 
       .markdown-output strong {
@@ -1146,8 +1219,9 @@
 
       .markdown-output code {
         background: ${COLORS.LIGHT.CODE_BG};
-        padding: 2px 6px;
+        padding: 3px 6px;
         border-radius: 3px;
+        border: 1px solid ${COLORS.LIGHT.BORDER};
         font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
         font-size: 14px;
         color: #d63384;
@@ -1155,11 +1229,12 @@
 
       .markdown-output pre {
         background: ${COLORS.LIGHT.CODE_BG};
-        border: 1px solid ${COLORS.LIGHT.BORDER};
+        border: 2px solid ${COLORS.LIGHT.BORDER};
         border-radius: 6px;
         padding: 16px;
         overflow-x: auto;
-        margin: 12px 0;
+        margin: 16px 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       }
 
       .markdown-output pre code {
@@ -1179,7 +1254,7 @@
       }
 
       .markdown-output li {
-        margin: 4px 0;
+        margin: 6px 0;
         line-height: 1.6;
       }
 
