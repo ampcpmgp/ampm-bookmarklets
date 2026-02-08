@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v29
+// v30
 // 2026-02-08
 
 (function() {
@@ -116,11 +116,36 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v27',
+      CURRENT: 'v30',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-05',
+      LAST_UPDATED: '2026-02-08',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v30',
+          date: '2026-02-08',
+          features: [
+            '選択テキストテンプレート機能を実装：メモ本文に ${select:name} 形式でプレースホルダを記述可能に',
+            'コピー時にテンプレートを検出し、動的な入力フォームを自動生成',
+            'フォーム入力後、プレースホルダを実際の値で置換してクリップボードにコピー',
+            '使いやすいUIとキーボードショートカット対応（ESCでキャンセル、Ctrl+Enterで送信）',
+            'テンプレートパーサー、フォームジェネレーター、置換処理を共通化して保守性向上'
+          ]
+        },
+        {
+          version: 'v29',
+          date: '2026-02-08',
+          features: [
+            'VERSION_INFOバージョン番号と更新日の不一致を修正：v29に統一してヘッダーとバージョン情報の同期を保証'
+          ]
+        },
+        {
+          version: 'v28',
+          date: '2026-02-07',
+          features: [
+            '作成日と更新日が同じ場合は更新日を非表示にしてすっきり表示'
+          ]
+        },
         {
           version: 'v27',
           date: '2026-02-05',
@@ -654,6 +679,240 @@
         if (hoverBgColor) element.style.background = originalBg;
         if (hoverBorderColor) element.style.borderColor = originalBorder;
       };
+    };
+
+    /**
+     * Template Parser - Parses ${select:name} placeholders in text
+     * @param {string} text - Text containing templates
+     * @returns {Array<{name: string, placeholder: string}>} - Array of template placeholders
+     */
+    const parseTemplates = (text) => {
+      const regex = /\$\{select:([^}]+)\}/g;
+      const templates = [];
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        const name = match[1].trim();
+        if (name && !templates.find(t => t.name === name)) {
+          templates.push({ name, placeholder: match[0] });
+        }
+      }
+      return templates;
+    };
+
+    /**
+     * Create input form dialog for template placeholders
+     * @param {Array<{name: string, placeholder: string}>} templates - Template placeholders
+     * @param {Function} onSubmit - Callback with input values object {name: value}
+     * @param {Function} onCancel - Callback on cancel
+     * @returns {Object} - Dialog container and form elements
+     */
+    const createTemplateForm = (templates, onSubmit, onCancel) => {
+      // Modal overlay with higher z-index to appear above everything
+      const overlay = createElement('div', [
+        'position:fixed',
+        'top:0',
+        'left:0',
+        'width:100%',
+        'height:100%',
+        'background:rgba(0,0,0,0.5)',
+        `z-index:${Z_INDEX.MODAL_OVERLAY}`,
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'backdrop-filter:blur(2px)'
+      ].join(';'));
+
+      // Form container
+      const formContainer = createElement('div', [
+        'background:#fff',
+        'border-radius:8px',
+        'padding:24px',
+        'min-width:400px',
+        'max-width:600px',
+        'max-height:80vh',
+        'overflow-y:auto',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.2)'
+      ].join(';'));
+
+      // Title
+      const title = createElement('h3', [
+        'margin:0 0 16px 0',
+        'font-size:16px',
+        'font-weight:600',
+        'color:#202124'
+      ].join(';'), '📝 テンプレート入力');
+
+      // Description
+      const description = createElement('p', [
+        'margin:0 0 20px 0',
+        'font-size:13px',
+        'color:#5f6368',
+        'line-height:1.5'
+      ].join(';'), '各項目を入力してください。コピー時にテンプレートが置き換えられます。');
+
+      formContainer.appendChild(title);
+      formContainer.appendChild(description);
+
+      // Input fields array
+      const inputFields = [];
+
+      templates.forEach((template, index) => {
+        // Field container
+        const fieldContainer = createElement('div', [
+          'margin-bottom:16px'
+        ].join(';'));
+
+        // Label
+        const label = createElement('label', [
+          'display:block',
+          'margin-bottom:6px',
+          'font-size:13px',
+          'font-weight:500',
+          'color:#202124'
+        ].join(';'), template.name);
+
+        // Input field
+        const input = createElement('input');
+        input.type = 'text';
+        input.placeholder = `${template.name} を入力...`;
+        input.style.cssText = [
+          'width:100%',
+          'padding:10px',
+          'border:1px solid #dadce0',
+          'border-radius:4px',
+          'font-size:13px',
+          'box-sizing:border-box',
+          'transition:border-color 0.2s'
+        ].join(';');
+
+        // Focus effect
+        input.onfocus = () => input.style.borderColor = '#1a73e8';
+        input.onblur = () => input.style.borderColor = '#dadce0';
+
+        // Auto-focus first input
+        if (index === 0) {
+          setTimeout(() => input.focus(), 100);
+        }
+
+        fieldContainer.appendChild(label);
+        fieldContainer.appendChild(input);
+        formContainer.appendChild(fieldContainer);
+
+        inputFields.push({ name: template.name, input });
+      });
+
+      // Button container
+      const buttonContainer = createElement('div', [
+        'display:flex',
+        'gap:8px',
+        'justify-content:flex-end',
+        'margin-top:24px',
+        'padding-top:16px',
+        'border-top:1px solid #e8eaed'
+      ].join(';'));
+
+      // Submit button
+      const submitButton = createElement('button', [
+        'padding:10px 24px',
+        'font-size:13px',
+        'border:none',
+        'border-radius:4px',
+        'cursor:pointer',
+        `background:${COLORS.SAVE_BUTTON}`,
+        'color:#fff',
+        'font-weight:500',
+        'transition:background 0.2s'
+      ].join(';'), '✓ コピー', () => {
+        const values = {};
+        inputFields.forEach(field => {
+          values[field.name] = field.input.value.trim();
+        });
+        onSubmit(values);
+      });
+
+      submitButton.onmouseover = () => submitButton.style.background = COLORS.SAVE_BUTTON_HOVER;
+      submitButton.onmouseout = () => submitButton.style.background = COLORS.SAVE_BUTTON;
+
+      // Cancel button
+      const cancelButton = createElement('button', [
+        'padding:10px 24px',
+        'font-size:13px',
+        'border:1px solid #dadce0',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#fff',
+        'color:#202124',
+        'font-weight:500',
+        'transition:all 0.2s'
+      ].join(';'), '✗ キャンセル', () => {
+        onCancel();
+      });
+
+      cancelButton.onmouseover = () => {
+        cancelButton.style.background = '#f8f9fa';
+        cancelButton.style.borderColor = '#bdc1c6';
+      };
+      cancelButton.onmouseout = () => {
+        cancelButton.style.background = '#fff';
+        cancelButton.style.borderColor = '#dadce0';
+      };
+
+      buttonContainer.appendChild(cancelButton);
+      buttonContainer.appendChild(submitButton);
+      formContainer.appendChild(buttonContainer);
+
+      // Keyboard handlers
+      const handleKeyDown = (e) => {
+        if (e.key === KeyHandler.ESC) {
+          e.preventDefault();
+          e.stopPropagation();
+          onCancel();
+          return;
+        }
+        if (KeyHandler.isCtrlEnter(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+          submitButton.click();
+          return;
+        }
+      };
+
+      inputFields.forEach(field => {
+        field.input.onkeydown = handleKeyDown;
+      });
+
+      overlay.appendChild(formContainer);
+
+      // Click outside to close
+      overlay.onclick = (e) => {
+        if (e.target === overlay) {
+          onCancel();
+        }
+      };
+
+      // Prevent clicks inside form from closing
+      formContainer.onclick = (e) => {
+        e.stopPropagation();
+      };
+
+      return { overlay, inputFields };
+    };
+
+    /**
+     * Replace template placeholders with values
+     * @param {string} text - Text with templates
+     * @param {Object} values - Object mapping template names to values
+     * @returns {string} - Text with templates replaced
+     */
+    const replaceTemplates = (text, values) => {
+      let result = text;
+      Object.keys(values).forEach(name => {
+        const placeholder = `\${select:${name}}`;
+        const value = values[name] || '';
+        // Replace all occurrences
+        result = result.split(placeholder).join(value);
+      });
+      return result;
     };
 
     /**
@@ -1417,6 +1676,161 @@
         title: '設定',
         tabs: [
           {
+            label: '📖 使い方',
+            content: (container) => {
+              // Usage guide tab content
+              const usageContent = createElement('div', [
+                'font-size:14px',
+                'line-height:1.8',
+                'color:#333'
+              ].join(';'));
+              
+              const usageTitle = createElement('h3', [
+                'margin:0 0 16px 0',
+                'font-size:18px',
+                'font-weight:600',
+                'color:#333'
+              ].join(';'), '📖 使い方ガイド');
+              
+              const usageDescription = createElement('p', [
+                'margin:0 0 20px 0',
+                'color:#5f6368',
+                'font-size:14px',
+                'line-height:1.6'
+              ].join(';'), 'このメモツールの便利な機能をご紹介します。');
+              
+              usageContent.appendChild(usageTitle);
+              usageContent.appendChild(usageDescription);
+              
+              // Template feature section
+              const templateSection = createElement('div', [
+                'margin-bottom:24px',
+                'padding:16px',
+                'background:#f8f9fa',
+                'border-radius:8px',
+                'border-left:4px solid #1a73e8'
+              ].join(';'));
+              
+              const templateTitle = createElement('h4', [
+                'margin:0 0 12px 0',
+                'font-size:16px',
+                'font-weight:600',
+                'color:#1a73e8'
+              ].join(';'), '✨ テンプレート機能');
+              
+              const templateDesc = createElement('p', [
+                'margin:0 0 12px 0',
+                'color:#333',
+                'font-size:14px',
+                'line-height:1.6'
+              ].join(';'), 'メモ本文にプレースホルダを記述することで、コピー時に入力フォームが表示され、柔軟なテキスト生成が可能になります。');
+              
+              const templateSyntaxTitle = createElement('div', [
+                'margin:0 0 8px 0',
+                'font-weight:600',
+                'color:#333',
+                'font-size:14px'
+              ].join(';'), '📝 書式:');
+              
+              const templateSyntax = createElement('code', [
+                'display:block',
+                'margin:0 0 12px 0',
+                'padding:12px',
+                'background:#fff',
+                'border:1px solid #e0e0e0',
+                'border-radius:4px',
+                'font-family:monospace',
+                'font-size:13px',
+                'color:#d73a49',
+                'white-space:pre-wrap'
+              ].join(';'), '${select:項目名}');
+              
+              const templateExample = createElement('div', [
+                'margin:12px 0 0 0'
+              ].join(';'));
+              
+              const exampleTitle = createElement('div', [
+                'margin:0 0 8px 0',
+                'font-weight:600',
+                'color:#333',
+                'font-size:14px'
+              ].join(';'), '💡 使用例:');
+              
+              const exampleCode = createElement('code', [
+                'display:block',
+                'margin:0 0 12px 0',
+                'padding:12px',
+                'background:#fff',
+                'border:1px solid #e0e0e0',
+                'border-radius:4px',
+                'font-family:monospace',
+                'font-size:13px',
+                'color:#333',
+                'white-space:pre-wrap',
+                'line-height:1.6'
+              ].join(';'), '${select:memo|json-viewer}.js\n\nこんにちは、${select:名前}さん！\n今日は${select:天気}ですね。');
+              
+              const exampleNote = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:13px',
+                'line-height:1.5'
+              ].join(';'), '💬 コピーボタンを押すと、「memo|json-viewer」「名前」「天気」の3つの入力フォームが表示され、入力後にテンプレートが置換されてコピーされます。');
+              
+              templateSection.appendChild(templateTitle);
+              templateSection.appendChild(templateDesc);
+              templateSection.appendChild(templateSyntaxTitle);
+              templateSection.appendChild(templateSyntax);
+              templateSection.appendChild(templateExample);
+              templateExample.appendChild(exampleTitle);
+              templateExample.appendChild(exampleCode);
+              templateExample.appendChild(exampleNote);
+              
+              usageContent.appendChild(templateSection);
+              
+              // Tips section
+              const tipsSection = createElement('div', [
+                'margin-bottom:16px'
+              ].join(';'));
+              
+              const tipsTitle = createElement('h4', [
+                'margin:0 0 12px 0',
+                'font-size:16px',
+                'font-weight:600',
+                'color:#34a853'
+              ].join(';'), '💡 ヒント');
+              
+              const tipsList = createElement('ul', [
+                'margin:0',
+                'padding-left:20px',
+                'list-style-type:disc'
+              ].join(';'));
+              
+              const tips = [
+                'テンプレートがない場合は、通常通りメモ本文がそのままコピーされます',
+                '同じ項目名は複数回使用できます（例: ${select:名前} を2箇所）',
+                '入力フォームではESCキーでキャンセル、Ctrl+Enterで送信できます',
+                'ピン留め機能でよく使うテンプレートを上部に固定できます'
+              ];
+              
+              tips.forEach(tip => {
+                const listItem = createElement('li', [
+                  'margin-bottom:8px',
+                  'color:#333',
+                  'font-size:14px',
+                  'line-height:1.5'
+                ].join(';'), tip);
+                tipsList.appendChild(listItem);
+              });
+              
+              tipsSection.appendChild(tipsTitle);
+              tipsSection.appendChild(tipsList);
+              usageContent.appendChild(tipsSection);
+              
+              container.appendChild(usageContent);
+            }
+          },
+          {
             label: '⚙️ 設定',
             content: (container) => {
               // Settings tab content (placeholder for future settings)
@@ -1956,9 +2370,35 @@
         'color:#fff'
       ].join(';'), isCompactMode ? '📋' : 'Copy', () => {
         const copyText = item.text;
-        navigator.clipboard.writeText(copyText).then(() => {
-          close();
-        });
+        
+        // Check for template placeholders
+        const templates = parseTemplates(copyText);
+        
+        if (templates.length > 0) {
+          // Show template form dialog
+          KeyHandler.isModalOpen = true;
+          
+          const formDialog = createTemplateForm(templates, (values) => {
+            // Replace templates and copy
+            const finalText = replaceTemplates(copyText, values);
+            navigator.clipboard.writeText(finalText).then(() => {
+              KeyHandler.isModalOpen = false;
+              document.body.removeChild(formDialog.overlay);
+              close();
+            });
+          }, () => {
+            // Cancel - just close dialog
+            KeyHandler.isModalOpen = false;
+            document.body.removeChild(formDialog.overlay);
+          });
+          
+          document.body.appendChild(formDialog.overlay);
+        } else {
+          // No templates - direct copy
+          navigator.clipboard.writeText(copyText).then(() => {
+            close();
+          });
+        }
       });
       copyButton.title = 'コピーする';
 
