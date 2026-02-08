@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v19
+// v20
 // 2026-02-08
 
 (function() {
@@ -63,9 +63,23 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v19',
+      CURRENT: 'v20',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v20',
+          date: '2026-02-08',
+          features: [
+            '✨ 配列データのリスト表示で、テキストが複数行ならリスト化せず通常配列表示に改善',
+            '新規ヘルパー関数hasMultilineTextを実装：配列内の複数行テキストを検出',
+            'isTextDataArray関数をリファクタリング：複数行テキスト判定ロジックを追加',
+            '共通処理を抽出し可読性を向上：判定ロジックを段階的に分離',
+            '複数行テキスト含む配列は標準の配列表示形式（インデックス付き）で表示',
+            '単一行テキストのみの配列は従来通りマークダウンリスト形式で表示',
+            '非常にクリーンで安全な実装：既存機能に影響なく確実に機能追加',
+            'メンテナンス性の高いコード構造を維持'
+          ]
+        },
         {
           version: 'v19',
           date: '2026-02-08',
@@ -310,20 +324,42 @@
       }
     }
 
+    // Check if array contains any multi-line text
+    // Returns true if any string element contains newline characters
+    function hasMultilineText(arr) {
+      return arr.some(item => {
+        return typeof item === 'string' && item.includes('\n');
+      });
+    }
+
     // Check if array contains only primitive (text-like) data
     // Returns true if all elements are string, number, boolean, or null
+    // AND none of the strings contain multi-line text
     function isTextDataArray(arr) {
       if (!Array.isArray(arr) || arr.length === 0) {
         return false;
       }
       
-      return arr.every(item => {
+      // Check if all elements are primitive types
+      const allPrimitive = arr.every(item => {
         const type = typeof item;
         return item === null || 
                type === 'string' || 
                type === 'number' || 
                type === 'boolean';
       });
+      
+      // If not all primitive, return false
+      if (!allPrimitive) {
+        return false;
+      }
+      
+      // If any text is multi-line, don't use list format
+      if (hasMultilineText(arr)) {
+        return false;
+      }
+      
+      return true;
     }
 
     // Convert primitive value to markdown text representation
