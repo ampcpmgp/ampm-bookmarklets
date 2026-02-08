@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v9
+// v10
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,19 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v9',
+      CURRENT: 'v10',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v10',
+          date: '2026-02-08',
+          features: [
+            'マークダウンのリスト形式に対応：順序なしリスト（-, *, +）と順序付きリスト（1., 2., ...）をサポート',
+            'ネストされたリストの処理に対応し、インデントに基づいた階層構造を正確に再現',
+            'リスト処理の共通ロジックをリファクタリングし、可読性とメンテナンス性を向上',
+            'セキュリティを維持しながらDOM APIを使用した安全なリスト要素生成'
+          ]
+        },
         {
           version: 'v9',
           date: '2026-02-08',
@@ -272,7 +282,10 @@
     function markdownToHtml(markdown) {
       let html = markdown;
 
-      // Process headings first (before line breaks) - handle indentation with \s*
+      // Process lists before other inline elements
+      html = processMarkdownLists(html);
+
+      // Process headings (after lists, before line breaks) - handle indentation with \s*
       // Support h1 through h6 - process from longest to shortest to avoid conflicts
       html = html.replace(/^\s*###### (.*?)$/gm, '<h6>$1</h6>');
       html = html.replace(/^\s*##### (.*?)$/gm, '<h5>$1</h5>');
@@ -292,6 +305,166 @@
 
       // Line breaks
       html = html.replace(/\n/g, '<br>');
+
+      return html;
+    }
+
+    // Process markdown lists and convert to HTML list elements
+    function processMarkdownLists(text) {
+      const lines = text.split('\n');
+      const result = [];
+      let i = 0;
+
+      while (i < lines.length) {
+        const line = lines[i];
+        const listMatch = detectListItem(line);
+
+        if (listMatch) {
+          // Process a list block starting from this line
+          const listBlock = extractListBlock(lines, i);
+          const listHtml = convertListBlockToHtml(listBlock);
+          result.push(listHtml);
+          i += listBlock.length;
+        } else {
+          result.push(line);
+          i++;
+        }
+      }
+
+      return result.join('\n');
+    }
+
+    // Detect if a line is a list item and return its properties
+    function detectListItem(line) {
+      // Match unordered list: -, *, or + followed by space
+      const unorderedMatch = line.match(/^(\s*)([-*+])\s+(.*)$/);
+      if (unorderedMatch) {
+        return {
+          type: 'unordered',
+          indent: unorderedMatch[1].length,
+          marker: unorderedMatch[2],
+          content: unorderedMatch[3]
+        };
+      }
+
+      // Match ordered list: number followed by . and space
+      const orderedMatch = line.match(/^(\s*)(\d+)\.\s+(.*)$/);
+      if (orderedMatch) {
+        return {
+          type: 'ordered',
+          indent: orderedMatch[1].length,
+          number: parseInt(orderedMatch[2]),
+          content: orderedMatch[3]
+        };
+      }
+
+      return null;
+    }
+
+    // Extract a complete list block (all consecutive list items)
+    function extractListBlock(lines, startIndex) {
+      const block = [];
+      let i = startIndex;
+
+      while (i < lines.length) {
+        const line = lines[i];
+        const listMatch = detectListItem(line);
+
+        if (listMatch) {
+          block.push({ line, match: listMatch });
+          i++;
+        } else if (line.trim() === '' && i + 1 < lines.length) {
+          // Check if there's another list item after the empty line
+          const nextMatch = detectListItem(lines[i + 1]);
+          if (nextMatch) {
+            // Empty line within list - keep it
+            block.push({ line, match: null });
+            i++;
+          } else {
+            // Empty line ends the list
+            break;
+          }
+        } else {
+          // Non-list line ends the list
+          break;
+        }
+      }
+
+      return block;
+    }
+
+    // Convert a list block to HTML with proper nesting
+    function convertListBlockToHtml(listBlock) {
+      if (listBlock.length === 0) return '';
+
+      const root = { children: [], indent: -1, type: null };
+      const stack = [root];
+
+      listBlock.forEach(({ line, match }) => {
+        if (!match) {
+          // Empty line - skip in HTML output
+          return;
+        }
+
+        const currentIndent = match.indent;
+        
+        // Find the correct parent based on indentation
+        while (stack.length > 1 && stack[stack.length - 1].indent >= currentIndent) {
+          stack.pop();
+        }
+
+        const parent = stack[stack.length - 1];
+        const item = {
+          type: match.type,
+          content: match.content,
+          indent: currentIndent,
+          children: []
+        };
+
+        parent.children.push(item);
+        stack.push(item);
+      });
+
+      // Build HTML from the tree structure
+      return buildListHtml(root.children);
+    }
+
+    // Recursively build HTML list structure
+    function buildListHtml(items) {
+      if (items.length === 0) return '';
+
+      // Group consecutive items of the same type
+      const groups = [];
+      let currentGroup = null;
+
+      items.forEach(item => {
+        if (!currentGroup || currentGroup.type !== item.type) {
+          currentGroup = { type: item.type, items: [] };
+          groups.push(currentGroup);
+        }
+        currentGroup.items.push(item);
+      });
+
+      // Convert each group to HTML
+      let html = '';
+      groups.forEach(group => {
+        const tag = group.type === 'ordered' ? 'ol' : 'ul';
+        html += `<${tag}>`;
+        
+        group.items.forEach(item => {
+          html += '<li>';
+          html += item.content;
+          
+          // Process nested lists
+          if (item.children.length > 0) {
+            html += buildListHtml(item.children);
+          }
+          
+          html += '</li>';
+        });
+        
+        html += `</${tag}>`;
+      });
 
       return html;
     }
@@ -435,6 +608,15 @@
           background: ${COLORS.DARK.CODE_BG} !important;
           color: #ff79c6 !important;
           font-size: 14px !important;
+        }
+
+        .markdown-output ul,
+        .markdown-output ol {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+
+        .markdown-output li {
+          color: ${COLORS.DARK.TEXT} !important;
         }
         
         .error-message {
@@ -674,6 +856,33 @@
         font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
         font-size: 14px;
         color: #d63384;
+      }
+
+      .markdown-output ul,
+      .markdown-output ol {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+
+      .markdown-output li {
+        margin: 4px 0;
+        line-height: 1.6;
+      }
+
+      .markdown-output ul {
+        list-style-type: disc;
+      }
+
+      .markdown-output ol {
+        list-style-type: decimal;
+      }
+
+      .markdown-output ul ul {
+        list-style-type: circle;
+      }
+
+      .markdown-output ul ul ul {
+        list-style-type: square;
       }
 
       .error-message {
