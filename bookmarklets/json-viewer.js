@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v5
+// v6
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,17 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v5',
+      CURRENT: 'v6',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v6',
+          date: '2026-02-08',
+          features: [
+            '入力欄フォーカス時に自動的に入力セクションを展開',
+            '折りたたまれている場合でも入力スペースが確実に表示されるように改善'
+          ]
+        },
         {
           version: 'v5',
           date: '2026-02-08',
@@ -636,10 +644,10 @@
     let currentMarkdown = '';
     let isInputExpanded = true;
 
-    // Toggle input section
-    const toggleInputSection = () => {
-      isInputExpanded = !isInputExpanded;
-      if (isInputExpanded) {
+    // Set input section expanded state
+    const setInputSectionExpanded = (expanded) => {
+      isInputExpanded = expanded;
+      if (expanded) {
         inputSection.classList.remove('collapsed');
         inputSection.classList.add('expanded');
         toggleIcon.classList.remove('collapsed');
@@ -648,6 +656,11 @@
         inputSection.classList.add('collapsed');
         toggleIcon.classList.add('collapsed');
       }
+    };
+
+    // Toggle input section
+    const toggleInputSection = () => {
+      setInputSectionExpanded(!isInputExpanded);
     };
 
     // Close handler
@@ -667,6 +680,13 @@
     document.addEventListener('keydown', KeyHandler.handleDocumentKey);
     closeBtn.addEventListener('click', close);
     inputHeader.addEventListener('click', toggleInputSection);
+
+    // Auto-expand input section when textarea is focused
+    jsonInput.addEventListener('focus', () => {
+      if (!isInputExpanded) {
+        setInputSectionExpanded(true);
+      }
+    });
 
     // Parse and display JSON
     const parseAndDisplay = () => {
@@ -694,7 +714,7 @@
         
         // Close input section after successful parsing
         if (isInputExpanded) {
-          toggleInputSection();
+          setInputSectionExpanded(false);
         }
       } catch (error) {
         setElementContent(content, createErrorView(escapeHtml(error.message)));
