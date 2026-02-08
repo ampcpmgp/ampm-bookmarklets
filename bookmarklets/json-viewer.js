@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v11
+// v12
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,18 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v11',
+      CURRENT: 'v12',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v12',
+          date: '2026-02-08',
+          features: [
+            'クリップボードの内容を自動読み取りし、有効なJSON形式であれば起動時から自動的にマークダウン表示',
+            '共通処理をリファクタリングし、可読性とメンテナンス性を向上',
+            'セキュリティを保ちながら安全な実装を実現'
+          ]
+        },
         {
           version: 'v11',
           date: '2026-02-08',
@@ -1119,6 +1128,47 @@
       currentMarkdown = '';
     };
 
+    // Try to read clipboard and auto-display if valid JSON
+    const tryAutoLoadFromClipboard = async () => {
+      try {
+        // Check if Clipboard API is available
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+          return;
+        }
+
+        // Read clipboard text
+        const clipboardText = await navigator.clipboard.readText();
+        
+        // Validate clipboard text
+        if (!clipboardText || !clipboardText.trim()) {
+          return;
+        }
+
+        const trimmedText = clipboardText.trim();
+        
+        // Try to parse as JSON
+        try {
+          const jsonData = JSON.parse(trimmedText);
+          
+          // Only auto-load if it's an object or array (not primitive)
+          if (typeof jsonData === 'object' && jsonData !== null) {
+            // Set the clipboard content to the input
+            jsonInput.value = trimmedText;
+            
+            // Automatically parse and display
+            parseAndDisplay();
+          }
+        } catch (parseError) {
+          // Not valid JSON, silently ignore
+          return;
+        }
+      } catch (error) {
+        // Clipboard access denied or other error, silently ignore
+        // This is expected behavior when permission is not granted
+        return;
+      }
+    };
+
     // Helper function to safely create elements with text content
     function createElementWithText(tag, text, className = '') {
       const element = document.createElement(tag);
@@ -1273,6 +1323,9 @@
     });
 
     document.body.appendChild(host);
+    
+    // Try to auto-load JSON from clipboard on initialization
+    tryAutoLoadFromClipboard();
   } catch (error) {
     alert('Error: ' + error.message);
   }
