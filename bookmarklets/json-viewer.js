@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v3
+// v4
 // 2026-02-08
 
 (function() {
@@ -31,6 +31,35 @@
       BACKGROUND: '#f8f9fa',
       TEXT: '#333',
       TEXT_LIGHT: '#666'
+    };
+
+    // Centralized version management
+    const VERSION_INFO = {
+      CURRENT: 'v4',
+      LAST_UPDATED: '2026-02-08',
+      HISTORY: [
+        {
+          version: 'v4',
+          date: '2026-02-08',
+          features: [
+            'ESCキーでビューアーを閉じる機能を追加',
+            'KeyHandlerオブジェクトによるキーボード操作の一元管理で保守性向上'
+          ]
+        },
+        {
+          version: 'v3',
+          date: '2026-02-08',
+          features: [
+            '初回リリース（履歴管理システム導入前）'
+          ]
+        }
+      ]
+    };
+
+    // Centralized keyboard handler for maintainability
+    const KeyHandler = {
+      ESC: 'Escape',
+      handleDocumentKey: null
     };
 
     // Build JSON path string for headings
@@ -389,9 +418,19 @@
 
     // Close handler
     const close = () => {
+      document.removeEventListener('keydown', KeyHandler.handleDocumentKey);
       host.remove();
     };
     host._close = close;
+
+    // Set up document key handler
+    KeyHandler.handleDocumentKey = (e) => {
+      if (e.key === KeyHandler.ESC) {
+        close();
+      }
+    };
+
+    document.addEventListener('keydown', KeyHandler.handleDocumentKey);
     closeBtn.addEventListener('click', close);
 
     // Parse and display JSON
