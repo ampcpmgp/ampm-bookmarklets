@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v30
+// v31
 // 2026-02-08
 
 (function() {
@@ -116,11 +116,26 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v30',
+      CURRENT: 'v31',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-08',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v31',
+          date: '2026-02-08',
+          features: [
+            'テンプレート機能を大幅強化：text, number, select の3種類のテンプレート型を追加',
+            'text型: 自由なテキスト入力フィールド（${text:項目名}）',
+            'number型: 数値専用入力フィールド（${number:項目名}）',
+            'select型: ドロップダウン選択メニュー（${select:項目名|選択肢1|選択肢2}）',
+            'select型は本物の<select>と<option>タグで実装し、直感的な選択UIを提供',
+            'テンプレートパーサーをリファクタリング：複数の型に対応し、選択肢もパイプ区切りで柔軟に指定可能',
+            'createInputElement関数を新設：型に応じた適切な入力要素を生成し、コードの可読性と保守性を向上',
+            'replaceTemplates関数を改良：テンプレート配列を受け取り、正確なプレースホルダ置換を実現',
+            'ドキュメントを全面更新：3つのテンプレート型の詳細な説明と実用的な使用例を追加'
+          ]
+        },
         {
           version: 'v30',
           date: '2026-02-08',
@@ -682,26 +697,108 @@
     };
 
     /**
-     * Template Parser - Parses ${select:name} placeholders in text
+     * Template Parser - Parses ${type:name} or ${type:name|options} placeholders in text
+     * Supported types: text, number, select
      * @param {string} text - Text containing templates
-     * @returns {Array<{name: string, placeholder: string}>} - Array of template placeholders
+     * @returns {Array<{type: string, name: string, options: Array<string>, placeholder: string}>} - Array of template placeholders
      */
     const parseTemplates = (text) => {
-      const regex = /\$\{select:([^}]+)\}/g;
+      // Match ${type:name} or ${type:name|option1|option2|...}
+      const regex = /\$\{(text|number|select):([^}|]+)(?:\|([^}]+))?\}/g;
       const templates = [];
+      
       // Use matchAll for cleaner iteration
       for (const match of text.matchAll(regex)) {
-        const name = match[1].trim();
-        if (name && !templates.find(t => t.name === name)) {
-          templates.push({ name, placeholder: match[0] });
+        const type = match[1].trim();
+        const name = match[2].trim();
+        const optionsStr = match[3];
+        
+        // Parse options for select type (pipe-separated values)
+        const options = optionsStr 
+          ? optionsStr.split('|').map(opt => opt.trim()).filter(opt => opt)
+          : [];
+        
+        // Avoid duplicates based on type and name combination
+        if (name && !templates.find(t => t.type === type && t.name === name)) {
+          templates.push({ 
+            type, 
+            name, 
+            options,
+            placeholder: match[0] 
+          });
         }
       }
       return templates;
     };
 
     /**
+     * Create appropriate input element based on template type
+     * @param {Object} template - Template object with type, name, and options
+     * @returns {HTMLElement} - Input element (input, select, etc.)
+     */
+    const createInputElement = (template) => {
+      const commonStyles = [
+        'width:100%',
+        'padding:10px',
+        'border:1px solid #dadce0',
+        'border-radius:4px',
+        'font-size:13px',
+        'box-sizing:border-box',
+        'transition:border-color 0.2s'
+      ];
+
+      let inputElement;
+
+      switch (template.type) {
+        case 'text':
+          inputElement = createElement('input');
+          inputElement.type = 'text';
+          inputElement.placeholder = `${template.name} を入力...`;
+          inputElement.style.cssText = commonStyles.join(';');
+          break;
+
+        case 'number':
+          inputElement = createElement('input');
+          inputElement.type = 'number';
+          inputElement.placeholder = `${template.name} を入力...`;
+          inputElement.style.cssText = commonStyles.join(';');
+          break;
+
+        case 'select':
+          inputElement = createElement('select');
+          inputElement.style.cssText = commonStyles.join(';');
+          
+          // Add default empty option
+          const defaultOption = createElement('option');
+          defaultOption.value = '';
+          defaultOption.textContent = `${template.name} を選択...`;
+          defaultOption.disabled = true;
+          defaultOption.selected = true;
+          inputElement.appendChild(defaultOption);
+          
+          // Add options from template
+          template.options.forEach(optionValue => {
+            const option = createElement('option');
+            option.value = optionValue;
+            option.textContent = optionValue;
+            inputElement.appendChild(option);
+          });
+          break;
+
+        default:
+          // Fallback to text input
+          inputElement = createElement('input');
+          inputElement.type = 'text';
+          inputElement.placeholder = `${template.name} を入力...`;
+          inputElement.style.cssText = commonStyles.join(';');
+      }
+
+      return inputElement;
+    };
+
+    /**
      * Create input form dialog for template placeholders
-     * @param {Array<{name: string, placeholder: string}>} templates - Template placeholders
+     * @param {Array<{type: string, name: string, options: Array<string>, placeholder: string}>} templates - Template placeholders
      * @param {Function} onSubmit - Callback with input values object {name: value}
      * @param {Function} onCancel - Callback on cancel
      * @returns {Object} - Dialog container and form elements
@@ -762,30 +859,23 @@
           'margin-bottom:16px'
         ].join(';'));
 
-        // Label
+        // Label with type indicator
+        const labelText = template.type === 'select' && template.options.length > 0
+          ? `${template.name} (選択)`
+          : `${template.name} (${template.type === 'number' ? '数値' : 'テキスト'})`;
+        
         const label = createElement('label', [
           'display:block',
           'margin-bottom:6px',
           'font-size:13px',
           'font-weight:500',
           'color:#202124'
-        ].join(';'), template.name);
+        ].join(';'), labelText);
 
-        // Input field
-        const input = createElement('input');
-        input.type = 'text';
-        input.placeholder = `${template.name} を入力...`;
-        input.style.cssText = [
-          'width:100%',
-          'padding:10px',
-          'border:1px solid #dadce0',
-          'border-radius:4px',
-          'font-size:13px',
-          'box-sizing:border-box',
-          'transition:border-color 0.2s'
-        ].join(';');
+        // Create appropriate input element based on type
+        const input = createInputElement(template);
 
-        // Focus effect
+        // Focus effect for all input types
         input.onfocus = () => input.style.borderColor = '#1a73e8';
         input.onblur = () => input.style.borderColor = '#dadce0';
 
@@ -798,7 +888,7 @@
         fieldContainer.appendChild(input);
         formContainer.appendChild(fieldContainer);
 
-        inputFields.push({ name: template.name, input });
+        inputFields.push({ name: template.name, type: template.type, input });
       });
 
       // Button container
@@ -901,17 +991,20 @@
     /**
      * Replace template placeholders with values
      * @param {string} text - Text with templates
+     * @param {Array<{type: string, name: string, placeholder: string}>} templates - Original templates
      * @param {Object} values - Object mapping template names to values
      * @returns {string} - Text with templates replaced
      */
-    const replaceTemplates = (text, values) => {
+    const replaceTemplates = (text, templates, values) => {
       let result = text;
-      Object.keys(values).forEach(name => {
-        const placeholder = `\${select:${name}}`;
-        const value = values[name] || '';
-        // Use replaceAll for efficient replacement
-        result = result.replaceAll(placeholder, value);
+      
+      // Replace each template placeholder with its corresponding value
+      templates.forEach(template => {
+        const value = values[template.name] || '';
+        // Use the original placeholder string for accurate replacement
+        result = result.replaceAll(template.placeholder, value);
       });
+      
       return result;
     };
 
@@ -1730,27 +1823,119 @@
                 'font-weight:600',
                 'color:#333',
                 'font-size:14px'
-              ].join(';'), '📝 書式:');
+              ].join(';'), '📝 テンプレートの種類:');
               
-              const templateSyntax = createElement('code', [
+              // Text type
+              const textTypeSection = createElement('div', [
+                'margin:0 0 16px 0'
+              ].join(';'));
+              
+              const textTypeTitle = createElement('div', [
+                'margin:0 0 4px 0',
+                'font-weight:600',
+                'color:#1a73e8',
+                'font-size:13px'
+              ].join(';'), '1. テキスト入力 (text)');
+              
+              const textTypeSyntax = createElement('code', [
                 'display:block',
-                'margin:0 0 12px 0',
-                'padding:12px',
+                'margin:0 0 4px 0',
+                'padding:8px',
                 'background:#fff',
                 'border:1px solid #e0e0e0',
                 'border-radius:4px',
                 'font-family:monospace',
-                'font-size:13px',
-                'color:#d73a49',
-                'white-space:pre-wrap'
-              ].join(';'), '${select:項目名}');
+                'font-size:12px',
+                'color:#d73a49'
+              ].join(';'), '${text:項目名}');
+              
+              const textTypeDesc = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:12px',
+                'line-height:1.5'
+              ].join(';'), '自由なテキストを入力できる基本的な入力フィールドです。');
+              
+              textTypeSection.appendChild(textTypeTitle);
+              textTypeSection.appendChild(textTypeSyntax);
+              textTypeSection.appendChild(textTypeDesc);
+              
+              // Number type
+              const numberTypeSection = createElement('div', [
+                'margin:0 0 16px 0'
+              ].join(';'));
+              
+              const numberTypeTitle = createElement('div', [
+                'margin:0 0 4px 0',
+                'font-weight:600',
+                'color:#1a73e8',
+                'font-size:13px'
+              ].join(';'), '2. 数値入力 (number)');
+              
+              const numberTypeSyntax = createElement('code', [
+                'display:block',
+                'margin:0 0 4px 0',
+                'padding:8px',
+                'background:#fff',
+                'border:1px solid #e0e0e0',
+                'border-radius:4px',
+                'font-family:monospace',
+                'font-size:12px',
+                'color:#d73a49'
+              ].join(';'), '${number:項目名}');
+              
+              const numberTypeDesc = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:12px',
+                'line-height:1.5'
+              ].join(';'), '数値のみを入力できる入力フィールドです。');
+              
+              numberTypeSection.appendChild(numberTypeTitle);
+              numberTypeSection.appendChild(numberTypeSyntax);
+              numberTypeSection.appendChild(numberTypeDesc);
+              
+              // Select type
+              const selectTypeSection = createElement('div', [
+                'margin:0 0 16px 0'
+              ].join(';'));
+              
+              const selectTypeTitle = createElement('div', [
+                'margin:0 0 4px 0',
+                'font-weight:600',
+                'color:#1a73e8',
+                'font-size:13px'
+              ].join(';'), '3. 選択入力 (select)');
+              
+              const selectTypeSyntax = createElement('code', [
+                'display:block',
+                'margin:0 0 4px 0',
+                'padding:8px',
+                'background:#fff',
+                'border:1px solid #e0e0e0',
+                'border-radius:4px',
+                'font-family:monospace',
+                'font-size:12px',
+                'color:#d73a49'
+              ].join(';'), '${select:項目名|選択肢1|選択肢2|選択肢3}');
+              
+              const selectTypeDesc = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:12px',
+                'line-height:1.5'
+              ].join(';'), 'ドロップダウンメニューから選択肢を選べます。パイプ記号 (|) で区切って選択肢を指定します。');
+              
+              selectTypeSection.appendChild(selectTypeTitle);
+              selectTypeSection.appendChild(selectTypeSyntax);
+              selectTypeSection.appendChild(selectTypeDesc);
               
               const templateExample = createElement('div', [
                 'margin:12px 0 0 0'
               ].join(';'));
               
               const exampleTitle = createElement('div', [
-                'margin:0 0 8px 0',
+                'margin:16px 0 8px 0',
                 'font-weight:600',
                 'color:#333',
                 'font-size:14px'
@@ -1768,23 +1953,24 @@
                 'color:#333',
                 'white-space:pre-wrap',
                 'line-height:1.6'
-              ].join(';'), '${select:memo|json-viewer}.js\n\nこんにちは、${select:名前}さん！\n今日は${select:天気}ですね。');
+              ].join(';'), 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ|曇り|雨}ですね。\n気温は${number:気温}度です。');
               
               const exampleNote = createElement('p', [
                 'margin:0',
                 'color:#5f6368',
                 'font-size:13px',
                 'line-height:1.5'
-              ].join(';'), '💬 コピーボタンを押すと、「memo|json-viewer」「名前」「天気」の3つの入力フォームが表示され、入力後にテンプレートが置換されてコピーされます。');
+              ].join(';'), '💬 コピーボタンを押すと、「名前」（テキスト入力）、「天気」（選択肢）、「気温」（数値入力）の3つの入力フォームが表示され、入力後にテンプレートが置換されてコピーされます。');
               
               templateSection.appendChild(templateTitle);
               templateSection.appendChild(templateDesc);
               templateSection.appendChild(templateSyntaxTitle);
-              templateSection.appendChild(templateSyntax);
-              templateSection.appendChild(templateExample);
-              templateExample.appendChild(exampleTitle);
-              templateExample.appendChild(exampleCode);
-              templateExample.appendChild(exampleNote);
+              templateSection.appendChild(textTypeSection);
+              templateSection.appendChild(numberTypeSection);
+              templateSection.appendChild(selectTypeSection);
+              templateSection.appendChild(exampleTitle);
+              templateSection.appendChild(exampleCode);
+              templateSection.appendChild(exampleNote);
               
               usageContent.appendChild(templateSection);
               
@@ -1808,7 +1994,8 @@
               
               const tips = [
                 'テンプレートがない場合は、通常通りメモ本文がそのままコピーされます',
-                '同じ項目名は複数回使用できます（例: ${select:名前} を2箇所）',
+                '同じ項目名と型は複数回使用できます（例: ${text:名前} を2箇所）',
+                'select型では選択肢をパイプ (|) で区切って指定します',
                 '入力フォームではESCキーでキャンセル、Ctrl+Enterで送信できます',
                 'ピン留め機能でよく使うテンプレートを上部に固定できます'
               ];
@@ -2380,7 +2567,7 @@
           
           const formDialog = createTemplateForm(templates, (values) => {
             // Replace templates and copy
-            const finalText = replaceTemplates(copyText, values);
+            const finalText = replaceTemplates(copyText, templates, values);
             navigator.clipboard.writeText(finalText).then(() => {
               KeyHandler.isModalOpen = false;
               document.body.removeChild(formDialog.overlay);
