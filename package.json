@@ -5,7 +5,12 @@
   "scripts": {
     "build": "node build.js"
   },
-  "keywords": ["bookmarklet"],
+  "keywords": [
+    "bookmarklet"
+  ],
   "author": "ampcpmgp",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "html-entities": "^2.6.0"
+  }
 }
