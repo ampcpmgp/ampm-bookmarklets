@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Viewer Test - Dark Mode</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 40px;
+      background: #0d1117;
+      color: #c9d1d9;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #161b22;
+      padding: 30px;
+      border-radius: 12px;
+    }
+    h1 {
+      color: #58a6ff;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      background: #238636;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #2ea043;
+    }
+    pre {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 JSON Viewer v14 - Dark Mode Test</h1>
+    <p>このページはダークモードでJSON Viewerをテストします。</p>
+    <br>
+    <button onclick="copyJSON()">📋 サンプルJSONをコピー</button>
+    <button onclick="loadViewer()">🚀 JSON Viewerを起動</button>
+    <br><br>
+    <h3>サンプルJSON:</h3>
+    <pre id="json-display"></pre>
+  </div>
+
+  <script>
+    const testData = {
+      "user": {
+        "id": 12345,
+        "name": "田中太郎",
+        "email": "tanaka@example.com",
+        "profile": {
+          "bio": "ソフトウェアエンジニア\\nReactとNode.jsが専門\\n東京在住",
+          "location": "東京",
+          "skills": ["JavaScript", "TypeScript", "React", "Node.js"]
+        }
+      },
+      "posts": [
+        {
+          "id": 1,
+          "title": "JSON Viewer v14リリース",
+          "content": "ダークモードの視認性が大幅に向上しました",
+          "metadata": {
+            "views": 1500,
+            "likes": 230,
+            "nestedJSON": "{\"nested\": true, \"data\": [1, 2, 3]}"
+          }
+        },
+        {
+          "id": 2,
+          "title": "UI/UX改善について",
+          "content": "境界が明確になり、コントラストが向上",
+          "stats": {
+            "engagement": 95,
+            "satisfaction": 98
+          }
+        }
+      ]
+    };
+
+    document.getElementById('json-display').textContent = JSON.stringify(testData, null, 2);
+
+    async function copyJSON() {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(testData, null, 2));
+        alert('✅ JSONをコピーしました！');
+      } catch (err) {
+        alert('❌ コピーに失敗: ' + err.message);
+      }
+    }
+
+    function loadViewer() {
+      const script = document.createElement('script');
+      script.src = 'bookmarklets/json-viewer.js';
+      document.body.appendChild(script);
+    }
+
+    // Auto-copy JSON on load for testing
+    setTimeout(() => {
+      copyJSON();
+    }, 500);
+  </script>
+</body>
+</html>
