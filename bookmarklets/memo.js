@@ -899,7 +899,7 @@
         fieldContainer.appendChild(input);
         formContainer.appendChild(fieldContainer);
 
-        inputFields.push({ name: template.name, type: template.type, input });
+        inputFields.push({ name: template.name, input });
       });
 
       // Button container
@@ -1937,7 +1937,7 @@
                 'color:#5f6368',
                 'font-size:12px',
                 'line-height:1.5'
-              ].join(';'), 'ドロップダウンメニューから選択肢を選べます。パイプ記号 (|) で区切って選択肢を指定します。');
+              ].join(';'), 'ドロップダウンメニューから選択肢を選べます。パイプ記号 (|) で区切って選択肢を指定します。注意: 選択肢の値にパイプ記号を含めることはできません。');
               
               selectTypeSection.appendChild(selectTypeTitle);
               selectTypeSection.appendChild(selectTypeSyntax);
