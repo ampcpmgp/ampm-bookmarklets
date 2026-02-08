@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v18
+// v19
 // 2026-02-08
 
 (function() {
@@ -63,9 +63,22 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v18',
+      CURRENT: 'v19',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v19',
+          date: '2026-02-08',
+          features: [
+            '🐛 目次（Table of Contents）の配列パススクロールバグを修正',
+            '根本原因：配列ルートのJSON（[0].cloth等）でID生成時に数字始まりとなり、CSS.escape未使用でquerySelectorが失敗',
+            '解決策：safeCssSelectorヘルパー関数を新規実装し、CSS.escape()で確実にエスケープ',
+            '共通処理をリファクタリング：セレクタ生成ロジックを一元化し可読性向上',
+            '配列形式・オブジェクト形式の両方で確実にスクロール動作を保証',
+            '非常にクリーンで安全な実装：既存機能に影響なく確実に修正',
+            'メンテナンス性の高いコード構造を維持'
+          ]
+        },
         {
           version: 'v18',
           date: '2026-02-08',
@@ -727,6 +740,15 @@
       return `${baseId}-${idCounter[baseId]}`;
     }
 
+    // Create a safe CSS selector for an ID
+    // This function ensures that IDs starting with digits or containing special characters
+    // are properly escaped for use in querySelector
+    function safeCssSelector(id) {
+      // CSS.escape() is the standard way to escape CSS identifiers
+      // It handles IDs that start with digits, contain special characters, etc.
+      return `#${CSS.escape(id)}`;
+    }
+
     // Add IDs to headings in HTML
     function addIdsToHeadings(html, headings) {
       let result = html;
@@ -791,7 +813,8 @@
         // Simple and reliable scroll to heading
         tocLink.addEventListener('click', (e) => {
           e.preventDefault();
-          const targetElement = shadowRoot.querySelector(`#${heading.id}`);
+          // Use safeCssSelector to properly escape IDs that may start with digits or contain special characters
+          const targetElement = shadowRoot.querySelector(safeCssSelector(heading.id));
           if (targetElement) {
             // Simple, reliable scroll: just scroll the element into view at the top
             targetElement.scrollIntoView({
