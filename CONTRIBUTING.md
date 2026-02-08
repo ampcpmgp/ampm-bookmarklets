@@ -88,7 +88,7 @@ node build.js
    ```javascript
    // 要素を安全に作成するヘルパー関数
    function createElementWithText(tag, text, className = '') {
-     const element = document.createElement('tag');
+     const element = document.createElement(tag);
      if (className) element.className = className;
      if (text) element.textContent = text;
      return element;
