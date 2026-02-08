@@ -1708,8 +1708,8 @@
           targetOffsetTop += element.offsetTop;
           element = element.offsetParent;
           
-          // Stop if we've reached the container or gone outside the shadow root
-          if (element === container || !container.contains(element)) {
+          // Stop if we've gone outside the shadow root
+          if (element && !container.contains(element)) {
             break;
           }
         }
