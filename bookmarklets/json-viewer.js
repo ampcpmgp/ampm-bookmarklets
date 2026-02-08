@@ -594,8 +594,14 @@
 
     // Generate a valid ID from heading text
     function generateHeadingId(text) {
-      // Remove HTML tags and convert to lowercase
-      const cleaned = text.replace(/<[^>]*>/g, '').toLowerCase();
+      // First, decode any HTML entities and remove all tags
+      const temp = document.createElement('div');
+      temp.textContent = text; // This handles HTML entities safely
+      const plainText = temp.textContent;
+      
+      // Remove any remaining angle brackets and convert to lowercase
+      const cleaned = plainText.replace(/[<>]/g, '').toLowerCase();
+      
       // Replace non-alphanumeric characters with hyphens
       const id = cleaned.replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
@@ -665,18 +671,25 @@
         const tocLink = document.createElement('a');
         tocLink.className = 'toc-link';
         tocLink.href = `#${heading.id}`;
-        tocLink.textContent = heading.text.replace(/<[^>]*>/g, ''); // Remove any HTML tags
+        
+        // Safely set text content (textContent already handles HTML safely)
+        const temp = document.createElement('div');
+        temp.textContent = heading.text;
+        tocLink.textContent = temp.textContent;
         
         // Smooth scroll to target
         tocLink.addEventListener('click', (e) => {
           e.preventDefault();
-          const targetElement = tocContent.getRootNode().querySelector(`#${heading.id}`);
+          // Find the target heading in the shadow root
+          const shadowRoot = tocContent.getRootNode();
+          const targetElement = shadowRoot.querySelector(`#${heading.id}`);
           if (targetElement) {
             targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
             
-            // Highlight the target briefly
+            // Highlight the target briefly with a color that respects the theme
             targetElement.style.transition = 'background-color 0.5s ease';
             const originalBg = targetElement.style.backgroundColor;
+            // Use a semi-transparent primary color that works in both light and dark modes
             targetElement.style.backgroundColor = 'rgba(26, 115, 232, 0.1)';
             setTimeout(() => {
               targetElement.style.backgroundColor = originalBg;
@@ -1275,7 +1288,7 @@
         padding: 8px 16px;
         color: ${COLORS.LIGHT.TEXT};
         text-decoration: none;
-        transition: background-color 0.2s ease, padding-left 0.2s ease;
+        transition: background-color 0.2s ease, border-left-color 0.2s ease;
         border-left: 3px solid transparent;
       }
 
@@ -1283,7 +1296,6 @@
         background: ${COLORS.LIGHT.BACKGROUND};
         color: ${COLORS.LIGHT.PRIMARY};
         border-left-color: ${COLORS.LIGHT.PRIMARY};
-        padding-left: 20px;
       }
 
       /* Indentation for different heading levels */
