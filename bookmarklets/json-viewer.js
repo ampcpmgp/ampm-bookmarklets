@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v6
+// v7
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,19 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v6',
+      CURRENT: 'v7',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v7',
+          date: '2026-02-08',
+          features: [
+            'クリップボード自動読み取り機能を削除し、不要な権限要求を回避',
+            'ヘディングのパス表示をトップレベル（level 0）のみに統一',
+            'マークダウンデータが大量でもJSON入力エリアが潰れない改善',
+            'コード構造の改善と可読性向上'
+          ]
+        },
         {
           version: 'v6',
           date: '2026-02-08',
@@ -155,9 +165,9 @@
           const headingLevel = Math.min(level + 1, 6); // Max heading level is h6
           const headingPrefix = '#'.repeat(headingLevel) + ' ';
           
-          // Display heading with path (no code block)
+          // Display heading with path only at top level (level 0)
           markdown += `${indent}${headingPrefix}${indexKey}`;
-          if (currentPath) {
+          if (currentPath && level === 0) {
             markdown += ` (${currentPath})`;
           }
           markdown += '\n';
@@ -404,6 +414,7 @@
         align-items: center;
         background: ${COLORS.LIGHT.BACKGROUND};
         border-radius: 12px 12px 0 0;
+        flex-shrink: 0;
       }
 
       .title {
@@ -433,6 +444,7 @@
         background: ${COLORS.LIGHT.BACKGROUND};
         overflow: hidden;
         transition: max-height 0.3s ease-out;
+        flex-shrink: 0;
       }
 
       .input-section.collapsed {
@@ -888,19 +900,6 @@
         parseAndDisplay();
       }
     });
-
-    // Try to get JSON from clipboard on load
-    (async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
-          jsonInput.value = text;
-          parseAndDisplay();
-        }
-      } catch (error) {
-        // Clipboard access denied or failed, ignore
-      }
-    })();
 
     document.body.appendChild(host);
   } catch (error) {
