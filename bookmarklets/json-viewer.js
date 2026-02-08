@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v10
+// v11
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,19 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v10',
+      CURRENT: 'v11',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v11',
+          date: '2026-02-08',
+          features: [
+            'JSON文字列の値を自動検出してJSONコードブロックで表示する機能を追加',
+            'JSON.parseが可能な文字列（オブジェクトまたは配列）を```jsonコードブロックとして整形表示',
+            'コードブロック処理の共通ロジックを実装し、可読性とメンテナンス性を向上',
+            'ライトモードとダークモードの両方でコードブロックのスタイリングをサポート'
+          ]
+        },
         {
           version: 'v10',
           date: '2026-02-08',
@@ -149,6 +159,34 @@
       MAX_HTML_HEADING: 6    // Support HTML headings up to h6
     };
 
+    // Check if a string value is valid JSON
+    function isValidJSON(str) {
+      if (typeof str !== 'string') return false;
+      // Skip empty strings and simple values
+      if (!str || str.trim().length === 0) return false;
+      // Only consider strings that start with { or [ as potential JSON
+      const trimmed = str.trim();
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
+      
+      try {
+        const parsed = JSON.parse(str);
+        // Only consider objects and arrays as JSON (not primitives)
+        return typeof parsed === 'object' && parsed !== null;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // Format JSON string for code block display
+    function formatJSONForCodeBlock(str) {
+      try {
+        const parsed = JSON.parse(str);
+        return JSON.stringify(parsed, null, 2);
+      } catch (e) {
+        return str;
+      }
+    }
+
     // Build JSON path string for headings
     function buildPath(parentPath, key) {
       if (!parentPath) return key;
@@ -191,6 +229,18 @@
       }
 
       if (typeof data === 'string') {
+        // Check if the string is valid JSON - if so, display as JSON code block
+        if (isValidJSON(data)) {
+          const formattedJSON = formatJSONForCodeBlock(data);
+          const jsonLines = formattedJSON.split('\n');
+          markdown += `${indent}\`\`\`json\n`;
+          jsonLines.forEach(line => {
+            markdown += `${indent}${line}\n`;
+          });
+          markdown += `${indent}\`\`\`\n`;
+          return markdown;
+        }
+        
         // Handle multiline strings with simple line breaks
         if (data.includes('\n')) {
           const lines = data.split('\n');
@@ -278,9 +328,41 @@
         .replace(/`/g, '\\`');
     }
 
+    // Escape HTML (needed for code blocks)
+    function escapeHtml(text) {
+      if (typeof text !== 'string') return String(text);
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Process code blocks (```language ... ```)
+    function processCodeBlocks(text) {
+      // Match code blocks with optional language specifier
+      // Pattern: ```[language]\n[content]\n```
+      const codeBlockPattern = /```(\w*)\n([\s\S]*?)```/g;
+      
+      return text.replace(codeBlockPattern, (match, language, code) => {
+        // Create a unique marker to protect code blocks from further processing
+        const marker = `___CODE_BLOCK_${Math.random().toString(36).substr(2, 9)}___`;
+        const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
+        const escapedCode = escapeHtml(code.trim());
+        const codeBlockHtml = `<pre${langClass}><code>${escapedCode}</code></pre>`;
+        
+        // Store the HTML and return the marker
+        text = text.replace(match, marker);
+        // Replace marker with actual HTML after all processing
+        // Use a data attribute to store the HTML for later replacement
+        return `<div data-code-block="${marker}">${codeBlockHtml}</div>`;
+      });
+    }
+
     // Markdown to HTML converter
     function markdownToHtml(markdown) {
       let html = markdown;
+
+      // Process code blocks first (before inline code)
+      html = processCodeBlocks(html);
 
       // Process lists before other inline elements
       html = processMarkdownLists(html);
@@ -610,6 +692,16 @@
           font-size: 14px !important;
         }
 
+        .markdown-output pre {
+          background: ${COLORS.DARK.CODE_BG} !important;
+          border: 1px solid ${COLORS.DARK.BORDER} !important;
+        }
+
+        .markdown-output pre code {
+          background: none !important;
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+
         .markdown-output ul,
         .markdown-output ol {
           color: ${COLORS.DARK.TEXT} !important;
@@ -858,6 +950,25 @@
         color: #d63384;
       }
 
+      .markdown-output pre {
+        background: ${COLORS.LIGHT.CODE_BG};
+        border: 1px solid ${COLORS.LIGHT.BORDER};
+        border-radius: 6px;
+        padding: 16px;
+        overflow-x: auto;
+        margin: 12px 0;
+      }
+
+      .markdown-output pre code {
+        background: none;
+        padding: 0;
+        border-radius: 0;
+        color: ${COLORS.LIGHT.TEXT};
+        font-size: 13px;
+        line-height: 1.5;
+        white-space: pre;
+      }
+
       .markdown-output ul,
       .markdown-output ol {
         margin: 8px 0;
@@ -1013,13 +1124,6 @@
       setElementContent(content, createEmptyStateView());
       currentMarkdown = '';
     };
-
-    // Escape HTML
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
 
     // Helper function to safely create elements with text content
     function createElementWithText(tag, text, className = '') {
