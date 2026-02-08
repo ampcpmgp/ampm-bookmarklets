@@ -163,9 +163,9 @@
     function isValidJSON(str) {
       if (typeof str !== 'string') return false;
       // Skip empty strings and simple values
-      if (!str || str.trim().length === 0) return false;
-      // Only consider strings that start with { or [ as potential JSON
       const trimmed = str.trim();
+      if (!trimmed) return false;
+      // Only consider strings that start with { or [ as potential JSON
       if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
       
       try {
@@ -343,17 +343,9 @@
       const codeBlockPattern = /```(\w*)\n([\s\S]*?)```/g;
       
       return text.replace(codeBlockPattern, (match, language, code) => {
-        // Create a unique marker to protect code blocks from further processing
-        const marker = `___CODE_BLOCK_${Math.random().toString(36).substr(2, 9)}___`;
         const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
         const escapedCode = escapeHtml(code.trim());
-        const codeBlockHtml = `<pre${langClass}><code>${escapedCode}</code></pre>`;
-        
-        // Store the HTML and return the marker
-        text = text.replace(match, marker);
-        // Replace marker with actual HTML after all processing
-        // Use a data attribute to store the HTML for later replacement
-        return `<div data-code-block="${marker}">${codeBlockHtml}</div>`;
+        return `<pre${langClass}><code>${escapedCode}</code></pre>`;
       });
     }
 
