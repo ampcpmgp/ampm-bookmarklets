@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v4
+// v5
 // 2026-02-08
 
 (function() {
@@ -20,24 +20,57 @@
       DROPDOWN: 2147483647
     };
 
-    // Centralized color constants
+    // Centralized color constants with dark mode support
     const COLORS = {
-      PRIMARY: '#1a73e8',
-      PRIMARY_HOVER: '#1557b0',
-      DANGER: '#dc3545',
-      DANGER_HOVER: '#c82333',
-      SUCCESS: '#28a745',
-      BORDER: '#ddd',
-      BACKGROUND: '#f8f9fa',
-      TEXT: '#333',
-      TEXT_LIGHT: '#666'
+      // Light mode
+      LIGHT: {
+        PRIMARY: '#1a73e8',
+        PRIMARY_HOVER: '#1557b0',
+        DANGER: '#dc3545',
+        DANGER_HOVER: '#c82333',
+        SUCCESS: '#28a745',
+        BORDER: '#ddd',
+        BACKGROUND: '#f8f9fa',
+        CONTAINER_BG: '#ffffff',
+        TEXT: '#333',
+        TEXT_LIGHT: '#666',
+        INPUT_BG: '#ffffff',
+        CODE_BG: '#f8f9fa',
+        ERROR_BG: '#fff5f5'
+      },
+      // Dark mode
+      DARK: {
+        PRIMARY: '#4a9eff',
+        PRIMARY_HOVER: '#357ae8',
+        DANGER: '#ff5555',
+        DANGER_HOVER: '#ff3333',
+        SUCCESS: '#50fa7b',
+        BORDER: '#444',
+        BACKGROUND: '#2d2d2d',
+        CONTAINER_BG: '#1e1e1e',
+        TEXT: '#e0e0e0',
+        TEXT_LIGHT: '#999',
+        INPUT_BG: '#2d2d2d',
+        CODE_BG: '#2d2d2d',
+        ERROR_BG: '#3d1f1f'
+      }
     };
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v4',
+      CURRENT: 'v5',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v5',
+          date: '2026-02-08',
+          features: [
+            'JSON入力セクションを開閉可能に（解析後は自動で閉じる）',
+            'ブラウザのダークモードに対応',
+            'ヘディングから冗長なコードブロック表示を削除し、階層構造を改善',
+            'カラーパレット管理の改善で保守性向上'
+          ]
+        },
         {
           version: 'v4',
           date: '2026-02-08',
@@ -111,9 +144,15 @@
         data.forEach((item, index) => {
           const indexKey = `[${index}]`;
           const currentPath = buildPath(parentPath, indexKey);
-          const prefix = level === 0 ? `## ` : '';
-          const pathDisplay = currentPath ? ` \`${currentPath}\`` : '';
-          markdown += `${indent}${prefix}**${indexKey}**${pathDisplay}\n`;
+          const headingLevel = Math.min(level + 1, 6); // Max heading level is h6
+          const headingPrefix = '#'.repeat(headingLevel) + ' ';
+          
+          // Display heading with path (no code block)
+          markdown += `${indent}${headingPrefix}${indexKey}`;
+          if (currentPath) {
+            markdown += ` (${currentPath})`;
+          }
+          markdown += '\n';
           markdown += jsonToMarkdown(item, level + 1, currentPath);
         });
         return markdown;
@@ -128,18 +167,30 @@
         keys.forEach(key => {
           const value = data[key];
           const currentPath = buildPath(parentPath, key);
-          const prefix = level === 0 ? `## ` : level === 1 ? `### ` : '';
-          const pathDisplay = currentPath && level <= 1 ? ` \`${currentPath}\`` : '';
+          const headingLevel = Math.min(level + 1, 6); // Max heading level is h6
+          const headingPrefix = '#'.repeat(headingLevel) + ' ';
           
           // For primitive values, show inline
           if (value === null || value === undefined || 
               typeof value === 'boolean' || typeof value === 'number') {
-            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**${pathDisplay}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
+            markdown += `${indent}${headingPrefix}${escapeMarkdown(key)}`;
+            if (currentPath && level === 0) {
+              markdown += ` (${currentPath})`;
+            }
+            markdown += `: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
           } else if (typeof value === 'string' && !value.includes('\n')) {
-            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**${pathDisplay}: ${escapeMarkdown(value)}\n`;
+            markdown += `${indent}${headingPrefix}${escapeMarkdown(key)}`;
+            if (currentPath && level === 0) {
+              markdown += ` (${currentPath})`;
+            }
+            markdown += `: ${escapeMarkdown(value)}\n`;
           } else {
             // For complex values, show on new line
-            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**${pathDisplay}\n`;
+            markdown += `${indent}${headingPrefix}${escapeMarkdown(key)}`;
+            if (currentPath && level === 0) {
+              markdown += ` (${currentPath})`;
+            }
+            markdown += '\n';
             markdown += jsonToMarkdown(value, level + 1, currentPath);
           }
         });
@@ -165,7 +216,10 @@
     function markdownToHtml(markdown) {
       let html = markdown;
 
-      // Headers (process in reverse order to handle ### before ##)
+      // Headers (process in reverse order to handle ###### before #)
+      html = html.replace(/^###### (.*?)$/gm, '<h6>$1</h6>');
+      html = html.replace(/^##### (.*?)$/gm, '<h5>$1</h5>');
+      html = html.replace(/^#### (.*?)$/gm, '<h4>$1</h4>');
       html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
       html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
       html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
@@ -211,6 +265,112 @@
         padding: 0;
       }
 
+      /* Helper function to get color based on theme */
+      :host {
+        color-scheme: light dark;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .container {
+          background: ${COLORS.DARK.CONTAINER_BG} !important;
+        }
+        
+        .header {
+          background: ${COLORS.DARK.BACKGROUND} !important;
+          border-bottom: 1px solid ${COLORS.DARK.BORDER} !important;
+        }
+        
+        .title {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        .input-section {
+          background: ${COLORS.DARK.BACKGROUND} !important;
+          border-bottom: 1px solid ${COLORS.DARK.BORDER} !important;
+        }
+        
+        .json-input {
+          background-color: ${COLORS.DARK.INPUT_BG} !important;
+          border-color: ${COLORS.DARK.BORDER} !important;
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        .json-input:focus {
+          border-color: ${COLORS.DARK.PRIMARY} !important;
+          box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1) !important;
+        }
+        
+        .btn-secondary {
+          background: ${COLORS.DARK.BACKGROUND} !important;
+          color: ${COLORS.DARK.TEXT} !important;
+          border: 1px solid ${COLORS.DARK.BORDER} !important;
+        }
+        
+        .btn-secondary:hover {
+          background: #3d3d3d !important;
+        }
+        
+        .btn-primary {
+          background: ${COLORS.DARK.PRIMARY} !important;
+        }
+        
+        .btn-primary:hover {
+          background: ${COLORS.DARK.PRIMARY_HOVER} !important;
+        }
+        
+        .close-btn {
+          background: ${COLORS.DARK.DANGER} !important;
+        }
+        
+        .close-btn:hover {
+          background: ${COLORS.DARK.DANGER_HOVER} !important;
+        }
+        
+        .markdown-output {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        .markdown-output h1,
+        .markdown-output h2,
+        .markdown-output h3,
+        .markdown-output h4,
+        .markdown-output h5,
+        .markdown-output h6 {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        .markdown-output h1 {
+          border-bottom: 2px solid ${COLORS.DARK.BORDER} !important;
+        }
+        
+        .markdown-output strong {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+        
+        .markdown-output em {
+          color: ${COLORS.DARK.TEXT_LIGHT} !important;
+        }
+        
+        .markdown-output code {
+          background: ${COLORS.DARK.CODE_BG} !important;
+          color: #ff79c6 !important;
+        }
+        
+        .error-message {
+          color: ${COLORS.DARK.DANGER} !important;
+          background: ${COLORS.DARK.ERROR_BG} !important;
+          border: 1px solid ${COLORS.DARK.DANGER} !important;
+        }
+        
+        .empty-state {
+          color: ${COLORS.DARK.TEXT_LIGHT} !important;
+        }
+        
+        .toggle-icon {
+          color: ${COLORS.DARK.TEXT} !important;
+        }
+      }
+
       .container {
         position: fixed;
         top: 50%;
@@ -219,7 +379,7 @@
         width: 95%;
         max-width: 1200px;
         max-height: 95vh;
-        background: white;
+        background: ${COLORS.LIGHT.CONTAINER_BG};
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         display: flex;
@@ -230,22 +390,22 @@
 
       .header {
         padding: 20px;
-        border-bottom: 1px solid ${COLORS.BORDER};
+        border-bottom: 1px solid ${COLORS.LIGHT.BORDER};
         display: flex;
         justify-content: space-between;
         align-items: center;
-        background: ${COLORS.BACKGROUND};
+        background: ${COLORS.LIGHT.BACKGROUND};
         border-radius: 12px 12px 0 0;
       }
 
       .title {
         font-size: 20px;
         font-weight: 600;
-        color: ${COLORS.TEXT};
+        color: ${COLORS.LIGHT.TEXT};
       }
 
       .close-btn {
-        background: ${COLORS.DANGER};
+        background: ${COLORS.LIGHT.DANGER};
         color: white;
         border: none;
         border-radius: 6px;
@@ -257,13 +417,51 @@
       }
 
       .close-btn:hover {
-        background: ${COLORS.DANGER_HOVER};
+        background: ${COLORS.LIGHT.DANGER_HOVER};
       }
 
       .input-section {
-        padding: 20px;
-        border-bottom: 1px solid ${COLORS.BORDER};
-        background: ${COLORS.BACKGROUND};
+        border-bottom: 1px solid ${COLORS.LIGHT.BORDER};
+        background: ${COLORS.LIGHT.BACKGROUND};
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+
+      .input-section.collapsed {
+        max-height: 60px;
+      }
+
+      .input-section.expanded {
+        max-height: 500px;
+      }
+
+      .input-header {
+        padding: 20px 20px 0 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        user-select: none;
+      }
+
+      .input-header-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .toggle-icon {
+        font-size: 16px;
+        transition: transform 0.3s ease;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .toggle-icon.collapsed {
+        transform: rotate(-90deg);
+      }
+
+      .input-body {
+        padding: 12px 20px 20px 20px;
       }
 
       .textarea-wrapper {
@@ -274,18 +472,18 @@
         width: 100%;
         min-height: 120px;
         padding: 12px;
-        border: 1px solid ${COLORS.BORDER};
+        border: 1px solid ${COLORS.LIGHT.BORDER};
         border-radius: 6px;
         font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
         font-size: 13px;
         resize: vertical;
-        color: ${COLORS.TEXT};
-        background-color: white;
+        color: ${COLORS.LIGHT.TEXT};
+        background-color: ${COLORS.LIGHT.INPUT_BG};
       }
 
       .json-input:focus {
         outline: none;
-        border-color: ${COLORS.PRIMARY};
+        border-color: ${COLORS.LIGHT.PRIMARY};
         box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
       }
 
@@ -306,22 +504,22 @@
       }
 
       .btn-primary {
-        background: ${COLORS.PRIMARY};
+        background: ${COLORS.LIGHT.PRIMARY};
         color: white;
       }
 
       .btn-primary:hover {
-        background: ${COLORS.PRIMARY_HOVER};
+        background: ${COLORS.LIGHT.PRIMARY_HOVER};
       }
 
       .btn-secondary {
         background: white;
-        color: ${COLORS.TEXT};
-        border: 1px solid ${COLORS.BORDER};
+        color: ${COLORS.LIGHT.TEXT};
+        border: 1px solid ${COLORS.LIGHT.BORDER};
       }
 
       .btn-secondary:hover {
-        background: ${COLORS.BACKGROUND};
+        background: ${COLORS.LIGHT.BACKGROUND};
       }
 
       .content {
@@ -333,42 +531,60 @@
       .markdown-output {
         font-size: 14px;
         line-height: 1.6;
-        color: ${COLORS.TEXT};
+        color: ${COLORS.LIGHT.TEXT};
         word-wrap: break-word;
       }
 
       .markdown-output h1 {
         font-size: 24px;
         margin: 16px 0 12px 0;
-        color: ${COLORS.TEXT};
-        border-bottom: 2px solid ${COLORS.BORDER};
+        color: ${COLORS.LIGHT.TEXT};
+        border-bottom: 2px solid ${COLORS.LIGHT.BORDER};
         padding-bottom: 8px;
       }
 
       .markdown-output h2 {
         font-size: 20px;
         margin: 14px 0 10px 0;
-        color: ${COLORS.TEXT};
+        color: ${COLORS.LIGHT.TEXT};
       }
 
       .markdown-output h3 {
-        font-size: 16px;
+        font-size: 18px;
         margin: 12px 0 8px 0;
-        color: ${COLORS.TEXT};
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .markdown-output h4 {
+        font-size: 16px;
+        margin: 10px 0 6px 0;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .markdown-output h5 {
+        font-size: 14px;
+        margin: 8px 0 4px 0;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .markdown-output h6 {
+        font-size: 13px;
+        margin: 6px 0 3px 0;
+        color: ${COLORS.LIGHT.TEXT};
       }
 
       .markdown-output strong {
         font-weight: 600;
-        color: ${COLORS.TEXT};
+        color: ${COLORS.LIGHT.TEXT};
       }
 
       .markdown-output em {
         font-style: italic;
-        color: ${COLORS.TEXT_LIGHT};
+        color: ${COLORS.LIGHT.TEXT_LIGHT};
       }
 
       .markdown-output code {
-        background: ${COLORS.BACKGROUND};
+        background: ${COLORS.LIGHT.CODE_BG};
         padding: 2px 6px;
         border-radius: 3px;
         font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
@@ -377,10 +593,10 @@
       }
 
       .error-message {
-        color: ${COLORS.DANGER};
+        color: ${COLORS.LIGHT.DANGER};
         padding: 12px;
-        background: #fff5f5;
-        border: 1px solid ${COLORS.DANGER};
+        background: ${COLORS.LIGHT.ERROR_BG};
+        border: 1px solid ${COLORS.LIGHT.DANGER};
         border-radius: 6px;
         margin-bottom: 12px;
       }
@@ -388,7 +604,7 @@
       .empty-state {
         text-align: center;
         padding: 60px 20px;
-        color: ${COLORS.TEXT_LIGHT};
+        color: ${COLORS.LIGHT.TEXT_LIGHT};
       }
 
       .empty-state-icon {
@@ -409,12 +625,30 @@
 
     // Get elements
     const closeBtn = root.querySelector('.close-btn');
+    const inputSection = root.querySelector('.input-section');
+    const inputHeader = root.querySelector('.input-header');
+    const toggleIcon = root.querySelector('.toggle-icon');
     const jsonInput = root.querySelector('.json-input');
     const parseBtn = root.querySelector('.parse-btn');
     const clearBtn = root.querySelector('.clear-btn');
     const content = root.querySelector('.content');
 
     let currentMarkdown = '';
+    let isInputExpanded = true;
+
+    // Toggle input section
+    const toggleInputSection = () => {
+      isInputExpanded = !isInputExpanded;
+      if (isInputExpanded) {
+        inputSection.classList.remove('collapsed');
+        inputSection.classList.add('expanded');
+        toggleIcon.classList.remove('collapsed');
+      } else {
+        inputSection.classList.remove('expanded');
+        inputSection.classList.add('collapsed');
+        toggleIcon.classList.add('collapsed');
+      }
+    };
 
     // Close handler
     const close = () => {
@@ -432,6 +666,7 @@
 
     document.addEventListener('keydown', KeyHandler.handleDocumentKey);
     closeBtn.addEventListener('click', close);
+    inputHeader.addEventListener('click', toggleInputSection);
 
     // Parse and display JSON
     const parseAndDisplay = () => {
@@ -456,6 +691,11 @@
         outputDiv.appendChild(htmlContent);
         
         setElementContent(content, outputDiv);
+        
+        // Close input section after successful parsing
+        if (isInputExpanded) {
+          toggleInputSection();
+        }
       } catch (error) {
         setElementContent(content, createErrorView(escapeHtml(error.message)));
         currentMarkdown = '';
@@ -565,7 +805,21 @@
       
       // Input section
       const inputSection = document.createElement('div');
-      inputSection.className = 'input-section';
+      inputSection.className = 'input-section expanded';
+      
+      // Input header (collapsible)
+      const inputHeader = document.createElement('div');
+      inputHeader.className = 'input-header';
+      
+      const inputHeaderTitle = createElementWithText('div', 'JSON入力', 'input-header-title');
+      const toggleIcon = createElementWithText('span', '▼', 'toggle-icon');
+      
+      inputHeader.appendChild(inputHeaderTitle);
+      inputHeader.appendChild(toggleIcon);
+      
+      // Input body
+      const inputBody = document.createElement('div');
+      inputBody.className = 'input-body';
       
       const textareaWrapper = document.createElement('div');
       textareaWrapper.className = 'textarea-wrapper';
@@ -584,8 +838,11 @@
       buttonGroup.appendChild(parseBtn);
       buttonGroup.appendChild(clearBtn);
       
-      inputSection.appendChild(textareaWrapper);
-      inputSection.appendChild(buttonGroup);
+      inputBody.appendChild(textareaWrapper);
+      inputBody.appendChild(buttonGroup);
+      
+      inputSection.appendChild(inputHeader);
+      inputSection.appendChild(inputBody);
       
       // Content section
       const content = document.createElement('div');
