@@ -1325,7 +1325,11 @@
     document.body.appendChild(host);
     
     // Try to auto-load JSON from clipboard on initialization
-    tryAutoLoadFromClipboard();
+    // Note: Clipboard reading may fail in browsers without recent user gesture
+    // This is expected and handled gracefully - the widget will show empty state
+    tryAutoLoadFromClipboard().catch(() => {
+      // Silently ignore any unhandled promise rejections
+    });
   } catch (error) {
     alert('Error: ' + error.message);
   }
