@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v2
+// v3
 // 2026-02-08
 
 (function() {
@@ -33,8 +33,16 @@
       TEXT_LIGHT: '#666'
     };
 
-    // JSON to Markdown converter
-    function jsonToMarkdown(data, level = 0, parentKey = '') {
+    // Build JSON path string for headings
+    function buildPath(parentPath, key) {
+      if (!parentPath) return key;
+      // Handle array indices
+      if (key.startsWith('[')) return `${parentPath}${key}`;
+      return `${parentPath}.${key}`;
+    }
+
+    // JSON to Markdown converter with path tracking
+    function jsonToMarkdown(data, level = 0, parentPath = '') {
       const indent = '  '.repeat(level);
       let markdown = '';
 
@@ -55,12 +63,11 @@
       }
 
       if (typeof data === 'string') {
-        // Handle multiline strings
+        // Handle multiline strings with simple line breaks
         if (data.includes('\n')) {
           const lines = data.split('\n');
-          markdown += `${indent}>\n`;
           lines.forEach(line => {
-            markdown += `${indent}> ${escapeMarkdown(line)}\n`;
+            markdown += `${indent}${escapeMarkdown(line)}\n`;
           });
           return markdown;
         }
@@ -73,9 +80,12 @@
         }
         
         data.forEach((item, index) => {
+          const indexKey = `[${index}]`;
+          const currentPath = buildPath(parentPath, indexKey);
           const prefix = level === 0 ? `## ` : '';
-          markdown += `${indent}${prefix}**[${index}]**\n`;
-          markdown += jsonToMarkdown(item, level + 1, `[${index}]`);
+          const pathDisplay = currentPath ? ` \`${currentPath}\`` : '';
+          markdown += `${indent}${prefix}**${indexKey}**${pathDisplay}\n`;
+          markdown += jsonToMarkdown(item, level + 1, currentPath);
         });
         return markdown;
       }
@@ -88,18 +98,20 @@
 
         keys.forEach(key => {
           const value = data[key];
+          const currentPath = buildPath(parentPath, key);
           const prefix = level === 0 ? `## ` : level === 1 ? `### ` : '';
+          const pathDisplay = currentPath && level <= 1 ? ` \`${currentPath}\`` : '';
           
           // For primitive values, show inline
           if (value === null || value === undefined || 
               typeof value === 'boolean' || typeof value === 'number') {
-            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
+            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**${pathDisplay}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
           } else if (typeof value === 'string' && !value.includes('\n')) {
-            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**: ${escapeMarkdown(value)}\n`;
+            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**${pathDisplay}: ${escapeMarkdown(value)}\n`;
           } else {
             // For complex values, show on new line
-            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**\n`;
-            markdown += jsonToMarkdown(value, level + 1, key);
+            markdown += `${indent}${prefix}**${escapeMarkdown(key)}**${pathDisplay}\n`;
+            markdown += jsonToMarkdown(value, level + 1, currentPath);
           }
         });
         return markdown;
@@ -128,9 +140,6 @@
       html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
       html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
       html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
-
-      // Blockquotes
-      html = html.replace(/^> (.*?)$/gm, '<blockquote>$1</blockquote>');
 
       // Bold (non-greedy, don't cross line breaks, skip escaped)
       html = html.replace(/(?<!\\)\*\*([^\n*]+?)\*\*/g, '<strong>$1</strong>');
@@ -178,9 +187,9 @@
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        width: 90%;
-        max-width: 900px;
-        max-height: 90vh;
+        width: 95%;
+        max-width: 1200px;
+        max-height: 95vh;
         background: white;
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.2);
@@ -338,16 +347,6 @@
         color: #d63384;
       }
 
-      .markdown-output blockquote {
-        border-left: 4px solid ${COLORS.PRIMARY};
-        padding-left: 12px;
-        margin: 8px 0;
-        color: ${COLORS.TEXT_LIGHT};
-        background: ${COLORS.BACKGROUND};
-        padding: 8px 12px;
-        border-radius: 0 4px 4px 0;
-      }
-
       .error-message {
         color: ${COLORS.DANGER};
         padding: 12px;
@@ -384,7 +383,6 @@
     const jsonInput = root.querySelector('.json-input');
     const parseBtn = root.querySelector('.parse-btn');
     const clearBtn = root.querySelector('.clear-btn');
-    const copyMarkdownBtn = root.querySelector('.copy-markdown-btn');
     const content = root.querySelector('.content');
 
     let currentMarkdown = '';
@@ -430,27 +428,6 @@
       jsonInput.value = '';
       setElementContent(content, createEmptyStateView());
       currentMarkdown = '';
-    };
-
-    // Copy markdown to clipboard
-    const copyMarkdown = async () => {
-      if (!currentMarkdown) {
-        alert('まずJSONを解析してください');
-        return;
-      }
-
-      try {
-        await navigator.clipboard.writeText(currentMarkdown);
-        const originalText = copyMarkdownBtn.textContent;
-        copyMarkdownBtn.textContent = '✓ コピーしました';
-        copyMarkdownBtn.style.background = COLORS.SUCCESS;
-        setTimeout(() => {
-          copyMarkdownBtn.textContent = originalText;
-          copyMarkdownBtn.style.background = '';
-        }, 2000);
-      } catch (error) {
-        alert('コピーに失敗しました: ' + error.message);
-      }
     };
 
     // Escape HTML
@@ -564,11 +541,9 @@
       
       const parseBtn = createElementWithText('button', '解析して表示', 'btn btn-primary parse-btn');
       const clearBtn = createElementWithText('button', 'クリア', 'btn btn-secondary clear-btn');
-      const copyMarkdownBtn = createElementWithText('button', 'Markdownをコピー', 'btn btn-secondary copy-markdown-btn');
       
       buttonGroup.appendChild(parseBtn);
       buttonGroup.appendChild(clearBtn);
-      buttonGroup.appendChild(copyMarkdownBtn);
       
       inputSection.appendChild(textareaWrapper);
       inputSection.appendChild(buttonGroup);
@@ -589,7 +564,6 @@
     // Event listeners
     parseBtn.addEventListener('click', parseAndDisplay);
     clearBtn.addEventListener('click', clearInput);
-    copyMarkdownBtn.addEventListener('click', copyMarkdown);
 
     // Parse on Ctrl+Enter / Cmd+Enter
     jsonInput.addEventListener('keydown', (e) => {
