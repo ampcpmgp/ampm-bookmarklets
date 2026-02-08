@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v28
-// 2026-02-07
+// v29
+// 2026-02-08
 
 (function() {
   try {
@@ -1299,7 +1299,7 @@
       'position:fixed',
       `z-index:${Z_INDEX.BASE}`,
       'top:20px',
-      'right:20px',
+      'left:20px',
       'width:360px',
       'max-height:85vh',
       'background:#fff',
