@@ -338,12 +338,13 @@
 
     // Process code blocks (```language ... ```)
     function processCodeBlocks(text) {
-      // Match code blocks with optional language specifier
-      // Pattern: ```[language]\n[content]\n```
-      const codeBlockPattern = /```(\w*)\n([\s\S]*?)```/g;
+      // Match code blocks with optional language specifier and flexible newline handling
+      // Pattern: ```[language][\n]?[content]```
+      const codeBlockPattern = /```(\w*)\n?([\s\S]*?)```/g;
       
       return text.replace(codeBlockPattern, (match, language, code) => {
         const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
+        // Trim to remove leading/trailing whitespace including indentation
         const escapedCode = escapeHtml(code.trim());
         return `<pre${langClass}><code>${escapedCode}</code></pre>`;
       });
