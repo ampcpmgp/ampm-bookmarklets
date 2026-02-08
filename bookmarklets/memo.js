@@ -735,6 +735,7 @@
      * Create appropriate input element based on template type
      * @param {Object} template - Template object with type, name, and options
      * @returns {HTMLElement} - Input element (input, select, etc.)
+     * @note For select type, options are pipe-separated. Literal pipe characters in options are not supported.
      */
     const createInputElement = (template) => {
       const commonStyles = [
@@ -794,6 +795,18 @@
       }
 
       return inputElement;
+    };
+
+    /**
+     * Generate human-readable label text for template input fields
+     * @param {Object} template - Template object with type, name, and options
+     * @returns {string} - Label text with type indicator
+     */
+    const getTemplateLabelText = (template) => {
+      if (template.type === 'select' && template.options.length > 0) {
+        return `${template.name} (選択)`;
+      }
+      return `${template.name} (${template.type === 'number' ? '数値' : 'テキスト'})`;
     };
 
     /**
@@ -859,10 +872,8 @@
           'margin-bottom:16px'
         ].join(';'));
 
-        // Label with type indicator
-        const labelText = template.type === 'select' && template.options.length > 0
-          ? `${template.name} (選択)`
-          : `${template.name} (${template.type === 'number' ? '数値' : 'テキスト'})`;
+        // Label with type indicator using helper function
+        const labelText = getTemplateLabelText(template);
         
         const label = createElement('label', [
           'display:block',
@@ -991,9 +1002,11 @@
     /**
      * Replace template placeholders with values
      * @param {string} text - Text with templates
-     * @param {Array<{type: string, name: string, placeholder: string}>} templates - Original templates
-     * @param {Object} values - Object mapping template names to values
+     * @param {Array<{type: string, name: string, placeholder: string}>} templates - Original template objects containing exact placeholder strings
+     * @param {Object} values - Object mapping template names to replacement values
      * @returns {string} - Text with templates replaced
+     * @note The templates parameter is required to ensure accurate placeholder replacement using the original placeholder strings,
+     *       which may contain options (e.g., ${select:name|opt1|opt2}) that need exact matching
      */
     const replaceTemplates = (text, templates, values) => {
       let result = text;
