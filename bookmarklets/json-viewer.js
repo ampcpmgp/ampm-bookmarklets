@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v8
+// v9
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,19 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v8',
+      CURRENT: 'v9',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v9',
+          date: '2026-02-08',
+          features: [
+            'ヘディング表示を修正：マークダウン記号がそのまま表示される問題を解決',
+            'ヘディングレベルをh6まで拡張（h1-h6をサポート）',
+            'ヘディングにドット記法のパスのみを表示（例: sceneImages[0].instruction）',
+            'マークダウン処理の順序を最適化し、可読性とメンテナンス性を向上'
+          ]
+        },
         {
           version: 'v8',
           date: '2026-02-08',
@@ -125,8 +135,8 @@
 
     // Constants for heading depth
     const HEADING_CONFIG = {
-      MAX_HEADING_LEVEL: 3,  // Use h1, h2, h3 only
-      MAX_HTML_HEADING: 3    // After h3, use b tags
+      MAX_HEADING_LEVEL: 6,  // Use h1 through h6
+      MAX_HTML_HEADING: 6    // Support HTML headings up to h6
     };
 
     // Build JSON path string for headings
@@ -137,14 +147,14 @@
       return `${parentPath}.${key}`;
     }
 
-    // Create heading markup based on level (h1-h3, then b tags)
+    // Create heading markup based on level (h1-h6, then b tags for deeper levels)
     function createHeadingMarkup(level, text) {
       const effectiveLevel = level + 1;
       if (effectiveLevel <= HEADING_CONFIG.MAX_HEADING_LEVEL) {
         const prefix = '#'.repeat(effectiveLevel);
         return `${prefix} ${text}`;
       } else {
-        // Use bold for deeper levels
+        // Use bold for levels deeper than h6
         return `**${text}**`;
       }
     }
@@ -191,11 +201,12 @@
           const indexKey = `[${index}]`;
           const currentPath = buildPath(parentPath, indexKey);
           
-          // Display heading with full path at all levels
-          const headingText = currentPath ? `${indexKey} (${currentPath})` : indexKey;
-          const heading = createHeadingMarkup(level, headingText);
+          // Only display heading with path if it contains a dot (dot-notation)
+          if (currentPath && currentPath.includes('.')) {
+            const heading = createHeadingMarkup(level, currentPath);
+            markdown += `${indent}${heading}\n`;
+          }
           
-          markdown += `${indent}${heading}\n`;
           markdown += jsonToMarkdown(item, level + 1, currentPath);
         });
         return markdown;
@@ -211,21 +222,31 @@
           const value = data[key];
           const currentPath = buildPath(parentPath, key);
           
+          // Only display headings with paths that contain dots (dot-notation)
+          const shouldShowHeading = currentPath && currentPath.includes('.');
+          
           // For primitive values, show inline
           if (value === null || value === undefined || 
               typeof value === 'boolean' || typeof value === 'number') {
-            const headingText = currentPath ? `${escapeMarkdown(key)} (${currentPath})` : escapeMarkdown(key);
-            const heading = createHeadingMarkup(level, headingText);
-            markdown += `${indent}${heading}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
+            if (shouldShowHeading) {
+              const heading = createHeadingMarkup(level, currentPath);
+              markdown += `${indent}${heading}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
+            } else {
+              markdown += `${indent}${escapeMarkdown(key)}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
+            }
           } else if (typeof value === 'string' && !value.includes('\n')) {
-            const headingText = currentPath ? `${escapeMarkdown(key)} (${currentPath})` : escapeMarkdown(key);
-            const heading = createHeadingMarkup(level, headingText);
-            markdown += `${indent}${heading}: ${escapeMarkdown(value)}\n`;
+            if (shouldShowHeading) {
+              const heading = createHeadingMarkup(level, currentPath);
+              markdown += `${indent}${heading}: ${escapeMarkdown(value)}\n`;
+            } else {
+              markdown += `${indent}${escapeMarkdown(key)}: ${escapeMarkdown(value)}\n`;
+            }
           } else {
             // For complex values, show on new line
-            const headingText = currentPath ? `${escapeMarkdown(key)} (${currentPath})` : escapeMarkdown(key);
-            const heading = createHeadingMarkup(level, headingText);
-            markdown += `${indent}${heading}\n`;
+            if (shouldShowHeading) {
+              const heading = createHeadingMarkup(level, currentPath);
+              markdown += `${indent}${heading}\n`;
+            }
             markdown += jsonToMarkdown(value, level + 1, currentPath);
           }
         });
@@ -251,10 +272,14 @@
     function markdownToHtml(markdown) {
       let html = markdown;
 
-      // Headers (only h1, h2, h3 - process in reverse order)
-      html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
-      html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
-      html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+      // Process headings first (before line breaks) - handle indentation with \s*
+      // Support h1 through h6 - process from longest to shortest to avoid conflicts
+      html = html.replace(/^\s*###### (.*?)$/gm, '<h6>$1</h6>');
+      html = html.replace(/^\s*##### (.*?)$/gm, '<h5>$1</h5>');
+      html = html.replace(/^\s*#### (.*?)$/gm, '<h4>$1</h4>');
+      html = html.replace(/^\s*### (.*?)$/gm, '<h3>$1</h3>');
+      html = html.replace(/^\s*## (.*?)$/gm, '<h2>$1</h2>');
+      html = html.replace(/^\s*# (.*?)$/gm, '<h1>$1</h1>');
 
       // Bold (non-greedy, don't cross line breaks, skip escaped)
       html = html.replace(/(?<!\\)\*\*([^\n*]+?)\*\*/g, '<strong>$1</strong>');
@@ -365,7 +390,10 @@
         
         .markdown-output h1,
         .markdown-output h2,
-        .markdown-output h3 {
+        .markdown-output h3,
+        .markdown-output h4,
+        .markdown-output h5,
+        .markdown-output h6 {
           color: ${COLORS.DARK.TEXT} !important;
         }
         
@@ -380,6 +408,18 @@
 
         .markdown-output h3 {
           font-size: 20px !important;
+        }
+        
+        .markdown-output h4 {
+          font-size: 18px !important;
+        }
+        
+        .markdown-output h5 {
+          font-size: 16px !important;
+        }
+        
+        .markdown-output h6 {
+          font-size: 14px !important;
         }
         
         .markdown-output strong {
@@ -595,6 +635,24 @@
       .markdown-output h3 {
         font-size: 20px;
         margin: 12px 0 8px 0;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .markdown-output h4 {
+        font-size: 18px;
+        margin: 10px 0 6px 0;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .markdown-output h5 {
+        font-size: 16px;
+        margin: 8px 0 4px 0;
+        color: ${COLORS.LIGHT.TEXT};
+      }
+
+      .markdown-output h6 {
+        font-size: 14px;
+        margin: 6px 0 4px 0;
         color: ${COLORS.LIGHT.TEXT};
       }
 
