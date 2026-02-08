@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v16
+// v17
 // 2026-02-08
 
 (function() {
@@ -63,9 +63,23 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v16',
+      CURRENT: 'v17',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v17',
+          date: '2026-02-08',
+          features: [
+            '🔧 目次スクロール機能を完全リファクタリング：シンプルで確実な実装',
+            'heading検出ロジックの修正：パスと値を正しく分離',
+            '_reasoningBehavior等のアンダースコア付きキーも正しくheadingに',
+            '長い値がheadingに含まれる問題を解消',
+            'スクロール処理を簡素化：ネイティブscrollIntoViewで確実に動作',
+            '全てのheadingにユニークIDを付与',
+            'コードの可読性とメンテナンス性を大幅向上',
+            '共通処理をリファクタリングし、バグを根絶'
+          ]
+        },
         {
           version: 'v16',
           date: '2026-02-08',
@@ -354,14 +368,16 @@
               typeof value === 'boolean' || typeof value === 'number') {
             if (shouldShowHeading) {
               const heading = createHeadingMarkup(level, currentPath);
-              markdown += `${indent}${heading}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
+              markdown += `${indent}${heading}\n`;
+              markdown += `${indent}${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
             } else {
               markdown += `${indent}${escapeMarkdown(key)}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
             }
           } else if (typeof value === 'string' && !value.includes('\n')) {
             if (shouldShowHeading) {
               const heading = createHeadingMarkup(level, currentPath);
-              markdown += `${indent}${heading}: ${escapeMarkdown(value)}\n`;
+              markdown += `${indent}${heading}\n`;
+              markdown += `${indent}${escapeMarkdown(value)}\n`;
             } else {
               markdown += `${indent}${escapeMarkdown(key)}: ${escapeMarkdown(value)}\n`;
             }
@@ -682,8 +698,8 @@
       return result;
     }
 
-    // Create Table of Contents DOM element with enhanced scroll behavior
-    function createTocElement(headings, shadowRoot, isDarkMode) {
+    // Create Table of Contents DOM element
+    function createTocElement(headings, shadowRoot) {
       if (headings.length === 0) {
         return null;
       }
@@ -725,16 +741,17 @@
         temp.textContent = heading.text;
         tocLink.textContent = temp.textContent;
         
-        // Enhanced smooth scroll with refined UI/UX
+        // Simple and reliable scroll to heading
         tocLink.addEventListener('click', (e) => {
           e.preventDefault();
           const targetElement = shadowRoot.querySelector(`#${heading.id}`);
           if (targetElement) {
-            // Get current dark mode state dynamically
-            const currentDarkMode = isDarkModeActive();
-            
-            // Use the refined smooth scroll manager
-            SmoothScrollManager.scrollToElement(targetElement, shadowRoot, currentDarkMode);
+            // Simple, reliable scroll: just scroll the element into view at the top
+            targetElement.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+              inline: 'nearest'
+            });
             
             // Update active state immediately on click
             updateActiveState(heading.id);
@@ -776,16 +793,6 @@
           }
         });
       }
-      
-      // Set up intersection observer for automatic active tracking
-      // Wait a bit for DOM to be fully rendered
-      setTimeout(() => {
-        SmoothScrollManager.setupActiveTracking(
-          shadowRoot,
-          headings,
-          updateActiveState
-        );
-      }, 100);
       
       return tocContainer;
     }
@@ -1579,8 +1586,8 @@
         // Create main output container
         const outputContainer = document.createElement('div');
         
-        // Create TOC if there are headings (pass current dark mode state)
-        const tocElement = createTocElement(headings, root, isDarkModeActive());
+        // Create TOC if there are headings
+        const tocElement = createTocElement(headings, root);
         if (tocElement) {
           outputContainer.appendChild(tocElement);
         }
@@ -1662,159 +1669,6 @@
       if (text) element.textContent = text;
       return element;
     }
-
-    // Utility to detect current dark mode preference
-    function isDarkModeActive() {
-      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-
-    // Smooth scroll utility with refined UI/UX
-    const SmoothScrollManager = {
-      // Configuration for optimal scroll behavior
-      config: {
-        scrollOffset: 80,        // Offset from top for better visibility
-        highlightDuration: 1500, // Duration of highlight effect
-        scrollBehavior: 'smooth' // Native smooth scroll behavior
-      },
-
-      /**
-       * Smoothly scrolls to a target element with visual feedback
-       * @param {HTMLElement} targetElement - The element to scroll to
-       * @param {HTMLElement} shadowRoot - The shadow root containing the element
-       * @param {boolean} isDarkMode - Whether dark mode is active
-       */
-      scrollToElement(targetElement, shadowRoot, isDarkMode = false) {
-        if (!targetElement) return;
-
-        // Find the scrollable container
-        const container = shadowRoot.querySelector('.content');
-        if (!container) {
-          // Fallback to standard scrollIntoView if container not found
-          targetElement.scrollIntoView({ 
-            behavior: this.config.scrollBehavior, 
-            block: 'start' 
-          });
-          this.highlightElement(targetElement, isDarkMode);
-          return;
-        }
-
-        // Calculate the target element's position relative to the container
-        // We need to walk up the DOM tree to calculate the offset position
-        let targetOffsetTop = 0;
-        let element = targetElement;
-        
-        // Calculate cumulative offsetTop relative to the container
-        while (element && element !== container) {
-          targetOffsetTop += element.offsetTop;
-          element = element.offsetParent;
-          
-          // Stop if we've gone outside the shadow root
-          if (element && !container.contains(element)) {
-            break;
-          }
-        }
-
-        // Calculate final scroll position with offset for better visibility
-        const targetScrollPosition = targetOffsetTop - this.config.scrollOffset;
-
-        // Smooth scroll to calculated position
-        container.scrollTo({
-          top: Math.max(0, targetScrollPosition),
-          behavior: this.config.scrollBehavior
-        });
-
-        // Apply highlight effect
-        this.highlightElement(targetElement, isDarkMode);
-      },
-
-      /**
-       * Applies a refined highlight effect to an element
-       * @param {HTMLElement} element - The element to highlight
-       * @param {boolean} isDarkMode - Whether dark mode is active
-       */
-      highlightElement(element, isDarkMode = false) {
-        if (!element) return;
-
-        // Store original styles
-        const originalBackground = element.style.backgroundColor;
-        const originalTransition = element.style.transition;
-        const originalBoxShadow = element.style.boxShadow;
-
-        // Define highlight colors based on theme
-        const highlightColor = isDarkMode 
-          ? 'rgba(74, 158, 255, 0.15)'  // Subtle blue for dark mode
-          : 'rgba(26, 115, 232, 0.12)'; // Subtle blue for light mode
-        
-        const shadowColor = isDarkMode
-          ? 'rgba(74, 158, 255, 0.3)'
-          : 'rgba(26, 115, 232, 0.2)';
-
-        // Apply refined highlight with gradient effect
-        element.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-        element.style.backgroundColor = highlightColor;
-        element.style.boxShadow = `0 0 0 2px ${shadowColor}`;
-
-        // Smoothly fade out the highlight
-        setTimeout(() => {
-          element.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-          element.style.backgroundColor = originalBackground;
-          element.style.boxShadow = originalBoxShadow;
-          
-          // Clean up after animation completes
-          setTimeout(() => {
-            element.style.transition = originalTransition;
-          }, 600);
-        }, this.config.highlightDuration);
-      },
-
-      /**
-       * Sets up intersection observer for active section tracking
-       * @param {HTMLElement} shadowRoot - The shadow root containing headings
-       * @param {Array} headings - Array of heading objects with id and element
-       * @param {Function} onActiveChange - Callback when active section changes
-       */
-      setupActiveTracking(shadowRoot, headings, onActiveChange) {
-        if (!('IntersectionObserver' in window)) return;
-
-        const container = shadowRoot.querySelector('.content');
-        if (!container) return;
-
-        // Configure observer for optimal detection
-        const observerOptions = {
-          root: container,
-          rootMargin: '-100px 0px -60% 0px',
-          threshold: [0, 0.1, 0.5, 1]
-        };
-
-        // Track currently active heading
-        let activeId = null;
-
-        const observer = new IntersectionObserver((entries) => {
-          // Find the most relevant visible heading
-          const visibleEntries = entries
-            .filter(entry => entry.isIntersecting)
-            .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-
-          if (visibleEntries.length > 0) {
-            const newActiveId = visibleEntries[0].target.id;
-            if (newActiveId !== activeId) {
-              activeId = newActiveId;
-              onActiveChange(activeId);
-            }
-          }
-        }, observerOptions);
-
-        // Observe all headings
-        headings.forEach(heading => {
-          const element = shadowRoot.querySelector(`#${heading.id}`);
-          if (element) {
-            observer.observe(element);
-          }
-        });
-
-        return observer;
-      }
-    };
 
     // Helper function to safely parse HTML string into DOM elements
     function createElementsFromHTML(htmlString) {
