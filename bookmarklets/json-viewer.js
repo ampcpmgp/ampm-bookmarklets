@@ -124,7 +124,7 @@
     function markdownToHtml(markdown) {
       let html = markdown;
 
-      // Headers
+      // Headers (process in reverse order to handle ### before ##)
       html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
       html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
       html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
@@ -132,11 +132,11 @@
       // Blockquotes
       html = html.replace(/^> (.*?)$/gm, '<blockquote>$1</blockquote>');
 
-      // Bold
-      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      // Bold (non-greedy, don't cross line breaks, skip escaped)
+      html = html.replace(/(?<!\\)\*\*([^\n*]+?)\*\*/g, '<strong>$1</strong>');
 
-      // Italic
-      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+      // Italic (non-greedy, don't cross line breaks, skip escaped and bold markers)
+      html = html.replace(/(?<!\\)\*([^\n*]+?)\*(?!\*)/g, '<em>$1</em>');
 
       // Inline code
       html = html.replace(/`(.*?)`/g, '<code>$1</code>');
