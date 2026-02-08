@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v7
+// v8
 // 2026-02-08
 
 (function() {
@@ -58,9 +58,19 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v7',
+      CURRENT: 'v8',
       LAST_UPDATED: '2026-02-08',
       HISTORY: [
+        {
+          version: 'v8',
+          date: '2026-02-08',
+          features: [
+            'ヘディングに完全なパス（例: scenePrompts[0].xxx）を常に表示',
+            'h1, h2, h3の3階層のみ使用し、それ以降はbタグに切り替え',
+            'ダークモードの可読性を向上（フォントサイズ拡大、コントラスト改善）',
+            'コード構造のリファクタリングと保守性の向上'
+          ]
+        },
         {
           version: 'v7',
           date: '2026-02-08',
@@ -113,12 +123,30 @@
       handleDocumentKey: null
     };
 
+    // Constants for heading depth
+    const HEADING_CONFIG = {
+      MAX_HEADING_LEVEL: 3,  // Use h1, h2, h3 only
+      MAX_HTML_HEADING: 3    // After h3, use b tags
+    };
+
     // Build JSON path string for headings
     function buildPath(parentPath, key) {
       if (!parentPath) return key;
       // Handle array indices
       if (key.startsWith('[')) return `${parentPath}${key}`;
       return `${parentPath}.${key}`;
+    }
+
+    // Create heading markup based on level (h1-h3, then b tags)
+    function createHeadingMarkup(level, text) {
+      const effectiveLevel = level + 1;
+      if (effectiveLevel <= HEADING_CONFIG.MAX_HEADING_LEVEL) {
+        const prefix = '#'.repeat(effectiveLevel);
+        return `${prefix} ${text}`;
+      } else {
+        // Use bold for deeper levels
+        return `**${text}**`;
+      }
     }
 
     // JSON to Markdown converter with path tracking
@@ -162,15 +190,12 @@
         data.forEach((item, index) => {
           const indexKey = `[${index}]`;
           const currentPath = buildPath(parentPath, indexKey);
-          const headingLevel = Math.min(level + 1, 6); // Max heading level is h6
-          const headingPrefix = '#'.repeat(headingLevel) + ' ';
           
-          // Display heading with path only at top level (level 0)
-          markdown += `${indent}${headingPrefix}${indexKey}`;
-          if (currentPath && level === 0) {
-            markdown += ` (${currentPath})`;
-          }
-          markdown += '\n';
+          // Display heading with full path at all levels
+          const headingText = currentPath ? `${indexKey} (${currentPath})` : indexKey;
+          const heading = createHeadingMarkup(level, headingText);
+          
+          markdown += `${indent}${heading}\n`;
           markdown += jsonToMarkdown(item, level + 1, currentPath);
         });
         return markdown;
@@ -185,30 +210,22 @@
         keys.forEach(key => {
           const value = data[key];
           const currentPath = buildPath(parentPath, key);
-          const headingLevel = Math.min(level + 1, 6); // Max heading level is h6
-          const headingPrefix = '#'.repeat(headingLevel) + ' ';
           
           // For primitive values, show inline
           if (value === null || value === undefined || 
               typeof value === 'boolean' || typeof value === 'number') {
-            markdown += `${indent}${headingPrefix}${escapeMarkdown(key)}`;
-            if (currentPath && level === 0) {
-              markdown += ` (${currentPath})`;
-            }
-            markdown += `: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
+            const headingText = currentPath ? `${escapeMarkdown(key)} (${currentPath})` : escapeMarkdown(key);
+            const heading = createHeadingMarkup(level, headingText);
+            markdown += `${indent}${heading}: ${value === null ? '*null*' : value === undefined ? '*undefined*' : value}\n`;
           } else if (typeof value === 'string' && !value.includes('\n')) {
-            markdown += `${indent}${headingPrefix}${escapeMarkdown(key)}`;
-            if (currentPath && level === 0) {
-              markdown += ` (${currentPath})`;
-            }
-            markdown += `: ${escapeMarkdown(value)}\n`;
+            const headingText = currentPath ? `${escapeMarkdown(key)} (${currentPath})` : escapeMarkdown(key);
+            const heading = createHeadingMarkup(level, headingText);
+            markdown += `${indent}${heading}: ${escapeMarkdown(value)}\n`;
           } else {
             // For complex values, show on new line
-            markdown += `${indent}${headingPrefix}${escapeMarkdown(key)}`;
-            if (currentPath && level === 0) {
-              markdown += ` (${currentPath})`;
-            }
-            markdown += '\n';
+            const headingText = currentPath ? `${escapeMarkdown(key)} (${currentPath})` : escapeMarkdown(key);
+            const heading = createHeadingMarkup(level, headingText);
+            markdown += `${indent}${heading}\n`;
             markdown += jsonToMarkdown(value, level + 1, currentPath);
           }
         });
@@ -234,10 +251,7 @@
     function markdownToHtml(markdown) {
       let html = markdown;
 
-      // Headers (process in reverse order to handle ###### before #)
-      html = html.replace(/^###### (.*?)$/gm, '<h6>$1</h6>');
-      html = html.replace(/^##### (.*?)$/gm, '<h5>$1</h5>');
-      html = html.replace(/^#### (.*?)$/gm, '<h4>$1</h4>');
+      // Headers (only h1, h2, h3 - process in reverse order)
       html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
       html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
       html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
@@ -346,23 +360,31 @@
         
         .markdown-output {
           color: ${COLORS.DARK.TEXT} !important;
+          font-size: 16px !important;
         }
         
         .markdown-output h1,
         .markdown-output h2,
-        .markdown-output h3,
-        .markdown-output h4,
-        .markdown-output h5,
-        .markdown-output h6 {
+        .markdown-output h3 {
           color: ${COLORS.DARK.TEXT} !important;
         }
         
         .markdown-output h1 {
           border-bottom: 2px solid ${COLORS.DARK.BORDER} !important;
+          font-size: 28px !important;
+        }
+
+        .markdown-output h2 {
+          font-size: 24px !important;
+        }
+
+        .markdown-output h3 {
+          font-size: 20px !important;
         }
         
         .markdown-output strong {
           color: ${COLORS.DARK.TEXT} !important;
+          font-size: 16px !important;
         }
         
         .markdown-output em {
@@ -372,6 +394,7 @@
         .markdown-output code {
           background: ${COLORS.DARK.CODE_BG} !important;
           color: #ff79c6 !important;
+          font-size: 14px !important;
         }
         
         .error-message {
@@ -549,14 +572,14 @@
       }
 
       .markdown-output {
-        font-size: 14px;
+        font-size: 16px;
         line-height: 1.6;
         color: ${COLORS.LIGHT.TEXT};
         word-wrap: break-word;
       }
 
       .markdown-output h1 {
-        font-size: 24px;
+        font-size: 28px;
         margin: 16px 0 12px 0;
         color: ${COLORS.LIGHT.TEXT};
         border-bottom: 2px solid ${COLORS.LIGHT.BORDER};
@@ -564,37 +587,20 @@
       }
 
       .markdown-output h2 {
-        font-size: 20px;
+        font-size: 24px;
         margin: 14px 0 10px 0;
         color: ${COLORS.LIGHT.TEXT};
       }
 
       .markdown-output h3 {
-        font-size: 18px;
+        font-size: 20px;
         margin: 12px 0 8px 0;
-        color: ${COLORS.LIGHT.TEXT};
-      }
-
-      .markdown-output h4 {
-        font-size: 16px;
-        margin: 10px 0 6px 0;
-        color: ${COLORS.LIGHT.TEXT};
-      }
-
-      .markdown-output h5 {
-        font-size: 14px;
-        margin: 8px 0 4px 0;
-        color: ${COLORS.LIGHT.TEXT};
-      }
-
-      .markdown-output h6 {
-        font-size: 13px;
-        margin: 6px 0 3px 0;
         color: ${COLORS.LIGHT.TEXT};
       }
 
       .markdown-output strong {
         font-weight: 600;
+        font-size: 16px;
         color: ${COLORS.LIGHT.TEXT};
       }
 
@@ -608,7 +614,7 @@
         padding: 2px 6px;
         border-radius: 3px;
         font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-        font-size: 13px;
+        font-size: 14px;
         color: #d63384;
       }
 
