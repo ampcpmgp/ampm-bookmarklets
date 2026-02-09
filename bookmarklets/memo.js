@@ -2525,6 +2525,166 @@
     titleOnlyButton.title = 'タイトル一覧表示を切り替えます';
     buttonRow.appendChild(titleOnlyButton);
     
+    // Tag filter button
+    const tagFilterButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:none',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#9c27b0',
+      'color:#fff',
+      'white-space:nowrap',
+      'font-weight:normal',
+      'flex-shrink:0',
+      'position:relative'
+    ].join(';'), '🏷️ タグ', () => {
+      // Toggle tag filter dropdown
+      if (tagFilterDropdown.style.display === 'none') {
+        renderTagFilterDropdown();
+        tagFilterDropdown.style.display = 'block';
+      } else {
+        tagFilterDropdown.style.display = 'none';
+      }
+    });
+    tagFilterButton.title = 'タグでフィルタリング';
+    buttonRow.appendChild(tagFilterButton);
+    
+    // Tag filter dropdown
+    const tagFilterDropdown = createElement('div', [
+      'display:none',
+      'position:absolute',
+      'top:100%',
+      'left:0',
+      'right:0',
+      'background:#fff',
+      'border:1px solid #ddd',
+      'border-radius:4px',
+      'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
+      'margin-top:4px',
+      `z-index:${Z_INDEX.DROPDOWN}`,
+      'max-height:200px',
+      'overflow-y:auto',
+      'box-sizing:border-box'
+    ].join(';'));
+    
+    // Function to render tag filter dropdown
+    const renderTagFilterDropdown = () => {
+      tagFilterDropdown.innerHTML = '';
+      const allTags = loadAllTags();
+      
+      if (allTags.length === 0) {
+        const emptyMsg = createElement('div', [
+          'padding:12px',
+          'color:#999',
+          'font-size:12px',
+          'text-align:center',
+          'font-style:italic'
+        ].join(';'), 'タグがありません');
+        tagFilterDropdown.appendChild(emptyMsg);
+        return;
+      }
+      
+      // Show clear filter button if any filters are active
+      if (currentTagFilter.length > 0) {
+        const clearButton = createElement('div', [
+          'padding:8px 12px',
+          'background:#f5f5f5',
+          'border-bottom:1px solid #ddd',
+          'cursor:pointer',
+          'font-size:12px',
+          'font-weight:600',
+          'color:#d32f2f',
+          'transition:background 0.2s'
+        ].join(';'), `✕ フィルタをクリア (${currentTagFilter.length}件選択中)`, () => {
+          currentTagFilter = [];
+          tagFilterButton.style.background = '#9c27b0';
+          renderTagFilterDropdown();
+          renderList(load());
+        });
+        
+        clearButton.onmouseover = () => clearButton.style.background = '#e8e8e8';
+        clearButton.onmouseout = () => clearButton.style.background = '#f5f5f5';
+        
+        tagFilterDropdown.appendChild(clearButton);
+      }
+      
+      // Render all tags as checkboxes
+      allTags.forEach(tag => {
+        const isSelected = currentTagFilter.includes(tag);
+        
+        const tagItem = createElement('div', [
+          'padding:8px 12px',
+          'cursor:pointer',
+          'font-size:12px',
+          'display:flex',
+          'align-items:center',
+          'gap:8px',
+          'transition:background 0.2s',
+          isSelected ? 'background:#e3f2fd' : ''
+        ].join(';'), '', () => {
+          // Toggle tag filter
+          const index = currentTagFilter.indexOf(tag);
+          if (index > -1) {
+            currentTagFilter.splice(index, 1);
+          } else {
+            currentTagFilter.push(tag);
+          }
+          
+          // Update button style based on filter state
+          tagFilterButton.style.background = currentTagFilter.length > 0 ? '#7b1fa2' : '#9c27b0';
+          
+          renderTagFilterDropdown();
+          renderList(load());
+        });
+        
+        // Checkbox indicator
+        const checkbox = createElement('span', [
+          'width:16px',
+          'height:16px',
+          'border:2px solid #9c27b0',
+          'border-radius:3px',
+          'display:inline-flex',
+          'align-items:center',
+          'justify-content:center',
+          'flex-shrink:0',
+          isSelected ? 'background:#9c27b0' : 'background:#fff'
+        ].join(';'), isSelected ? '✓' : '');
+        if (isSelected) {
+          checkbox.style.color = '#fff';
+          checkbox.style.fontSize = '11px';
+          checkbox.style.fontWeight = 'bold';
+        }
+        
+        const tagLabel = createElement('span', '', tag);
+        
+        tagItem.appendChild(checkbox);
+        tagItem.appendChild(tagLabel);
+        
+        tagItem.onmouseover = () => {
+          if (!isSelected) tagItem.style.background = '#f5f5f5';
+        };
+        tagItem.onmouseout = () => {
+          if (!isSelected) tagItem.style.background = '#fff';
+        };
+        
+        tagFilterDropdown.appendChild(tagItem);
+      });
+    };
+    
+    // Create a container for the button and dropdown
+    const tagFilterContainer = createElement('div', 'position:relative;flex-shrink:0');
+    tagFilterContainer.appendChild(tagFilterButton);
+    tagFilterContainer.appendChild(tagFilterDropdown);
+    buttonRow.appendChild(tagFilterContainer);
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!tagFilterContainer.contains(e.target)) {
+        tagFilterDropdown.style.display = 'none';
+      }
+    });
+    
     const settingsButton = createElement('button', [
       'padding:4px 10px',
       'font-size:12px',
@@ -3957,14 +4117,24 @@
     };
 
     const renderList = (data) => {
-      title.textContent = `Memo (${data.length}/${MAX})`;
+      // Filter data by selected tags if any
+      let filteredData = data;
+      if (currentTagFilter.length > 0) {
+        filteredData = data.filter(item => {
+          if (!item.tags || item.tags.length === 0) return false;
+          // Show memo if it has at least one of the selected tags
+          return currentTagFilter.some(filterTag => item.tags.includes(filterTag));
+        });
+      }
+      
+      title.textContent = `Memo (${filteredData.length}/${data.length})`;
       listContainer.replaceChildren();
       
       // Clear drag-drop tracking when re-rendering list
       DragDropManager.clearTracking();
 
       // Sort: pinned items first, then by original order
-      const sortedData = [...data].sort((a, b) => {
+      const sortedData = [...filteredData].sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
         return data.indexOf(a) - data.indexOf(b);
