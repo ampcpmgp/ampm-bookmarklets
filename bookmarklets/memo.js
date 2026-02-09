@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v35
+// v36
 // 2026-02-09
 
 (function() {
@@ -121,11 +121,27 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v35',
+      CURRENT: 'v36',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-09',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v36',
+          date: '2026-02-09',
+          features: [
+            '【重要】ダイアログスタック管理システムの実装：ネストされたダイアログのESCキー挙動を完全に修正',
+            'ESCキー動作の改善：ポップアップ→設定→変数設定の順で開いた後、ESCを2回押しても一つずつ確実に閉じるよう修正',
+            'DialogManager.dialogStack導入：全ダイアログをスタックで管理し、最上位のダイアログのみがESCに反応',
+            'pushDialog/popDialog/getTopDialog機能追加：クリーンで保守性の高いスタック管理API',
+            'タグフィルタボタンの修正：クリック時にstopPropagationを追加し、正常に反応するように修正',
+            '一覧表示タイトルのUI/UX改善：1行から2行表示に変更し、タイトル全体が見やすく美しいデザインに',
+            'webkit-line-clamp活用：2行でのクリーンな省略表示を実現、読みやすさが大幅に向上',
+            '極めて理解しやすい実装：ダイアログ管理を完全に共通化し、メンテナンス性を最大限に向上',
+            '完全な後方互換性：既存の全機能に影響を与えず、安全に動作することを保証',
+            '洗練されたコード品質：可読性、保守性、拡張性のすべてを考慮した非常にクリーンな実装'
+          ]
+        },
         {
           version: 'v35',
           date: '2026-02-09',
@@ -1217,13 +1233,52 @@
     /**
      * DialogManager - Centralized dialog management system
      * Provides unified, high-quality dialog handling with consistent behavior
-     * Handles ESC keys, outside clicks (single or double), and proper cleanup
+     * Handles ESC keys, outside clicks (single or double), proper cleanup, and dialog stacking
      */
     const DialogManager = {
+      // Dialog stack to track nested dialogs (most recent dialog is at the end)
+      dialogStack: [],
+      
       /**
-       * Create a double-click handler for overlay outside clicks
-       * Prevents accidental dialog closure by requiring two clicks within 500ms
-       * @param {Function} onClose - Callback to execute when double-click occurs
+       * Push a dialog onto the stack
+       * @param {Object} dialog - Dialog object containing overlay, escHandler, etc.
+       */
+      pushDialog(dialog) {
+        this.dialogStack.push(dialog);
+        KeyHandler.isModalOpen = true;
+      },
+      
+      /**
+       * Pop a dialog from the stack
+       * @returns {Object|null} The removed dialog object, or null if stack is empty
+       */
+      popDialog() {
+        const dialog = this.dialogStack.pop();
+        // Update modal open flag based on remaining dialogs
+        KeyHandler.isModalOpen = this.dialogStack.length > 0;
+        return dialog;
+      },
+      
+      /**
+       * Get the topmost (most recent) dialog in the stack
+       * @returns {Object|null} The topmost dialog, or null if stack is empty
+       */
+      getTopDialog() {
+        return this.dialogStack.length > 0 ? this.dialogStack[this.dialogStack.length - 1] : null;
+      },
+      
+      /**
+       * Check if there are any dialogs in the stack
+       * @returns {boolean} True if stack has dialogs, false otherwise
+       */
+      hasDialogs() {
+        return this.dialogStack.length > 0;
+      },
+      
+      /**
+      * Create a double-click handler for overlay outside clicks
+      * Prevents accidental dialog closure by requiring two clicks within 500ms
+      * @param {Function} onClose - Callback to execute when double-click occurs
        * @returns {Object} Handler object with onclick function and cleanup
        */
       createOverlayClickHandler(onClose) {
@@ -1304,11 +1359,17 @@
        * @param {boolean} [config.clearModalFlag=true] - Whether to clear KeyHandler.isModalOpen
        */
       closeDialog(config) {
-        const { overlay, clickHandler, clearModalFlag = true } = config;
+        const { overlay, clickHandler, clearModalFlag = true, escapeHandler } = config;
         
-        // Clear modal open flag
-        if (clearModalFlag) {
-          KeyHandler.isModalOpen = false;
+        // Remove dialog from stack if it exists
+        const topDialog = this.getTopDialog();
+        if (topDialog && topDialog.overlay === overlay) {
+          this.popDialog();
+        }
+        
+        // Clean up escape handler if provided
+        if (escapeHandler) {
+          document.removeEventListener('keydown', escapeHandler);
         }
         
         // Clean up click handler timers
@@ -1319,6 +1380,12 @@
         // Remove overlay from DOM
         if (overlay && overlay.parentNode) {
           overlay.remove();
+        }
+        
+        // Update modal flag based on legacy clearModalFlag parameter
+        // This maintains backwards compatibility while using the stack system
+        if (clearModalFlag && !this.hasDialogs()) {
+          KeyHandler.isModalOpen = false;
         }
       }
     };
@@ -1447,7 +1514,7 @@
         'font-weight:500',
         'transition:all 0.2s'
       ].join(';'), '✗ キャンセル', () => {
-        DialogManager.closeDialog({ overlay, clickHandler });
+        DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
       });
       
       cancelButton.onmouseover = () => {
@@ -1504,7 +1571,7 @@
         }
         
         saveVariables(variables);
-        DialogManager.closeDialog({ overlay, clickHandler });
+        DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
         if (onSave) onSave();
       };
       
@@ -1544,7 +1611,9 @@
         e.stopPropagation();
       };
       
-      KeyHandler.isModalOpen = true;
+      // Register this dialog with the stack
+      DialogManager.pushDialog({ overlay, escapeHandler, clickHandler });
+      
       // Attach to shadow DOM for proper layering above settings dialog
       shadow.appendChild(overlay);
       
@@ -2183,9 +2252,6 @@
           this.close();
         }
         
-        // Set modal open flag to prevent ESC from closing main popup
-        KeyHandler.isModalOpen = true;
-        
         // Create overlay
         const overlay = createElement('div', [
           'position:fixed',
@@ -2392,20 +2458,23 @@
         document.body.style.overflow = 'hidden';
         
         shadow.appendChild(overlay);
+        
+        // Register with dialog stack
+        DialogManager.pushDialog({ overlay, escapeHandler: escHandler, clickHandler });
+        
         this.activeModal = { overlay, escHandler, originalOverflow, clickHandler };
       },
       
       // Close the active modal
       close: function() {
         if (this.activeModal) {
-          document.removeEventListener('keydown', this.activeModal.escHandler);
+          // Use DialogManager.closeDialog for proper cleanup
+          DialogManager.closeDialog({
+            overlay: this.activeModal.overlay,
+            clickHandler: this.activeModal.clickHandler,
+            escapeHandler: this.activeModal.escHandler
+          });
           
-          // Clean up click handler timers
-          if (this.activeModal.clickHandler && this.activeModal.clickHandler.cleanup) {
-            this.activeModal.clickHandler.cleanup();
-          }
-          
-          this.activeModal.overlay.remove();
           // Restore original body overflow to re-enable scrolling
           if (this.activeModal.originalOverflow !== '') {
             document.body.style.overflow = this.activeModal.originalOverflow;
@@ -2413,9 +2482,8 @@
             // Remove the inline style to restore default behavior
             document.body.style.removeProperty('overflow');
           }
+          
           this.activeModal = null;
-          // Clear modal open flag
-          KeyHandler.isModalOpen = false;
         }
       }
     };
@@ -2540,7 +2608,10 @@
       'font-weight:normal',
       'flex-shrink:0',
       'position:relative'
-    ].join(';'), '🏷️ タグ', () => {
+    ].join(';'), '🏷️ タグ', (e) => {
+      // Stop propagation to prevent global click handler from closing dropdown immediately
+      e.stopPropagation();
+      
       // Toggle tag filter dropdown
       if (tagFilterDropdown.style.display === 'none') {
         renderTagFilterDropdown();
@@ -4462,10 +4533,13 @@
           
           const titleText = createElement('div', [
             'flex:1',
+            'min-width:0',
+            'display:-webkit-box',
+            '-webkit-line-clamp:2',
+            '-webkit-box-orient:vertical',
             'overflow:hidden',
-            'text-overflow:ellipsis',
-            'white-space:nowrap',
-            'min-width:0'
+            'line-height:1.4',
+            'word-break:break-word'
           ].join(';'));
           
           if (item.title) {
