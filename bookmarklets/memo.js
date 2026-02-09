@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v38
+// v39
 // 2026-02-09
 
 (function() {
@@ -909,6 +909,29 @@
       if (text) element.textContent = text;
       if (clickHandler) element.onclick = clickHandler;
       return element;
+    };
+
+    /**
+     * Safely clear all children from a container element
+     * Alternative to innerHTML = '' to avoid TrustedHTML issues
+     * @param {HTMLElement} container - The container to clear
+     */
+    const clearContainer = (container) => {
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
+    };
+
+    /**
+     * Create elements from HTML string using template element
+     * Safe alternative to innerHTML for creating DOM from HTML strings
+     * @param {string} htmlString - The HTML string to convert
+     * @returns {DocumentFragment} - Document fragment containing the created elements
+     */
+    const createElementsFromHTML = (htmlString) => {
+      const template = document.createElement('template');
+      template.innerHTML = htmlString;  // Safe within template element
+      return template.content;
     };
 
     // Get random emoji from collection
@@ -2025,7 +2048,7 @@
       
       // Function to render tags
       const renderTags = () => {
-        tagsDisplay.innerHTML = '';
+        clearContainer(tagsDisplay);
         
         tags.forEach(tag => {
           const tagChip = createElement('span', [
@@ -2093,7 +2116,7 @@
         const availableTags = allTags.filter(tag => !tags.includes(tag));
         const matchedTags = fuzzySearchTags(query, availableTags);
         
-        autocompleteDropdown.innerHTML = '';
+        clearContainer(autocompleteDropdown);
         
         if (matchedTags.length === 0) {
           autocompleteDropdown.style.display = 'none';
@@ -2458,7 +2481,8 @@
             if (typeof tab.content === 'function') {
               tab.content(tabContent);
             } else if (typeof tab.content === 'string') {
-              tabContent.innerHTML = tab.content;
+              const fragment = createElementsFromHTML(tab.content);
+              tabContent.appendChild(fragment);
             }
             
             tabContents.push({ button: tabButton, content: tabContent });
@@ -2496,7 +2520,8 @@
           if (typeof tabs[0].content === 'function') {
             tabs[0].content(content);
           } else if (typeof tabs[0].content === 'string') {
-            content.innerHTML = tabs[0].content;
+            const fragment = createElementsFromHTML(tabs[0].content);
+            content.appendChild(fragment);
           }
           
           modal.appendChild(content);
@@ -2716,7 +2741,7 @@
     
     // Function to render tag filter dropdown
     const renderTagFilterDropdown = () => {
-      tagFilterDropdown.innerHTML = '';
+      clearContainer(tagFilterDropdown);
       const allTags = loadAllTags();
       
       if (allTags.length === 0) {
@@ -3314,7 +3339,7 @@
               
               // Function to render variable list
               const renderVariableList = () => {
-                variableListContainer.innerHTML = '';
+                clearContainer(variableListContainer);
                 const variables = loadVariables();
                 
                 if (variables.length === 0) {
@@ -3579,7 +3604,7 @@
                     deleteUnusedTags([tag]);
                     
                     // Re-render the tag management content
-                    container.innerHTML = '';
+                    clearContainer(container);
                     this.content(container);
                   });
                   
