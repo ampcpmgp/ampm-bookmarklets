@@ -2165,9 +2165,12 @@
       };
       
       // Function to close the dropdown
-      const closeDropdown = () => {
+      const closeDropdown = (clearInput = false) => {
         autocompleteDropdown.style.display = 'none';
         DropdownManager.unregisterDropdown(autocompleteDropdown);
+        if (clearInput) {
+          tagInput.value = '';
+        }
       };
       
       // Function to add a tag
@@ -2202,6 +2205,7 @@
           return;
         }
         
+        // Limit to 10 tags to prevent performance issues and maintain good UX
         matchedTags.slice(0, 10).forEach(tag => {
           const item = createElement('div', [
             'padding:8px 12px',
@@ -2221,11 +2225,12 @@
           autocompleteDropdown.appendChild(item);
         });
         
-        // Register dropdown with DropdownManager if not already visible
-        if (autocompleteDropdown.style.display !== 'block') {
+        // Register dropdown with DropdownManager if not already registered
+        const isRegistered = DropdownManager.dropdownStack.some(d => d.element === autocompleteDropdown);
+        if (!isRegistered) {
           DropdownManager.registerDropdown({
             element: autocompleteDropdown,
-            onClose: closeDropdown
+            onClose: () => closeDropdown(true) // Clear input when closed via ESC
           });
         }
         
