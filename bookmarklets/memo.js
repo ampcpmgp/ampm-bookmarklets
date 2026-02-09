@@ -2425,7 +2425,7 @@
       `z-index:${Z_INDEX.BASE}`,
       'top:20px',
       'left:20px',
-      'width:360px',
+      'width:420px',
       'max-height:85vh',
       'background:#fff',
       'color:#333',
@@ -4095,6 +4095,51 @@
           
           contentArea.appendChild(titleText);
           
+          // Display tags in compact mode
+          if (item.tags && item.tags.length > 0) {
+            const tagsContainer = createElement('div', [
+              'display:flex',
+              'gap:4px',
+              'flex-wrap:wrap',
+              'flex-shrink:0',
+              'max-width:40%'
+            ].join(';'));
+            
+            // Show up to 3 tags, then show "+N" indicator
+            const displayTags = item.tags.slice(0, 3);
+            displayTags.forEach(tag => {
+              const tagChip = createElement('span', [
+                'display:inline-block',
+                'padding:2px 6px',
+                'background:#e3f2fd',
+                'border:1px solid #90caf9',
+                'border-radius:10px',
+                'font-size:10px',
+                'color:#1976d2',
+                'font-weight:500',
+                'white-space:nowrap'
+              ].join(';'), tag);
+              tagsContainer.appendChild(tagChip);
+            });
+            
+            // Show "+N" if there are more tags
+            if (item.tags.length > 3) {
+              const moreIndicator = createElement('span', [
+                'display:inline-block',
+                'padding:2px 6px',
+                'background:#f5f5f5',
+                'border:1px solid #ddd',
+                'border-radius:10px',
+                'font-size:10px',
+                'color:#666',
+                'font-weight:500'
+              ].join(';'), `+${item.tags.length - 3}`);
+              tagsContainer.appendChild(moreIndicator);
+            }
+            
+            contentArea.appendChild(tagsContainer);
+          }
+          
           // Only make unpinned items clickable to expand in title-only mode
           // Pinned items use drag handle and should not expand on click
           if (!item.pinned) {
@@ -4192,6 +4237,33 @@
           }
           
           textWrapper.appendChild(titleRow);
+        }
+
+        // Display tags in full view
+        if (item.tags && item.tags.length > 0) {
+          const tagsContainer = createElement('div', [
+            'display:flex',
+            'gap:6px',
+            'flex-wrap:wrap',
+            'margin-bottom:8px'
+          ].join(';'));
+          
+          item.tags.forEach(tag => {
+            const tagChip = createElement('span', [
+              'display:inline-block',
+              'padding:4px 10px',
+              'background:#e3f2fd',
+              'border:1px solid #90caf9',
+              'border-radius:12px',
+              'font-size:12px',
+              'color:#1976d2',
+              'font-weight:500',
+              'white-space:nowrap'
+            ].join(';'), tag);
+            tagsContainer.appendChild(tagChip);
+          });
+          
+          textWrapper.appendChild(tagsContainer);
         }
 
         const textElement = createElement('div', [
