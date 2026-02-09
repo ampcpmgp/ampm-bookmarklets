@@ -2610,7 +2610,8 @@
       'flex-shrink:0',
       'position:relative'
     ].join(';'), '🏷️ タグ', (e) => {
-      // Stop propagation to prevent global click handler from closing dropdown immediately
+      // Stop propagation to prevent the global document click handler (defined at line ~2684)
+      // from immediately closing the dropdown we're trying to open
       e.stopPropagation();
       
       // Toggle tag filter dropdown
