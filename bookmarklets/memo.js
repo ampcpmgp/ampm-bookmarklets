@@ -923,15 +923,21 @@
     };
 
     /**
-     * Create elements from HTML string using template element
+     * Create elements from HTML string using DOMParser
      * Safe alternative to innerHTML for creating DOM from HTML strings
+     * Note: In this codebase, all tab content uses functions, not strings,
+     * so this is a defensive measure for potential future use.
      * @param {string} htmlString - The HTML string to convert
      * @returns {DocumentFragment} - Document fragment containing the created elements
      */
     const createElementsFromHTML = (htmlString) => {
-      const template = document.createElement('template');
-      template.innerHTML = htmlString;  // Safe within template element
-      return template.content;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlString, 'text/html');
+      const fragment = document.createDocumentFragment();
+      while (doc.body.firstChild) {
+        fragment.appendChild(doc.body.firstChild);
+      }
+      return fragment;
     };
 
     // Get random emoji from collection
