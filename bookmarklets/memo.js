@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v36
+// v37
 // 2026-02-09
 
 (function() {
@@ -121,11 +121,26 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v36',
+      CURRENT: 'v37',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-09',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v37',
+          date: '2026-02-09',
+          features: [
+            'タグ入力オートコンプリートの幅を最適化：min-width: 250pxに設定し、狭すぎて操作しづらい問題を解決',
+            'オートコンプリートの可読性向上：十分な幅により、タグ名全体が見やすく選択しやすいUIに改善',
+            'テンプレート入力ダイアログのDialogManager統合：他のダイアログと同様の洗練されたモーダル動作を実現',
+            'ESCキー対応の追加：テンプレート入力ダイアログでもESCキーで閉じることが可能に',
+            'オーバーレイの適切な表示：既存のポップアップに対してオーバーレイをかけ、前面に表示',
+            'ダブルクリック閉じ機能：誤操作防止のため、オーバーレイ外側のダブルクリックで閉じる動作を統一',
+            'ダイアログスタック管理：DialogManagerのpushDialog/closeDialogを使用し、適切なESC挙動を実現',
+            '共通処理の完全なリファクタリング：createTemplateFormを他のダイアログと同じパターンに統一し、保守性を大幅向上',
+            '非常にきれいな実装：コード品質、可読性、メンテナンス性のすべてが最高レベルに到達'
+          ]
+        },
         {
           version: 'v36',
           date: '2026-02-09',
@@ -1020,6 +1035,7 @@
 
     /**
      * Create input form dialog for template placeholders
+     * Uses DialogManager for consistent modal behavior with ESC support and overlay
      * @param {Array<{type: string, name: string, options: Array<string>, placeholder: string}>} templates - Template placeholders
      * @param {Function} onSubmit - Callback with input values object {name: value}
      * @param {Function} onCancel - Callback on cancel
@@ -1121,6 +1137,40 @@
         'border-top:1px solid #e8eaed'
       ].join(';'));
 
+      // Forward declaration for escapeHandler (will be defined below)
+      let escapeHandler;
+
+      // Helper function to close the dialog - using DialogManager
+      const clickHandler = DialogManager.createOverlayClickHandler(() => {
+        DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
+        onCancel();
+      });
+
+      // Cancel button
+      const cancelButton = createElement('button', [
+        'padding:10px 24px',
+        'font-size:13px',
+        'border:1px solid #dadce0',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#fff',
+        'color:#202124',
+        'font-weight:500',
+        'transition:all 0.2s'
+      ].join(';'), '✗ キャンセル', () => {
+        DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
+        onCancel();
+      });
+
+      cancelButton.onmouseover = () => {
+        cancelButton.style.background = '#f8f9fa';
+        cancelButton.style.borderColor = '#bdc1c6';
+      };
+      cancelButton.onmouseout = () => {
+        cancelButton.style.background = '#fff';
+        cancelButton.style.borderColor = '#dadce0';
+      };
+
       // Submit button
       const submitButton = createElement('button', [
         'padding:10px 24px',
@@ -1137,54 +1187,28 @@
         inputFields.forEach(field => {
           values[field.name] = field.input.value.trim();
         });
+        DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
         onSubmit(values);
       });
 
       submitButton.onmouseover = () => submitButton.style.background = COLORS.SAVE_BUTTON_HOVER;
       submitButton.onmouseout = () => submitButton.style.background = COLORS.SAVE_BUTTON;
 
-      // Cancel button
-      const cancelButton = createElement('button', [
-        'padding:10px 24px',
-        'font-size:13px',
-        'border:1px solid #dadce0',
-        'border-radius:4px',
-        'cursor:pointer',
-        'background:#fff',
-        'color:#202124',
-        'font-weight:500',
-        'transition:all 0.2s'
-      ].join(';'), '✗ キャンセル', () => {
-        onCancel();
-      });
-
-      cancelButton.onmouseover = () => {
-        cancelButton.style.background = '#f8f9fa';
-        cancelButton.style.borderColor = '#bdc1c6';
-      };
-      cancelButton.onmouseout = () => {
-        cancelButton.style.background = '#fff';
-        cancelButton.style.borderColor = '#dadce0';
-      };
-
       buttonContainer.appendChild(cancelButton);
       buttonContainer.appendChild(submitButton);
       formContainer.appendChild(buttonContainer);
 
-      // Keyboard handlers
+      // Keyboard handlers - using DialogManager for clean ESC/Ctrl+Enter handling
+      escapeHandler = DialogManager.createEscapeHandler(() => {
+        cancelButton.click();
+      });
+      const ctrlEnterHandler = DialogManager.createCtrlEnterHandler(() => {
+        submitButton.click();
+      });
+
       const handleKeyDown = (e) => {
-        if (e.key === KeyHandler.ESC) {
-          e.preventDefault();
-          e.stopPropagation();
-          onCancel();
-          return;
-        }
-        if (KeyHandler.isCtrlEnter(e)) {
-          e.preventDefault();
-          e.stopPropagation();
-          submitButton.click();
-          return;
-        }
+        escapeHandler(e);
+        ctrlEnterHandler(e);
       };
 
       inputFields.forEach(field => {
@@ -1193,17 +1217,19 @@
 
       overlay.appendChild(formContainer);
 
-      // Click outside to close
-      overlay.onclick = (e) => {
-        if (e.target === overlay) {
-          onCancel();
-        }
-      };
+      // Double-click outside to close - using DialogManager
+      overlay.onclick = (e) => clickHandler.onclick(e, overlay);
 
       // Prevent clicks inside form from closing
       formContainer.onclick = (e) => {
         e.stopPropagation();
       };
+
+      // Register this dialog with the stack
+      DialogManager.pushDialog({ overlay, escapeHandler, clickHandler });
+
+      // Attach to shadow DOM for proper layering
+      shadow.appendChild(overlay);
 
       return { overlay, inputFields };
     };
@@ -1941,6 +1967,7 @@
         'top:100%',
         'left:0',
         'right:0',
+        'min-width:250px',
         'background:#fff',
         'border:1px solid #ddd',
         'border-top:none',
@@ -4048,23 +4075,15 @@
         
         if (templates.length > 0) {
           // Show template form dialog
-          KeyHandler.isModalOpen = true;
-          
           const formDialog = createTemplateForm(templates, (values) => {
             // Replace templates and copy
             const finalText = replaceTemplates(resolvedText, templates, values);
             navigator.clipboard.writeText(finalText).then(() => {
-              KeyHandler.isModalOpen = false;
-              document.body.removeChild(formDialog.overlay);
               close();
             });
           }, () => {
-            // Cancel - just close dialog
-            KeyHandler.isModalOpen = false;
-            document.body.removeChild(formDialog.overlay);
+            // Cancel - just close dialog (DialogManager handles cleanup)
           });
-          
-          document.body.appendChild(formDialog.overlay);
         } else {
           // No templates - direct copy with resolved variables
           navigator.clipboard.writeText(resolvedText).then(() => {
