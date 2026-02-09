@@ -1245,6 +1245,7 @@
        */
       pushDialog(dialog) {
         this.dialogStack.push(dialog);
+        // Always set modal flag to true when any dialog is open
         KeyHandler.isModalOpen = true;
       },
       
@@ -1356,16 +1357,19 @@
        * @param {Object} config - Configuration object
        * @param {HTMLElement} config.overlay - Overlay element to remove
        * @param {Object} [config.clickHandler] - Click handler with cleanup function
-       * @param {boolean} [config.clearModalFlag=true] - Whether to clear KeyHandler.isModalOpen
+       * @param {Function} [config.escapeHandler] - ESC key handler to remove
        */
       closeDialog(config) {
-        const { overlay, clickHandler, clearModalFlag = true, escapeHandler } = config;
+        const { overlay, clickHandler, escapeHandler } = config;
         
-        // Remove dialog from stack if it exists
-        const topDialog = this.getTopDialog();
-        if (topDialog && topDialog.overlay === overlay) {
-          this.popDialog();
+        // Remove dialog from stack by searching for matching overlay
+        const dialogIndex = this.dialogStack.findIndex(d => d.overlay === overlay);
+        if (dialogIndex !== -1) {
+          this.dialogStack.splice(dialogIndex, 1);
         }
+        
+        // Update modal flag based on remaining dialogs in stack
+        KeyHandler.isModalOpen = this.dialogStack.length > 0;
         
         // Clean up escape handler if provided
         if (escapeHandler) {
@@ -1380,12 +1384,6 @@
         // Remove overlay from DOM
         if (overlay && overlay.parentNode) {
           overlay.remove();
-        }
-        
-        // Update modal flag based on legacy clearModalFlag parameter
-        // This maintains backwards compatibility while using the stack system
-        if (clearModalFlag && !this.hasDialogs()) {
-          KeyHandler.isModalOpen = false;
         }
       }
     };
