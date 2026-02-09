@@ -2172,6 +2172,11 @@
       
       // Function to close the dropdown
       const closeDropdown = (clearInput = false) => {
+        // Only close if dropdown is currently visible
+        if (autocompleteDropdown.style.display === 'none') {
+          return;
+        }
+        
         autocompleteDropdown.style.display = 'none';
         DropdownManager.unregisterDropdown(autocompleteDropdown);
         if (clearInput) {
@@ -2202,7 +2207,10 @@
       const showAutocomplete = (query) => {
         const allTags = loadAllTags();
         const availableTags = allTags.filter(tag => !tags.includes(tag));
-        const matchedTags = query ? fuzzySearchTags(query, availableTags) : availableTags;
+        // Apply limit early to avoid creating large arrays
+        const matchedTags = query 
+          ? fuzzySearchTags(query, availableTags).slice(0, 10)
+          : availableTags.slice(0, 10);
         
         autocompleteDropdown.innerHTML = '';
         
@@ -2212,7 +2220,7 @@
         }
         
         // Limit display to 10 tags for better UX and scrollable dropdown
-        matchedTags.slice(0, 10).forEach(tag => {
+        matchedTags.forEach(tag => {
           const item = createElement('div', [
             'padding:8px 12px',
             'cursor:pointer',
