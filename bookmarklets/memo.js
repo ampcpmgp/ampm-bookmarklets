@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v34
+// v35
 // 2026-02-09
 
 (function() {
@@ -114,17 +114,34 @@
     const KEY = 'my_local_storage_notes';
     const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const VARIABLES_KEY = 'my_local_storage_notes_variables';
+    const TAGS_KEY = 'my_local_storage_notes_tags';
     const MAX = 300;
     
     // Centralized version management
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v34',
+      CURRENT: 'v35',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-09',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v35',
+          date: '2026-02-09',
+          features: [
+            'タグ機能を実装：メモにタグを付けて分類・管理が可能に',
+            'タグ入力コンポーネント：自動補完とファジー検索に対応した洗練されたUI',
+            'タグ表示：一覧表示・全表示の両方でタグを表示、UIを最適化',
+            'タグフィルタリング：タグで絞り込み表示、複数タグに対応',
+            'タグ管理：使用されていないタグの削除、全タグの一覧表示',
+            '新規メモ・編集時のタグ設定：直感的なタグ追加・削除UI',
+            'ファジー検索：タグ入力時に部分一致・あいまい検索で候補を表示',
+            '共通処理のリファクタリング：タグ関連の処理を共通化し、保守性を向上',
+            '後方互換性：既存メモに自動的に空のタグ配列を追加',
+            'ポップアップ幅の最適化：タグ表示に対応し、より多くの情報を表示可能に'
+          ]
+        },
         {
           version: 'v34',
           date: '2026-02-09',
@@ -647,7 +664,7 @@
     const load = () => {
       try {
         const data = JSON.parse(localStorage.getItem(KEY) || '[]');
-        // Ensure backward compatibility: add pinned, title, emoji, createdDate and updatedDate properties if missing
+        // Ensure backward compatibility: add pinned, title, emoji, createdDate, updatedDate, and tags properties if missing
         return data.map(item => ({
           title: item.title || '',
           text: item.text,
@@ -655,7 +672,8 @@
           createdDate: item.createdDate || item.date || new Date().toISOString(),
           updatedDate: item.updatedDate || item.date || new Date().toISOString(),
           pinned: item.pinned || false,
-          emoji: item.emoji || ''
+          emoji: item.emoji || '',
+          tags: item.tags || []
         }));
       } catch {
         return [];
@@ -725,6 +743,90 @@
       return result;
     };
 
+    // Tag management functions
+    /**
+     * Load all unique tags from all memos
+     * @returns {Array<string>} - Array of unique tag names sorted alphabetically
+     */
+    const loadAllTags = () => {
+      const data = load();
+      const tagSet = new Set();
+      
+      data.forEach(memo => {
+        if (memo.tags && Array.isArray(memo.tags)) {
+          memo.tags.forEach(tag => {
+            if (tag && typeof tag === 'string') {
+              tagSet.add(tag.trim());
+            }
+          });
+        }
+      });
+      
+      return Array.from(tagSet).sort();
+    };
+
+    /**
+     * Fuzzy search for tags matching the input query
+     * @param {string} query - Search query
+     * @param {Array<string>} tags - Array of tags to search
+     * @returns {Array<string>} - Filtered tags matching the query
+     */
+    const fuzzySearchTags = (query, tags) => {
+      if (!query) return tags;
+      
+      const lowerQuery = query.toLowerCase();
+      
+      // Filter tags that contain all characters from the query in order
+      return tags.filter(tag => {
+        const lowerTag = tag.toLowerCase();
+        let queryIndex = 0;
+        
+        for (let i = 0; i < lowerTag.length && queryIndex < lowerQuery.length; i++) {
+          if (lowerTag[i] === lowerQuery[queryIndex]) {
+            queryIndex++;
+          }
+        }
+        
+        return queryIndex === lowerQuery.length;
+      }).sort((a, b) => {
+        // Prioritize tags that start with the query
+        const aStarts = a.toLowerCase().startsWith(lowerQuery);
+        const bStarts = b.toLowerCase().startsWith(lowerQuery);
+        
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        // Then sort by length (shorter first)
+        if (a.length !== b.length) {
+          return a.length - b.length;
+        }
+        
+        // Finally alphabetically
+        return a.localeCompare(b);
+      });
+    };
+
+    /**
+     * Delete unused tags from storage
+     * @param {Array<string>} tagsToDelete - Tags to delete
+     */
+    const deleteUnusedTags = (tagsToDelete) => {
+      const data = load();
+      const tagSet = new Set(tagsToDelete);
+      
+      // Remove tags from all memos
+      data.forEach(memo => {
+        if (memo.tags && Array.isArray(memo.tags)) {
+          memo.tags = memo.tags.filter(tag => !tagSet.has(tag));
+        }
+      });
+      
+      save(data);
+    };
+
+    // Track current tag filter state
+    let currentTagFilter = [];
+
 
     const createElement = (tag, css = '', text = '', clickHandler) => {
       const element = document.createElement(tag);
@@ -741,6 +843,9 @@
 
     // Track current emoji (initialize as empty to show "no emoji" state)
     let currentEmoji = '';
+    
+    // Track current tags for new memo creation
+    let currentTags = [];
 
     // Create a button with hover effect
     const createButtonWithHover = (style, text, clickHandler, hoverBg, normalBg) => {
@@ -1711,18 +1816,237 @@
     };
 
     /**
+     * Create tag input component with autocomplete and fuzzy search
+     * @param {Array<string>} initialTags - Initial tags to display
+     * @param {Function} onTagsChange - Callback when tags change
+     * @returns {Object} - Object with container and getTags method
+     */
+    const createTagInput = (initialTags = [], onTagsChange = null) => {
+      const tags = [...initialTags];
+      
+      // Main container
+      const container = createElement('div', [
+        'margin-bottom:12px'
+      ].join(';'));
+      
+      // Label
+      const label = createElement('div', [
+        'font-size:13px',
+        'color:#555',
+        'margin-bottom:4px',
+        'font-weight:500'
+      ].join(';'), '🏷️ タグ');
+      container.appendChild(label);
+      
+      // Tags display container
+      const tagsDisplay = createElement('div', [
+        'display:flex',
+        'flex-wrap:wrap',
+        'gap:6px',
+        'margin-bottom:6px',
+        'min-height:20px'
+      ].join(';'));
+      
+      // Input container with autocomplete
+      const inputContainer = createElement('div', [
+        'position:relative'
+      ].join(';'));
+      
+      // Tag input field
+      const tagInput = createElement('input', [
+        'width:100%',
+        'padding:8px',
+        'border:1px solid #ddd',
+        'border-radius:4px',
+        'font-size:13px',
+        'box-sizing:border-box'
+      ].join(';'));
+      tagInput.type = 'text';
+      tagInput.placeholder = 'タグを入力してEnter...';
+      
+      // Autocomplete dropdown
+      const autocompleteDropdown = createElement('div', [
+        'display:none',
+        'position:absolute',
+        'top:100%',
+        'left:0',
+        'right:0',
+        'background:#fff',
+        'border:1px solid #ddd',
+        'border-top:none',
+        'border-radius:0 0 4px 4px',
+        'max-height:150px',
+        'overflow-y:auto',
+        'box-shadow:0 2px 8px rgba(0,0,0,0.1)',
+        `z-index:${Z_INDEX.DROPDOWN}`,
+        'box-sizing:border-box'
+      ].join(';'));
+      
+      // Function to render tags
+      const renderTags = () => {
+        tagsDisplay.innerHTML = '';
+        
+        tags.forEach(tag => {
+          const tagChip = createElement('span', [
+            'display:inline-flex',
+            'align-items:center',
+            'gap:4px',
+            'padding:4px 8px',
+            'background:#e3f2fd',
+            'border:1px solid #90caf9',
+            'border-radius:12px',
+            'font-size:12px',
+            'color:#1976d2',
+            'font-weight:500'
+          ].join(';'));
+          
+          const tagText = createElement('span', '', tag);
+          const deleteBtn = createElement('span', [
+            'cursor:pointer',
+            'font-size:14px',
+            'line-height:1',
+            'opacity:0.7',
+            'transition:opacity 0.2s'
+          ].join(';'), '×', () => {
+            const index = tags.indexOf(tag);
+            if (index > -1) {
+              tags.splice(index, 1);
+              renderTags();
+              if (onTagsChange) onTagsChange(tags);
+            }
+          });
+          
+          deleteBtn.onmouseover = () => deleteBtn.style.opacity = '1';
+          deleteBtn.onmouseout = () => deleteBtn.style.opacity = '0.7';
+          
+          tagChip.appendChild(tagText);
+          tagChip.appendChild(deleteBtn);
+          tagsDisplay.appendChild(tagChip);
+        });
+        
+        if (tags.length === 0) {
+          const emptyText = createElement('span', [
+            'color:#999',
+            'font-size:12px',
+            'font-style:italic'
+          ].join(';'), 'タグなし');
+          tagsDisplay.appendChild(emptyText);
+        }
+      };
+      
+      // Function to add a tag
+      const addTag = (tag) => {
+        const trimmedTag = tag.trim();
+        if (trimmedTag && !tags.includes(trimmedTag)) {
+          tags.push(trimmedTag);
+          renderTags();
+          if (onTagsChange) onTagsChange(tags);
+        }
+        tagInput.value = '';
+        autocompleteDropdown.style.display = 'none';
+      };
+      
+      // Function to show autocomplete suggestions
+      const showAutocomplete = (query) => {
+        const allTags = loadAllTags();
+        const availableTags = allTags.filter(tag => !tags.includes(tag));
+        const matchedTags = fuzzySearchTags(query, availableTags);
+        
+        autocompleteDropdown.innerHTML = '';
+        
+        if (matchedTags.length === 0) {
+          autocompleteDropdown.style.display = 'none';
+          return;
+        }
+        
+        matchedTags.slice(0, 10).forEach(tag => {
+          const item = createElement('div', [
+            'padding:8px 12px',
+            'cursor:pointer',
+            'font-size:13px',
+            'transition:background 0.2s'
+          ].join(';'), tag, () => {
+            addTag(tag);
+          });
+          
+          item.onmouseover = () => item.style.background = '#f5f5f5';
+          item.onmouseout = () => item.style.background = '#fff';
+          
+          autocompleteDropdown.appendChild(item);
+        });
+        
+        autocompleteDropdown.style.display = 'block';
+      };
+      
+      // Input event handlers
+      tagInput.oninput = (e) => {
+        const query = e.target.value.trim();
+        if (query.length > 0) {
+          showAutocomplete(query);
+        } else {
+          autocompleteDropdown.style.display = 'none';
+        }
+      };
+      
+      tagInput.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const query = tagInput.value.trim();
+          if (query) {
+            addTag(query);
+          }
+        } else if (e.key === 'Escape') {
+          autocompleteDropdown.style.display = 'none';
+          tagInput.value = '';
+        }
+        // Prevent event from bubbling up to parent handlers
+        e.stopPropagation();
+      };
+      
+      // Close autocomplete when clicking outside
+      tagInput.onblur = () => {
+        setTimeout(() => {
+          autocompleteDropdown.style.display = 'none';
+        }, 200);
+      };
+      
+      inputContainer.appendChild(tagInput);
+      inputContainer.appendChild(autocompleteDropdown);
+      
+      container.appendChild(tagsDisplay);
+      container.appendChild(inputContainer);
+      
+      // Initial render
+      renderTags();
+      
+      return {
+        container,
+        getTags: () => [...tags],
+        setTags: (newTags) => {
+          tags.length = 0;
+          tags.push(...newTags);
+          renderTags();
+        }
+      };
+    };
+
+    /**
      * Create edit UI components for inline memo editing with improved layout
-     * @param {Object} item - The memo item to edit with properties: title, text, emoji
+     * @param {Object} item - The memo item to edit with properties: title, text, emoji, tags
      * @param {Function} onSave - Callback function called when save is clicked, receives updated data object
      * @param {Function} onCancel - Callback function called when cancel is clicked or ESC is pressed
      * @returns {Object} - Object containing:
-     *   - container: DOM element with complete edit UI (emoji picker, textarea, and buttons)
+     *   - container: DOM element with complete edit UI (emoji picker, tag input, textarea, and buttons)
      *   - titleInput: Input element for title
      *   - textArea: Textarea element for memo content
+     *   - tagInput: Tag input component
      */
     const createEditUI = (item, onSave, onCancel) => {
       // Create emoji picker
       const emojiPicker = createEmojiPicker(item.emoji);
+      
+      // Create tag input
+      const tagInput = createTagInput(item.tags || []);
       
       // Text area - use centralized textarea creation for consistent UI/UX
       const textArea = createTextarea({
@@ -1761,7 +2085,8 @@
         onSave({
           title: newTitle,
           text: newText,
-          emoji: emojiPicker.getEmoji()
+          emoji: emojiPicker.getEmoji(),
+          tags: tagInput.getTags()
         });
       });
       
@@ -1824,7 +2149,7 @@
       textArea.onkeydown = handleKeyDown;
       
       // Assemble container with proper layout styling
-      // Container now includes emoji picker, textarea, AND buttons in a clean vertical layout
+      // Container now includes emoji picker, tag input, textarea, AND buttons in a clean vertical layout
       const container = createElement('div', [
         'display:flex',
         'flex-direction:column',
@@ -1833,13 +2158,15 @@
         'box-sizing:border-box'
       ].join(';'));
       container.appendChild(emojiPicker.container);
+      container.appendChild(tagInput.container);
       container.appendChild(textArea);
       container.appendChild(buttonContainer);
       
       return {
         container,
         titleInput: emojiPicker.titleInput,
-        textArea
+        textArea,
+        tagInput
       };
     };
 
@@ -3043,6 +3370,15 @@
 
     body.appendChild(emojiTitleRowContainer);
 
+    // Tag input for new memo creation
+    const newMemoTagInput = createTagInput([], (tags) => {
+      currentTags = tags;
+      if (!isTitleOnlyMode) {
+        KeyHandler.isNewMemoCreating = true;
+      }
+    });
+    body.appendChild(newMemoTagInput.container);
+
     // Use centralized textarea creation for consistent UI/UX
     const input = createTextarea({
       placeholder: 'テキストを入力...',
@@ -3086,6 +3422,8 @@
       titleInput.value = '';
       input.value = '';
       currentEmoji = '';
+      currentTags = [];
+      newMemoTagInput.setTags([]);
       emojiButton.textContent = '➕';
       KeyHandler.isNewMemoCreating = false;
     };
@@ -3114,7 +3452,7 @@
       }
 
       const now = new Date().toISOString();
-      data.unshift({ title: title, text: value, createdDate: now, updatedDate: now, pinned: false, emoji: currentEmoji });
+      data.unshift({ title: title, text: value, createdDate: now, updatedDate: now, pinned: false, emoji: currentEmoji, tags: currentTags });
       save(data);
       // Use clearFullViewForm to reset state consistently
       clearFullViewForm();
@@ -3216,6 +3554,7 @@
             currentData[originalIndex].title = updatedData.title;
             currentData[originalIndex].text = updatedData.text;
             currentData[originalIndex].emoji = updatedData.emoji;
+            currentData[originalIndex].tags = updatedData.tags || [];
             currentData[originalIndex].updatedDate = new Date().toISOString();
             save(currentData);
             KeyHandler.isEditMode = false;
@@ -3310,7 +3649,8 @@
       visible: false,
       emoji: '',
       title: '',
-      content: ''
+      content: '',
+      tags: []
     };
 
     // Helper function to reset compact form state - ensures consistency
@@ -3320,7 +3660,8 @@
         visible: false,
         emoji: '',
         title: '',
-        content: ''
+        content: '',
+        tags: []
       };
       KeyHandler.isNewMemoCreating = false;
     };
@@ -3385,6 +3726,12 @@
 
       firstRow.appendChild(compactEmojiButton);
       firstRow.appendChild(compactTitleInput);
+
+      // Tag input for compact form
+      const compactTagInput = createTagInput(compactFormState.tags || [], (tags) => {
+        compactFormState.tags = tags;
+      });
+      compactTagInput.container.style.marginBottom = '6px';
 
       // Second row: Compact textarea
       const compactTextarea = createTextarea({
@@ -3554,7 +3901,8 @@
           createdDate: now,
           updatedDate: now,
           pinned: false,
-          emoji: compactFormState.emoji
+          emoji: compactFormState.emoji,
+          tags: compactFormState.tags || []
         });
         
         // Reset form state BEFORE calling save() so renderList() sees the updated state
@@ -3601,6 +3949,7 @@
       firstRowContainer.appendChild(compactEmojiDropdown);
 
       formContainer.appendChild(firstRowContainer);
+      formContainer.appendChild(compactTagInput.container);
       formContainer.appendChild(compactTextarea);
       formContainer.appendChild(buttonRow);
 
