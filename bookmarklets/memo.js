@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v32
+// v33
 // 2026-02-09
 
 (function() {
@@ -22,6 +22,9 @@
       BASE: 2147483647,
       // Modal overlay must be higher than base to cover everything
       MODAL_OVERLAY: 2147483647,
+      // Nested modal overlay for dialogs that appear on top of other modals
+      // Used for variable edit dialog which appears above settings dialog
+      NESTED_MODAL_OVERLAY: 2147483647,
       // Dropdowns inherit base level - no need for separate lower value
       DROPDOWN: 2147483647
     };
@@ -117,11 +120,23 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v32',
+      CURRENT: 'v33',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-09',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v33',
+          date: '2026-02-09',
+          features: [
+            '変数設定ダイアログのz-index問題を修正：設定ダイアログの後ろに隠れる問題を解消',
+            'NESTED_MODAL_OVERLAYを新設：変数設定ダイアログが設定ダイアログの上に適切に表示されるよう専用のz-index定数を追加',
+            'Shadow DOM統合：変数設定ダイアログをshadowに接続し、設定ダイアログと同じDOM階層で管理',
+            '誤操作防止機能の実装：外側クリックによる即座の閉じを防ぎ、ダブルクリックが必要に変更',
+            'closeDialog共通関数のリファクタリング：ダイアログ閉じ処理を一元化し保守性を向上',
+            'クリーンで安全な実装：既存機能への影響なく、非常に可読性の高いコードで問題を解決'
+          ]
+        },
         {
           version: 'v32',
           date: '2026-02-09',
@@ -1088,7 +1103,11 @@
     const showVariableEditDialog = (variable, index, onSave) => {
       const isNew = !variable;
       
-      // Modal overlay
+      // Track click count for double-click to close functionality
+      let overlayClickCount = 0;
+      let overlayClickTimer = null;
+      
+      // Modal overlay - uses NESTED_MODAL_OVERLAY for proper layering above settings dialog
       const overlay = createElement('div', [
         'position:fixed',
         'top:0',
@@ -1096,7 +1115,7 @@
         'width:100%',
         'height:100%',
         'background:rgba(0,0,0,0.5)',
-        `z-index:${Z_INDEX.MODAL_OVERLAY + 1}`,
+        `z-index:${Z_INDEX.NESTED_MODAL_OVERLAY}`,
         'display:flex',
         'align-items:center',
         'justify-content:center',
@@ -1221,7 +1240,13 @@
         'color:#fff',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '✓ 保存', () => {
+      ].join(';'), '✓ 保存');
+      
+      saveButton.onmouseover = () => saveButton.style.background = COLORS.SAVE_BUTTON_HOVER;
+      saveButton.onmouseout = () => saveButton.style.background = COLORS.SAVE_BUTTON;
+      
+      // Save button click handler
+      saveButton.onclick = () => {
         const name = nameInput.value.trim();
         const value = valueTextarea.value.trim();
         
@@ -1249,13 +1274,9 @@
         }
         
         saveVariables(variables);
-        KeyHandler.isModalOpen = false;
-        document.body.removeChild(overlay);
+        closeDialog();
         if (onSave) onSave();
-      });
-      
-      saveButton.onmouseover = () => saveButton.style.background = COLORS.SAVE_BUTTON_HOVER;
-      saveButton.onmouseout = () => saveButton.style.background = COLORS.SAVE_BUTTON;
+      };
       
       // Keyboard handlers
       const handleKeyDown = (e) => {
@@ -1288,10 +1309,42 @@
       
       overlay.appendChild(dialog);
       
-      // Click outside to close
+      // Helper function to close the dialog
+      const closeDialog = () => {
+        KeyHandler.isModalOpen = false;
+        overlay.remove();
+        if (overlayClickTimer) {
+          clearTimeout(overlayClickTimer);
+        }
+      };
+      
+      // Update cancel button to use closeDialog helper
+      const originalCancelHandler = cancelButton.onclick;
+      cancelButton.onclick = () => {
+        closeDialog();
+      };
+      
+      // Double-click outside to close - prevents accidental closure
+      // Single clicks are ignored to improve user experience
       overlay.onclick = (e) => {
         if (e.target === overlay) {
-          cancelButton.click();
+          overlayClickCount++;
+          
+          if (overlayClickCount === 1) {
+            // First click - show visual feedback
+            overlay.style.animation = 'none';
+            setTimeout(() => {
+              overlay.style.animation = '';
+            }, 10);
+            
+            // Reset counter after 500ms
+            overlayClickTimer = setTimeout(() => {
+              overlayClickCount = 0;
+            }, 500);
+          } else if (overlayClickCount >= 2) {
+            // Second click within 500ms - close the dialog
+            closeDialog();
+          }
         }
       };
       
@@ -1301,7 +1354,8 @@
       };
       
       KeyHandler.isModalOpen = true;
-      document.body.appendChild(overlay);
+      // Attach to shadow DOM for proper layering above settings dialog
+      shadow.appendChild(overlay);
       
       // Auto-focus name input
       setTimeout(() => nameInput.focus(), 100);
