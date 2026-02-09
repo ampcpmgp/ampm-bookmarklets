@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v31
-// 2026-02-08
+// v32
+// 2026-02-09
 
 (function() {
   try {
@@ -110,17 +110,34 @@
     // Storage keys
     const KEY = 'my_local_storage_notes';
     const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
+    const VARIABLES_KEY = 'my_local_storage_notes_variables';
     const MAX = 300;
     
     // Centralized version management
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v31',
+      CURRENT: 'v32',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-08',
+      LAST_UPDATED: '2026-02-09',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v32',
+          date: '2026-02-09',
+          features: [
+            '【破壊的変更】select型の選択肢区切り文字をパイプ (|) からカンマ (,) に変更：${select:項目|選択肢1,選択肢2}',
+            'カンマ区切りにより、可読性が向上し、他の一般的なフォーマットとの一貫性を実現',
+            '変数機能を新規実装：設定画面で変数を定義し、${var:変数名}でメモ本文に埋め込み可能',
+            '洗練された変数管理UI：追加・編集・削除が直感的に操作できる専用の設定画面を提供',
+            '変数とテンプレートのシームレス統合：変数は先に解決され、その後テンプレートが処理される',
+            '変数値の自動置換：コピー時に変数が自動的に値に置き換えられ、手動入力不要',
+            '共通処理のリファクタリング：loadVariables, saveVariables, resolveVariables関数を新設し保守性向上',
+            '詳細なドキュメント更新：変数機能の使い方ガイドと実用例を使い方タブに追加',
+            'parseTemplates関数を更新：カンマ区切りの選択肢解析に対応',
+            'コピーフローを改良：変数解決→テンプレート解析→テンプレート入力→最終コピーの流れを実現'
+          ]
+        },
         {
           version: 'v31',
           date: '2026-02-08',
@@ -128,9 +145,9 @@
             'テンプレート機能を大幅強化：text, number, select の3種類のテンプレート型を追加',
             'text型: 自由なテキスト入力フィールド（${text:項目名}）',
             'number型: 数値専用入力フィールド（${number:項目名}）',
-            'select型: ドロップダウン選択メニュー（${select:項目名|選択肢1|選択肢2}）',
+            'select型: ドロップダウン選択メニュー（${select:項目名|選択肢1,選択肢2}）',
             'select型は本物の<select>と<option>タグで実装し、直感的な選択UIを提供',
-            'テンプレートパーサーをリファクタリング：複数の型に対応し、選択肢もパイプ区切りで柔軟に指定可能',
+            'テンプレートパーサーをリファクタリング：複数の型に対応し、選択肢もカンマ区切りで柔軟に指定可能',
             'createInputElement関数を新設：型に応じた適切な入力要素を生成し、コードの可読性と保守性を向上',
             'replaceTemplates関数を改良：テンプレート配列を受け取り、正確なプレースホルダ置換を実現',
             'ドキュメントを全面更新：3つのテンプレート型の詳細な説明と実用的な使用例を追加'
@@ -638,6 +655,47 @@
       renderList(data);
     };
 
+    // Variable management functions
+    const loadVariables = () => {
+      try {
+        const data = JSON.parse(localStorage.getItem(VARIABLES_KEY) || '[]');
+        // Ensure each variable has name and value properties
+        return data.map(item => ({
+          name: item.name || '',
+          value: item.value || ''
+        }));
+      } catch {
+        return [];
+      }
+    };
+
+    const saveVariables = (variables) => {
+      try {
+        localStorage.setItem(VARIABLES_KEY, JSON.stringify(variables));
+      } catch (e) {
+        console.error('Failed to save variables:', e);
+      }
+    };
+
+    /**
+     * Resolve variables in text by replacing ${var:name} with variable values
+     * @param {string} text - Text containing variable placeholders
+     * @returns {string} - Text with variables resolved
+     */
+    const resolveVariables = (text) => {
+      const variables = loadVariables();
+      let result = text;
+      
+      // Replace each variable placeholder with its value
+      variables.forEach(variable => {
+        const placeholder = `\${var:${variable.name}}`;
+        result = result.replaceAll(placeholder, variable.value);
+      });
+      
+      return result;
+    };
+
+
     const createElement = (tag, css = '', text = '', clickHandler) => {
       const element = document.createElement(tag);
       if (css) element.style.cssText = css;
@@ -703,7 +761,7 @@
      * @returns {Array<{type: string, name: string, options: Array<string>, placeholder: string}>} - Array of template placeholders
      */
     const parseTemplates = (text) => {
-      // Match ${type:name} or ${type:name|option1|option2|...}
+      // Match ${type:name} or ${type:name|option1,option2,...}
       const regex = /\$\{(text|number|select):([^}|]+)(?:\|([^}]+))?\}/g;
       const templates = [];
       
@@ -713,9 +771,9 @@
         const name = match[2].trim();
         const optionsStr = match[3];
         
-        // Parse options for select type (pipe-separated values)
+        // Parse options for select type (comma-separated values)
         const options = optionsStr 
-          ? optionsStr.split('|').map(opt => opt.trim()).filter(opt => opt)
+          ? optionsStr.split(',').map(opt => opt.trim()).filter(opt => opt)
           : [];
         
         // Avoid duplicates based on type and name combination
@@ -735,7 +793,7 @@
      * Create appropriate input element based on template type
      * @param {Object} template - Template object with type, name, and options
      * @returns {HTMLElement} - Input element (input, select, etc.)
-     * @note For select type, options are pipe-separated. Literal pipe characters in options are not supported.
+     * @note For select type, options are comma-separated. Literal comma characters in options are not supported.
      */
     const createInputElement = (template) => {
       const commonStyles = [
@@ -1006,7 +1064,7 @@
      * @param {Object} values - Object mapping template names to replacement values
      * @returns {string} - Text with templates replaced
      * @note The templates parameter is required to ensure accurate placeholder replacement using the original placeholder strings,
-     *       which may contain options (e.g., ${select:name|opt1|opt2}) that need exact matching
+     *       which may contain options (e.g., ${select:name|opt1,opt2}) that need exact matching
      */
     const replaceTemplates = (text, templates, values) => {
       let result = text;
@@ -1019,6 +1077,234 @@
       });
       
       return result;
+    };
+
+    /**
+     * Show dialog for adding or editing a variable
+     * @param {Object|null} variable - Variable to edit (null for new variable)
+     * @param {number} index - Index of variable in array (-1 for new variable)
+     * @param {Function} onSave - Callback after save
+     */
+    const showVariableEditDialog = (variable, index, onSave) => {
+      const isNew = !variable;
+      
+      // Modal overlay
+      const overlay = createElement('div', [
+        'position:fixed',
+        'top:0',
+        'left:0',
+        'width:100%',
+        'height:100%',
+        'background:rgba(0,0,0,0.5)',
+        `z-index:${Z_INDEX.MODAL_OVERLAY + 1}`,
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'backdrop-filter:blur(2px)'
+      ].join(';'));
+      
+      // Dialog container
+      const dialog = createElement('div', [
+        'background:#fff',
+        'border-radius:8px',
+        'padding:24px',
+        'min-width:400px',
+        'max-width:600px',
+        'box-shadow:0 8px 32px rgba(0,0,0,0.2)'
+      ].join(';'));
+      
+      // Title
+      const title = createElement('h3', [
+        'margin:0 0 16px 0',
+        'font-size:16px',
+        'font-weight:600',
+        'color:#202124'
+      ].join(';'), isNew ? '➕ 新しい変数を追加' : '✏️ 変数を編集');
+      
+      // Name label
+      const nameLabel = createElement('label', [
+        'display:block',
+        'margin-bottom:6px',
+        'font-size:13px',
+        'font-weight:500',
+        'color:#202124'
+      ].join(';'), '変数名');
+      
+      // Name input
+      const nameInput = createElement('input', [
+        'width:100%',
+        'padding:10px',
+        'border:1px solid #dadce0',
+        'border-radius:4px',
+        'font-size:13px',
+        'box-sizing:border-box',
+        'margin-bottom:16px',
+        'transition:border-color 0.2s'
+      ].join(';'));
+      nameInput.type = 'text';
+      nameInput.placeholder = '例: ユーザー名, メールアドレス';
+      nameInput.value = variable ? variable.name : '';
+      
+      nameInput.onfocus = () => nameInput.style.borderColor = '#1a73e8';
+      nameInput.onblur = () => nameInput.style.borderColor = '#dadce0';
+      
+      // Value label
+      const valueLabel = createElement('label', [
+        'display:block',
+        'margin-bottom:6px',
+        'font-size:13px',
+        'font-weight:500',
+        'color:#202124'
+      ].join(';'), '値');
+      
+      // Value textarea
+      const valueTextarea = createElement('textarea', [
+        'width:100%',
+        'min-height:80px',
+        'padding:10px',
+        'border:1px solid #dadce0',
+        'border-radius:4px',
+        'font-size:13px',
+        'box-sizing:border-box',
+        'margin-bottom:16px',
+        'resize:vertical',
+        'font-family:sans-serif',
+        'transition:border-color 0.2s'
+      ].join(';'));
+      valueTextarea.placeholder = '変数の値を入力...';
+      valueTextarea.value = variable ? variable.value : '';
+      
+      valueTextarea.onfocus = () => valueTextarea.style.borderColor = '#1a73e8';
+      valueTextarea.onblur = () => valueTextarea.style.borderColor = '#dadce0';
+      
+      // Button container
+      const buttonContainer = createElement('div', [
+        'display:flex',
+        'gap:8px',
+        'justify-content:flex-end',
+        'margin-top:20px'
+      ].join(';'));
+      
+      // Cancel button
+      const cancelButton = createElement('button', [
+        'padding:10px 24px',
+        'font-size:13px',
+        'border:1px solid #dadce0',
+        'border-radius:4px',
+        'cursor:pointer',
+        'background:#fff',
+        'color:#202124',
+        'font-weight:500',
+        'transition:all 0.2s'
+      ].join(';'), '✗ キャンセル', () => {
+        KeyHandler.isModalOpen = false;
+        document.body.removeChild(overlay);
+      });
+      
+      cancelButton.onmouseover = () => {
+        cancelButton.style.background = '#f8f9fa';
+        cancelButton.style.borderColor = '#bdc1c6';
+      };
+      cancelButton.onmouseout = () => {
+        cancelButton.style.background = '#fff';
+        cancelButton.style.borderColor = '#dadce0';
+      };
+      
+      // Save button
+      const saveButton = createElement('button', [
+        'padding:10px 24px',
+        'font-size:13px',
+        'border:none',
+        'border-radius:4px',
+        'cursor:pointer',
+        `background:${COLORS.SAVE_BUTTON}`,
+        'color:#fff',
+        'font-weight:500',
+        'transition:background 0.2s'
+      ].join(';'), '✓ 保存', () => {
+        const name = nameInput.value.trim();
+        const value = valueTextarea.value.trim();
+        
+        if (!name) {
+          alert('変数名を入力してください');
+          nameInput.focus();
+          return;
+        }
+        
+        // Check for duplicate variable names (excluding current variable when editing)
+        const variables = loadVariables();
+        const duplicateIndex = variables.findIndex(v => v.name === name);
+        if (duplicateIndex !== -1 && duplicateIndex !== index) {
+          alert(`変数名「${name}」は既に使用されています`);
+          nameInput.focus();
+          return;
+        }
+        
+        if (isNew) {
+          // Add new variable
+          variables.push({ name, value });
+        } else {
+          // Update existing variable
+          variables[index] = { name, value };
+        }
+        
+        saveVariables(variables);
+        KeyHandler.isModalOpen = false;
+        document.body.removeChild(overlay);
+        if (onSave) onSave();
+      });
+      
+      saveButton.onmouseover = () => saveButton.style.background = COLORS.SAVE_BUTTON_HOVER;
+      saveButton.onmouseout = () => saveButton.style.background = COLORS.SAVE_BUTTON;
+      
+      // Keyboard handlers
+      const handleKeyDown = (e) => {
+        if (e.key === KeyHandler.ESC) {
+          e.preventDefault();
+          e.stopPropagation();
+          cancelButton.click();
+          return;
+        }
+        if (KeyHandler.isCtrlEnter(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+          saveButton.click();
+          return;
+        }
+      };
+      
+      nameInput.onkeydown = handleKeyDown;
+      valueTextarea.onkeydown = handleKeyDown;
+      
+      buttonContainer.appendChild(cancelButton);
+      buttonContainer.appendChild(saveButton);
+      
+      dialog.appendChild(title);
+      dialog.appendChild(nameLabel);
+      dialog.appendChild(nameInput);
+      dialog.appendChild(valueLabel);
+      dialog.appendChild(valueTextarea);
+      dialog.appendChild(buttonContainer);
+      
+      overlay.appendChild(dialog);
+      
+      // Click outside to close
+      overlay.onclick = (e) => {
+        if (e.target === overlay) {
+          cancelButton.click();
+        }
+      };
+      
+      // Prevent clicks inside dialog from closing
+      dialog.onclick = (e) => {
+        e.stopPropagation();
+      };
+      
+      KeyHandler.isModalOpen = true;
+      document.body.appendChild(overlay);
+      
+      // Auto-focus name input
+      setTimeout(() => nameInput.focus(), 100);
     };
 
     /**
@@ -1930,14 +2216,14 @@
                 'font-family:monospace',
                 'font-size:12px',
                 'color:#d73a49'
-              ].join(';'), '${select:項目名|選択肢1|選択肢2|選択肢3}');
+              ].join(';'), '${select:項目名|選択肢1,選択肢2,選択肢3}');
               
               const selectTypeDesc = createElement('p', [
                 'margin:0',
                 'color:#5f6368',
                 'font-size:12px',
                 'line-height:1.5'
-              ].join(';'), 'ドロップダウンメニューから選択肢を選べます。パイプ記号 (|) で区切って選択肢を指定します。注意: 選択肢の値にパイプ記号を含めることはできません。');
+              ].join(';'), 'ドロップダウンメニューから選択肢を選べます。カンマ (,) で区切って選択肢を指定します。注意: 選択肢の値にカンマを含めることはできません。');
               
               selectTypeSection.appendChild(selectTypeTitle);
               selectTypeSection.appendChild(selectTypeSyntax);
@@ -1966,7 +2252,7 @@
                 'color:#333',
                 'white-space:pre-wrap',
                 'line-height:1.6'
-              ].join(';'), 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ|曇り|雨}ですね。\n気温は${number:気温}度です。');
+              ].join(';'), 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ,曇り,雨}ですね。\n気温は${number:気温}度です。');
               
               const exampleNote = createElement('p', [
                 'margin:0',
@@ -1986,6 +2272,97 @@
               templateSection.appendChild(exampleNote);
               
               usageContent.appendChild(templateSection);
+              
+              // Variable feature section
+              const variableSection = createElement('div', [
+                'margin-bottom:24px',
+                'padding:16px',
+                'background:#f8f9fa',
+                'border-radius:8px',
+                'border-left:4px solid #34a853'
+              ].join(';'));
+              
+              const variableTitle = createElement('h4', [
+                'margin:0 0 12px 0',
+                'font-size:16px',
+                'font-weight:600',
+                'color:#34a853'
+              ].join(';'), '🔧 変数機能');
+              
+              const variableDesc = createElement('p', [
+                'margin:0 0 12px 0',
+                'color:#333',
+                'font-size:14px',
+                'line-height:1.6'
+              ].join(';'), '変数を定義すると、メモ本文で繰り返し使用できる値を事前に登録できます。変数はテンプレート機能と組み合わせて使用することもできます。');
+              
+              const variableSyntaxTitle = createElement('div', [
+                'margin:0 0 8px 0',
+                'font-weight:600',
+                'color:#333',
+                'font-size:14px'
+              ].join(';'), '📝 変数の使い方:');
+              
+              const variableStepsList = createElement('ol', [
+                'margin:0 0 12px 0',
+                'padding-left:20px',
+                'list-style-type:decimal'
+              ].join(';'));
+              
+              const variableSteps = [
+                '「⚙️ 設定」タブを開き、「➕ 新しい変数を追加」をクリック',
+                '変数名と値を入力して保存',
+                'メモ本文で ${var:変数名} として使用',
+                'コピー時に自動的に変数の値が置き換えられます'
+              ];
+              
+              variableSteps.forEach(step => {
+                const listItem = createElement('li', [
+                  'margin-bottom:8px',
+                  'color:#333',
+                  'font-size:13px',
+                  'line-height:1.5'
+                ].join(';'), step);
+                variableStepsList.appendChild(listItem);
+              });
+              
+              const variableExampleTitle = createElement('div', [
+                'margin:12px 0 8px 0',
+                'font-weight:600',
+                'color:#333',
+                'font-size:14px'
+              ].join(';'), '💡 使用例:');
+              
+              const variableExampleCode = createElement('code', [
+                'display:block',
+                'margin:0 0 8px 0',
+                'padding:12px',
+                'background:#fff',
+                'border:1px solid #e0e0e0',
+                'border-radius:4px',
+                'font-family:monospace',
+                'font-size:13px',
+                'color:#333',
+                'white-space:pre-wrap',
+                'line-height:1.6'
+              ].join(';'), '変数設定:\n・ユーザー名 → 山田太郎\n・メール → taro@example.com\n\nメモ本文:\nお名前: ${var:ユーザー名}\n連絡先: ${var:メール}');
+              
+              const variableExampleNote = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:13px',
+                'line-height:1.5'
+              ].join(';'), '💬 変数とテンプレートを組み合わせることで、さらに柔軟なメモ作成が可能です。変数は設定で一度定義すれば、すべてのメモで使用できます。');
+              
+              variableSection.appendChild(variableTitle);
+              variableSection.appendChild(variableDesc);
+              variableSection.appendChild(variableSyntaxTitle);
+              variableSection.appendChild(variableStepsList);
+              variableSection.appendChild(variableExampleTitle);
+              variableSection.appendChild(variableExampleCode);
+              variableSection.appendChild(variableExampleNote);
+              
+              usageContent.appendChild(variableSection);
               
               // Tips section
               const tipsSection = createElement('div', [
@@ -2008,7 +2385,7 @@
               const tips = [
                 'テンプレートがない場合は、通常通りメモ本文がそのままコピーされます',
                 '同じ項目名と型は複数回使用できます（例: ${text:名前} を2箇所）',
-                'select型では選択肢をパイプ (|) で区切って指定します',
+                'select型では選択肢をカンマ (,) で区切って指定します',
                 '入力フォームではESCキーでキャンセル、Ctrl+Enterで送信できます',
                 'ピン留め機能でよく使うテンプレートを上部に固定できます'
               ];
@@ -2033,7 +2410,7 @@
           {
             label: '⚙️ 設定',
             content: (container) => {
-              // Settings tab content (placeholder for future settings)
+              // Settings tab content - Variable management
               const settingsContent = createElement('div', [
                 'font-size:14px',
                 'line-height:1.8',
@@ -2045,16 +2422,171 @@
                 'font-size:16px',
                 'font-weight:600',
                 'color:#333'
-              ].join(';'), '設定項目');
+              ].join(';'), '🔧 変数設定');
               
-              const settingsText = createElement('p', [
-                'margin:0',
+              const settingsDesc = createElement('p', [
+                'margin:0 0 20px 0',
                 'color:#5f6368',
-                'font-size:14px'
-              ].join(';'), '今後の設定項目がここに追加されます。');
+                'font-size:14px',
+                'line-height:1.6'
+              ].join(';'), '変数を定義すると、メモ本文で ${var:変数名} として使用できます。コピー時に自動的に値が置き換えられます。');
               
               settingsContent.appendChild(settingsTitle);
-              settingsContent.appendChild(settingsText);
+              settingsContent.appendChild(settingsDesc);
+              
+              // Variable list container
+              const variableListContainer = createElement('div', [
+                'margin-bottom:20px'
+              ].join(';'));
+              
+              // Function to render variable list
+              const renderVariableList = () => {
+                variableListContainer.innerHTML = '';
+                const variables = loadVariables();
+                
+                if (variables.length === 0) {
+                  const emptyMessage = createElement('p', [
+                    'color:#9aa0a6',
+                    'font-size:13px',
+                    'text-align:center',
+                    'padding:20px',
+                    'background:#f8f9fa',
+                    'border-radius:4px',
+                    'margin:0'
+                  ].join(';'), '変数が登録されていません');
+                  variableListContainer.appendChild(emptyMessage);
+                  return;
+                }
+                
+                // Create variable list
+                const varList = createElement('div', [
+                  'display:flex',
+                  'flex-direction:column',
+                  'gap:8px'
+                ].join(';'));
+                
+                variables.forEach((variable, index) => {
+                  const varItem = createElement('div', [
+                    'display:flex',
+                    'align-items:center',
+                    'gap:8px',
+                    'padding:12px',
+                    'background:#f8f9fa',
+                    'border-radius:4px',
+                    'border:1px solid #e8eaed'
+                  ].join(';'));
+                  
+                  // Variable name display
+                  const varName = createElement('div', [
+                    'flex:1',
+                    'font-family:monospace',
+                    'font-size:13px',
+                    'color:#1a73e8',
+                    'font-weight:500',
+                    'word-break:break-word'
+                  ].join(';'), `\${var:${variable.name}}`);
+                  
+                  // Variable value display
+                  const varValue = createElement('div', [
+                    'flex:2',
+                    'font-size:13px',
+                    'color:#333',
+                    'overflow:hidden',
+                    'text-overflow:ellipsis',
+                    'white-space:nowrap'
+                  ].join(';'), variable.value || '(空)');
+                  
+                  // Edit button
+                  const editBtn = createElement('button', [
+                    'padding:6px 12px',
+                    'font-size:12px',
+                    'border:1px solid #dadce0',
+                    'border-radius:4px',
+                    'cursor:pointer',
+                    'background:#fff',
+                    'color:#202124',
+                    'flex-shrink:0',
+                    'transition:all 0.2s'
+                  ].join(';'), '✏️ 編集', () => {
+                    showVariableEditDialog(variable, index, renderVariableList);
+                  });
+                  
+                  editBtn.onmouseover = () => {
+                    editBtn.style.background = '#f8f9fa';
+                    editBtn.style.borderColor = '#bdc1c6';
+                  };
+                  editBtn.onmouseout = () => {
+                    editBtn.style.background = '#fff';
+                    editBtn.style.borderColor = '#dadce0';
+                  };
+                  
+                  // Delete button
+                  const deleteBtn = createElement('button', [
+                    'padding:6px 12px',
+                    'font-size:12px',
+                    'border:none',
+                    'border-radius:4px',
+                    'cursor:pointer',
+                    'background:#ea4335',
+                    'color:#fff',
+                    'flex-shrink:0',
+                    'transition:background 0.2s'
+                  ].join(';'), '🗑️', () => {
+                    if (confirm(`変数「${variable.name}」を削除しますか？`)) {
+                      const vars = loadVariables();
+                      vars.splice(index, 1);
+                      saveVariables(vars);
+                      renderVariableList();
+                    }
+                  });
+                  
+                  deleteBtn.onmouseover = () => deleteBtn.style.background = '#d33828';
+                  deleteBtn.onmouseout = () => deleteBtn.style.background = '#ea4335';
+                  
+                  varItem.appendChild(varName);
+                  varItem.appendChild(varValue);
+                  varItem.appendChild(editBtn);
+                  varItem.appendChild(deleteBtn);
+                  varList.appendChild(varItem);
+                });
+                
+                variableListContainer.appendChild(varList);
+              };
+              
+              // Add new variable button
+              const addButton = createElement('button', [
+                'width:100%',
+                'padding:10px',
+                'font-size:13px',
+                'border:1px dashed #dadce0',
+                'border-radius:4px',
+                'cursor:pointer',
+                'background:#fff',
+                'color:#202124',
+                'font-weight:500',
+                'margin-bottom:16px',
+                'transition:all 0.2s'
+              ].join(';'), '➕ 新しい変数を追加', () => {
+                showVariableEditDialog(null, -1, renderVariableList);
+              });
+              
+              addButton.onmouseover = () => {
+                addButton.style.background = '#f8f9fa';
+                addButton.style.borderColor = '#1a73e8';
+                addButton.style.borderStyle = 'solid';
+              };
+              addButton.onmouseout = () => {
+                addButton.style.background = '#fff';
+                addButton.style.borderColor = '#dadce0';
+                addButton.style.borderStyle = 'dashed';
+              };
+              
+              settingsContent.appendChild(addButton);
+              settingsContent.appendChild(variableListContainer);
+              
+              // Initial render
+              renderVariableList();
+              
               container.appendChild(settingsContent);
             }
           },
@@ -2569,10 +3101,11 @@
         'background:#34a853',
         'color:#fff'
       ].join(';'), isCompactMode ? '📋' : 'Copy', () => {
-        const copyText = item.text;
+        // Resolve variables first, then check for templates
+        const resolvedText = resolveVariables(item.text);
         
-        // Check for template placeholders
-        const templates = parseTemplates(copyText);
+        // Check for template placeholders in resolved text
+        const templates = parseTemplates(resolvedText);
         
         if (templates.length > 0) {
           // Show template form dialog
@@ -2580,7 +3113,7 @@
           
           const formDialog = createTemplateForm(templates, (values) => {
             // Replace templates and copy
-            const finalText = replaceTemplates(copyText, templates, values);
+            const finalText = replaceTemplates(resolvedText, templates, values);
             navigator.clipboard.writeText(finalText).then(() => {
               KeyHandler.isModalOpen = false;
               document.body.removeChild(formDialog.overlay);
@@ -2594,8 +3127,8 @@
           
           document.body.appendChild(formDialog.overlay);
         } else {
-          // No templates - direct copy
-          navigator.clipboard.writeText(copyText).then(() => {
+          // No templates - direct copy with resolved variables
+          navigator.clipboard.writeText(resolvedText).then(() => {
             close();
           });
         }
