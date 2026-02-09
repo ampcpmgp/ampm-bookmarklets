@@ -1489,6 +1489,12 @@
        * @returns {Function} ESC key handler to be attached to document
        */
       registerDropdown(dropdown) {
+        // Check if dropdown is already registered to prevent duplicates
+        const isAlreadyRegistered = this.dropdownStack.some(d => d.element === dropdown.element);
+        if (isAlreadyRegistered) {
+          return null;
+        }
+        
         const escapeHandler = (e) => {
           if (e.key === KeyHandler.ESC) {
             // Only handle if this is the topmost dropdown
@@ -2205,7 +2211,7 @@
           return;
         }
         
-        // Limit to 10 tags to prevent performance issues and maintain good UX
+        // Limit display to 10 tags for better UX and scrollable dropdown
         matchedTags.slice(0, 10).forEach(tag => {
           const item = createElement('div', [
             'padding:8px 12px',
@@ -2225,14 +2231,11 @@
           autocompleteDropdown.appendChild(item);
         });
         
-        // Register dropdown with DropdownManager if not already registered
-        const isRegistered = DropdownManager.dropdownStack.some(d => d.element === autocompleteDropdown);
-        if (!isRegistered) {
-          DropdownManager.registerDropdown({
-            element: autocompleteDropdown,
-            onClose: () => closeDropdown(true) // Clear input when closed via ESC
-          });
-        }
+        // Register dropdown with DropdownManager (it will prevent duplicates)
+        DropdownManager.registerDropdown({
+          element: autocompleteDropdown,
+          onClose: () => closeDropdown(true) // Clear input when closed via ESC
+        });
         
         autocompleteDropdown.style.display = 'block';
       };
