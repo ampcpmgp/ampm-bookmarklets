@@ -321,18 +321,26 @@
       // Must start with { or [ like JSON
       if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
       
-      // Check for comment patterns: // or /* */
-      const hasComments = /\/\/|\/\*|\*\//.test(trimmed);
-      if (!hasComments) return false;
-      
-      // Try to parse as JSON - if it fails, it might be JSONC
+      // Try to parse as JSON first
       try {
         JSON.parse(trimmed);
         return false; // Valid JSON without comments
       } catch (e) {
-        // Failed to parse as JSON, likely has comments
-        // Verify it looks like JSON structure with comments
-        return true;
+        // Failed to parse as JSON
+        // Check for comment patterns that suggest JSONC
+        // Look for // at start of line or after whitespace (not in strings)
+        // Look for /* */ style comments
+        const hasLineComments = /^\s*\/\/|[\n\r]\s*\/\//.test(trimmed);
+        const hasBlockComments = /\/\*[\s\S]*?\*\//.test(trimmed);
+        
+        // If has comments and looks like JSON structure, it's likely JSONC
+        if (hasLineComments || hasBlockComments) {
+          // Additional check: should have typical JSON structure markers
+          const hasJsonStructure = /[{\[\]},"]/.test(trimmed);
+          return hasJsonStructure;
+        }
+        
+        return false;
       }
     }
 
@@ -345,7 +353,7 @@
       const hasCodeBlock = /```/.test(str);
       if (!hasCodeBlock) return false;
       
-      // Must contain markdown headings (##) or be multi-line
+      // Must contain markdown headings (##)
       const hasMarkdownStructure = /^#{1,6}\s+/m.test(str);
       
       return hasMarkdownStructure;
@@ -457,10 +465,7 @@
           // String contains markdown with code blocks - render as-is without escaping
           // The code block will be processed by the markdown renderer
           const lines = data.split('\n');
-          lines.forEach(line => {
-            markdown += `${indent}${line}\n`;
-          });
-          return markdown;
+          return lines.map(line => `${indent}${line}`).join('\n') + '\n';
         }
         
         // Priority 2: Check if the string is JSONC (JSON with comments)
