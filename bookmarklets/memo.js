@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v37
+// v38
 // 2026-02-09
 
 (function() {
@@ -115,17 +115,29 @@
     const VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const VARIABLES_KEY = 'my_local_storage_notes_variables';
     const TAGS_KEY = 'my_local_storage_notes_tags';
+    const TAG_FILTER_KEY = 'my_local_storage_notes_tag_filter';
     const MAX = 300;
     
     // Centralized version management
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v37',
+      CURRENT: 'v38',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-09',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v38',
+          date: '2026-02-09',
+          features: [
+            'タグフィルタドロップダウンの幅問題を解決：min-width: 200pxを設定し、ボタン幅に制約されず操作しやすく改善',
+            'タグフィルタの永続化を実装：選択したフィルタ状態をlocalStorageに保存し、次回起動時も維持',
+            'フィルタ状態管理の共通化：saveTagFilter/loadTagFilter関数を追加し、保守性を向上',
+            '初期化時の自動ロード：ブックマークレット起動時に前回のフィルタ状態を自動復元',
+            '非常にクリーンな実装：可読性とメンテナンス性を最大限に考慮した安全な実装'
+          ]
+        },
         {
           version: 'v37',
           date: '2026-02-09',
@@ -797,6 +809,38 @@
     };
 
     /**
+     * Save tag filter state to localStorage
+     * @param {Array<string>} filters - Array of tag names to filter by
+     */
+    const saveTagFilter = (filters) => {
+      try {
+        localStorage.setItem(TAG_FILTER_KEY, JSON.stringify(filters));
+      } catch (e) {
+        console.error('Failed to save tag filter:', e);
+      }
+    };
+
+    /**
+     * Load tag filter state from localStorage
+     * @returns {Array<string>} - Array of tag names to filter by
+     */
+    const loadTagFilter = () => {
+      try {
+        const saved = localStorage.getItem(TAG_FILTER_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          // Validate that it's an array
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load tag filter:', e);
+      }
+      return [];
+    };
+
+    /**
      * Fuzzy search for tags matching the input query
      * @param {string} query - Search query
      * @param {Array<string>} tags - Array of tags to search
@@ -855,8 +899,8 @@
       save(data);
     };
 
-    // Track current tag filter state
-    let currentTagFilter = [];
+    // Track current tag filter state - load from localStorage
+    let currentTagFilter = loadTagFilter();
 
 
     const createElement = (tag, css = '', text = '', clickHandler) => {
@@ -2658,7 +2702,7 @@
       'position:absolute',
       'top:100%',
       'left:0',
-      'right:0',
+      'min-width:200px',
       'background:#fff',
       'border:1px solid #ddd',
       'border-radius:4px',
@@ -2700,6 +2744,7 @@
           'transition:background 0.2s'
         ].join(';'), `✕ フィルタをクリア (${currentTagFilter.length}件選択中)`, () => {
           currentTagFilter = [];
+          saveTagFilter(currentTagFilter);
           tagFilterButton.style.background = '#9c27b0';
           renderTagFilterDropdown();
           renderList(load());
@@ -2732,6 +2777,9 @@
           } else {
             currentTagFilter.push(tag);
           }
+          
+          // Save filter state to localStorage
+          saveTagFilter(currentTagFilter);
           
           // Update button style based on filter state
           tagFilterButton.style.background = currentTagFilter.length > 0 ? '#7b1fa2' : '#9c27b0';
@@ -2779,6 +2827,11 @@
     tagFilterContainer.appendChild(tagFilterButton);
     tagFilterContainer.appendChild(tagFilterDropdown);
     buttonRow.appendChild(tagFilterContainer);
+    
+    // Set initial button style based on loaded filter state
+    if (currentTagFilter.length > 0) {
+      tagFilterButton.style.background = '#7b1fa2';
+    }
     
     // Close dropdown when clicking outside
     document.addEventListener('click', (e) => {
