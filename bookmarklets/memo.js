@@ -2507,6 +2507,7 @@
       // Hide/show input fields based on mode
       if (isTitleOnlyMode) {
         emojiTitleRowContainer.style.display = 'none';
+        newMemoTagInput.container.style.display = 'none';
         input.style.display = 'none';
         saveButton.style.display = 'none';
         // When entering list view, just reset the flag but preserve compactFormState
@@ -2514,6 +2515,7 @@
         KeyHandler.isNewMemoCreating = false;
       } else {
         emojiTitleRowContainer.style.display = 'block';
+        newMemoTagInput.container.style.display = 'block';
         input.style.display = 'block';
         saveButton.style.display = 'block';
         // When switching to full view, completely reset compact form state
@@ -4538,6 +4540,7 @@
               
               // Show input fields
               emojiTitleRowContainer.style.display = 'block';
+              newMemoTagInput.container.style.display = 'block';
               input.style.display = 'block';
               saveButton.style.display = 'block';
               
@@ -4777,6 +4780,7 @@
     // Apply saved view mode on initial load
     if (isTitleOnlyMode) {
       emojiTitleRowContainer.style.display = 'none';
+      newMemoTagInput.container.style.display = 'none';
       input.style.display = 'none';
       saveButton.style.display = 'none';
     }
