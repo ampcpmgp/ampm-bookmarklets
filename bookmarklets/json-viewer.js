@@ -336,8 +336,8 @@
         //   - NOT followed by another slash (to exclude https://)
         const hasLineComments = /(?:^|\n)\s*\/\/(?!\/)/.test(trimmed);
         
-        // Look for /* */ style comments (optimized pattern)
-        const hasBlockComments = /\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//.test(trimmed);
+        // Look for /* */ style comments (non-greedy match)
+        const hasBlockComments = /\/\*[\s\S]*?\*\//.test(trimmed);
         
         // If has comments and looks like JSON structure, it's likely JSONC
         if (hasLineComments || hasBlockComments) {
