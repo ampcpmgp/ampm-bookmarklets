@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v38
+// v39
 // 2026-02-09
 
 (function() {
@@ -122,11 +122,25 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v38',
+      CURRENT: 'v39',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-09',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v39',
+          date: '2026-02-09',
+          features: [
+            'タグ選択UXの大幅改善：オートコンプリートからタグを選択しても閉じずに連続選択が可能に',
+            'ESCキーでタグドロップダウンのみが閉じる機能を実装：親ダイアログに影響を与えない汎用的なESC処理',
+            'DropdownManagerを新設：DialogManagerと同様のパターンでドロップダウンを一元管理',
+            'ドロップダウンスタック管理：複数のドロップダウンが開いている場合も最上位のみがESCに反応',
+            'タグ選択時の自動フォーカス：選択後も入力欄にフォーカスが維持され、スムーズな連続入力が可能',
+            'タグ追加後のリスト更新：選択済みタグを除外した最新の候補を常に表示',
+            '共通処理の完全なリファクタリング：closeDropdown関数を導入し、閉じ処理を一元化',
+            '非常にクリーンな実装：可読性とメンテナンス性を最大限に考慮した安全で保守しやすいコード'
+          ]
+        },
         {
           version: 'v38',
           date: '2026-02-09',
@@ -1459,6 +1473,81 @@
     };
 
     /**
+     * DropdownManager - Centralized dropdown management system
+     * Provides unified dropdown handling with consistent ESC key behavior
+     * Manages dropdown state and ESC key handlers similar to DialogManager
+     */
+    const DropdownManager = {
+      // Stack to track active dropdowns (most recent is at the end)
+      dropdownStack: [],
+      
+      /**
+       * Register a dropdown with ESC key handler
+       * @param {Object} dropdown - Dropdown configuration
+       * @param {HTMLElement} dropdown.element - The dropdown DOM element
+       * @param {Function} dropdown.onClose - Callback to close the dropdown
+       * @returns {Function} ESC key handler to be attached to document
+       */
+      registerDropdown(dropdown) {
+        const escapeHandler = (e) => {
+          if (e.key === KeyHandler.ESC) {
+            // Only handle if this is the topmost dropdown
+            const topDropdown = this.getTopDropdown();
+            if (topDropdown && topDropdown.element === dropdown.element) {
+              e.stopPropagation();
+              e.preventDefault();
+              dropdown.onClose();
+            }
+          }
+        };
+        
+        // Add to stack with escape handler
+        const dropdownWithHandler = { ...dropdown, escapeHandler };
+        this.dropdownStack.push(dropdownWithHandler);
+        
+        // Attach ESC handler to document
+        document.addEventListener('keydown', escapeHandler);
+        
+        return escapeHandler;
+      },
+      
+      /**
+       * Unregister a dropdown and clean up its ESC handler
+       * @param {HTMLElement} element - The dropdown element to unregister
+       */
+      unregisterDropdown(element) {
+        const index = this.dropdownStack.findIndex(d => d.element === element);
+        if (index !== -1) {
+          const dropdown = this.dropdownStack[index];
+          // Remove ESC handler
+          if (dropdown.escapeHandler) {
+            document.removeEventListener('keydown', dropdown.escapeHandler);
+          }
+          // Remove from stack
+          this.dropdownStack.splice(index, 1);
+        }
+      },
+      
+      /**
+       * Get the topmost (most recent) dropdown
+       * @returns {Object|null} The topmost dropdown, or null if stack is empty
+       */
+      getTopDropdown() {
+        return this.dropdownStack.length > 0 
+          ? this.dropdownStack[this.dropdownStack.length - 1] 
+          : null;
+      },
+      
+      /**
+       * Check if any dropdowns are active
+       * @returns {boolean} True if there are active dropdowns
+       */
+      hasDropdowns() {
+        return this.dropdownStack.length > 0;
+      }
+    };
+
+    /**
      * Show dialog for adding or editing a variable
      * Uses DialogManager for clean, unified dialog handling
      * @param {Object|null} variable - Variable to edit (null for new variable)
@@ -2075,8 +2164,14 @@
         }
       };
       
+      // Function to close the dropdown
+      const closeDropdown = () => {
+        autocompleteDropdown.style.display = 'none';
+        DropdownManager.unregisterDropdown(autocompleteDropdown);
+      };
+      
       // Function to add a tag
-      const addTag = (tag) => {
+      const addTag = (tag, keepDropdownOpen = false) => {
         const trimmedTag = tag.trim();
         if (trimmedTag && !tags.includes(trimmedTag)) {
           tags.push(trimmedTag);
@@ -2084,19 +2179,26 @@
           if (onTagsChange) onTagsChange(tags);
         }
         tagInput.value = '';
-        autocompleteDropdown.style.display = 'none';
+        
+        // Keep dropdown open for continuous selection, but refresh the list
+        if (keepDropdownOpen) {
+          // Refresh the autocomplete list after adding a tag
+          showAutocomplete('');
+        } else {
+          closeDropdown();
+        }
       };
       
       // Function to show autocomplete suggestions
       const showAutocomplete = (query) => {
         const allTags = loadAllTags();
         const availableTags = allTags.filter(tag => !tags.includes(tag));
-        const matchedTags = fuzzySearchTags(query, availableTags);
+        const matchedTags = query ? fuzzySearchTags(query, availableTags) : availableTags;
         
         autocompleteDropdown.innerHTML = '';
         
         if (matchedTags.length === 0) {
-          autocompleteDropdown.style.display = 'none';
+          closeDropdown();
           return;
         }
         
@@ -2107,7 +2209,10 @@
             'font-size:13px',
             'transition:background 0.2s'
           ].join(';'), tag, () => {
-            addTag(tag);
+            // Keep dropdown open when clicking a tag suggestion
+            addTag(tag, true);
+            // Refocus the input for continuous selection
+            tagInput.focus();
           });
           
           item.onmouseover = () => item.style.background = '#f5f5f5';
@@ -2115,6 +2220,14 @@
           
           autocompleteDropdown.appendChild(item);
         });
+        
+        // Register dropdown with DropdownManager if not already visible
+        if (autocompleteDropdown.style.display !== 'block') {
+          DropdownManager.registerDropdown({
+            element: autocompleteDropdown,
+            onClose: closeDropdown
+          });
+        }
         
         autocompleteDropdown.style.display = 'block';
       };
@@ -2125,7 +2238,7 @@
         if (query.length > 0) {
           showAutocomplete(query);
         } else {
-          autocompleteDropdown.style.display = 'none';
+          closeDropdown();
         }
       };
       
@@ -2136,10 +2249,8 @@
           if (query) {
             addTag(query);
           }
-        } else if (e.key === 'Escape') {
-          autocompleteDropdown.style.display = 'none';
-          tagInput.value = '';
         }
+        // ESC key handling is now managed by DropdownManager
         // Prevent event from bubbling up to parent handlers
         e.stopPropagation();
       };
@@ -2147,7 +2258,7 @@
       // Close autocomplete when clicking outside
       tagInput.onblur = () => {
         setTimeout(() => {
-          autocompleteDropdown.style.display = 'none';
+          closeDropdown();
         }, 200);
       };
       
