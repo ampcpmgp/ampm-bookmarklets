@@ -73,11 +73,13 @@
             '✨ マークダウン内の完全なコードブロック（例：世界観データ）を適切に表示する機能を追加',
             '✨ JSONC（コメント付きJSON）を自動検出しコードブロックとして表示する機能を追加',
             '新規ヘルパー関数isJSONCを実装：JSON内のコメント（//や/* */）を検出',
-            '新規ヘルパー関数detectCompleteCodeBlockを実装：文字列内の完全なコードブロックを検出',
-            '文字列処理の優先順位を最適化：コードブロック含むマークダウン > JSONC > 通常のJSON > 複数行テキスト',
+            '新規ヘルパー関数isMarkdownWithCodeBlocksを実装：マークダウン構造とコードブロックの両方を含む文字列を検出',
+            '文字列処理の優先順位を最適化：マークダウン+コードブロック > JSONC > 通常のJSON > 複数行テキスト',
             '共通処理をリファクタリング：検出ロジックを段階的に分離し可読性を向上',
+            'マークダウンヘディング（##）とコードブロック（```）を含む文字列は、マークダウンとしてレンダリング',
             'jsonTemplateフィールドなどのJSONCデータが適切にコードブロックで表示される',
             'instructionフィールド内の世界観セクションのコードブロックが保持される',
+            '安全性を考慮した保守的な実装：ヘディングとコードブロックの両方が存在する場合のみマークダウンとして処理',
             '非常にクリーンで安全な実装：既存機能に影響なく確実に機能追加',
             'メンテナンス性の高いコード構造を維持'
           ]
@@ -334,25 +336,19 @@
       }
     }
 
-    // Check if a string contains a complete code block with specific content
-    // Returns the matched code block info if found, null otherwise
-    function detectCompleteCodeBlock(str) {
-      if (typeof str !== 'string') return null;
+    // Check if a string contains markdown content with code blocks
+    // Returns true if the string has both markdown structure (headings) and code blocks
+    function isMarkdownWithCodeBlocks(str) {
+      if (typeof str !== 'string') return false;
       
-      // Pattern to match a complete code block with optional language specifier
-      // Matches: ```[language]\n[content]\n```
-      const codeBlockPattern = /```(\w*)\n([\s\S]*?)```/;
-      const match = str.match(codeBlockPattern);
+      // Must contain a code block
+      const hasCodeBlock = /```/.test(str);
+      if (!hasCodeBlock) return false;
       
-      if (match) {
-        return {
-          language: match[1] || '',
-          content: match[2],
-          fullMatch: match[0]
-        };
-      }
+      // Must contain markdown headings (##) or be multi-line
+      const hasMarkdownStructure = /^#{1,6}\s+/m.test(str);
       
-      return null;
+      return hasMarkdownStructure;
     }
 
     // Format JSON string for code block display
@@ -457,13 +453,12 @@
         // Priority 1: Check if string contains markdown with complete code blocks
         // (e.g., "## 世界観\n\n```json\n...\n```")
         // If found, preserve the markdown structure including the code block
-        const codeBlockInfo = detectCompleteCodeBlock(data);
-        if (codeBlockInfo && data.includes('\n')) {
-          // String contains a complete code block - render as markdown text
+        if (isMarkdownWithCodeBlocks(data)) {
+          // String contains markdown with code blocks - render as-is without escaping
           // The code block will be processed by the markdown renderer
           const lines = data.split('\n');
           lines.forEach(line => {
-            markdown += `${indent}${escapeMarkdown(line)}\n`;
+            markdown += `${indent}${line}\n`;
           });
           return markdown;
         }
