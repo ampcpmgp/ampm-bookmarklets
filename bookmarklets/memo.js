@@ -1497,9 +1497,12 @@
         'margin-top:20px'
       ].join(';'));
       
+      // Forward declaration for escapeHandler (will be defined below)
+      let escapeHandler;
+      
       // Helper function to close the dialog - using DialogManager
       const clickHandler = DialogManager.createOverlayClickHandler(() => {
-        DialogManager.closeDialog({ overlay, clickHandler });
+        DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
       });
       
       // Cancel button
@@ -1576,7 +1579,7 @@
       };
       
       // Keyboard handlers - using DialogManager for clean ESC/Ctrl+Enter handling
-      const escapeHandler = DialogManager.createEscapeHandler(() => {
+      escapeHandler = DialogManager.createEscapeHandler(() => {
         cancelButton.click();
       });
       const ctrlEnterHandler = DialogManager.createCtrlEnterHandler(() => {
