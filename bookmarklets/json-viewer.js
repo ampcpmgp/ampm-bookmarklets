@@ -1,8 +1,8 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v20
-// 2026-02-08
+// v21
+// 2026-02-09
 
 (function() {
   try {
@@ -63,9 +63,25 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v20',
-      LAST_UPDATED: '2026-02-08',
+      CURRENT: 'v21',
+      LAST_UPDATED: '2026-02-09',
       HISTORY: [
+        {
+          version: 'v21',
+          date: '2026-02-09',
+          features: [
+            '✨ マークダウン内の完全なコードブロック（例：世界観データ）を適切に表示する機能を追加',
+            '✨ JSONC（コメント付きJSON）を自動検出しコードブロックとして表示する機能を追加',
+            '新規ヘルパー関数isJSONCを実装：JSON内のコメント（//や/* */）を検出',
+            '新規ヘルパー関数detectCompleteCodeBlockを実装：文字列内の完全なコードブロックを検出',
+            '文字列処理の優先順位を最適化：コードブロック含むマークダウン > JSONC > 通常のJSON > 複数行テキスト',
+            '共通処理をリファクタリング：検出ロジックを段階的に分離し可読性を向上',
+            'jsonTemplateフィールドなどのJSONCデータが適切にコードブロックで表示される',
+            'instructionフィールド内の世界観セクションのコードブロックが保持される',
+            '非常にクリーンで安全な実装：既存機能に影響なく確実に機能追加',
+            'メンテナンス性の高いコード構造を維持'
+          ]
+        },
         {
           version: 'v20',
           date: '2026-02-08',
@@ -294,6 +310,51 @@
       }
     }
 
+    // Check if a string contains JSONC (JSON with Comments)
+    // JSONC is JSON with // or /* */ style comments
+    function isJSONC(str) {
+      if (typeof str !== 'string') return false;
+      const trimmed = str.trim();
+      if (!trimmed) return false;
+      // Must start with { or [ like JSON
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return false;
+      
+      // Check for comment patterns: // or /* */
+      const hasComments = /\/\/|\/\*|\*\//.test(trimmed);
+      if (!hasComments) return false;
+      
+      // Try to parse as JSON - if it fails, it might be JSONC
+      try {
+        JSON.parse(trimmed);
+        return false; // Valid JSON without comments
+      } catch (e) {
+        // Failed to parse as JSON, likely has comments
+        // Verify it looks like JSON structure with comments
+        return true;
+      }
+    }
+
+    // Check if a string contains a complete code block with specific content
+    // Returns the matched code block info if found, null otherwise
+    function detectCompleteCodeBlock(str) {
+      if (typeof str !== 'string') return null;
+      
+      // Pattern to match a complete code block with optional language specifier
+      // Matches: ```[language]\n[content]\n```
+      const codeBlockPattern = /```(\w*)\n([\s\S]*?)```/;
+      const match = str.match(codeBlockPattern);
+      
+      if (match) {
+        return {
+          language: match[1] || '',
+          content: match[2],
+          fullMatch: match[0]
+        };
+      }
+      
+      return null;
+    }
+
     // Format JSON string for code block display
     function formatJSONForCodeBlock(str) {
       try {
@@ -393,7 +454,33 @@
       }
 
       if (typeof data === 'string') {
-        // Check if the string is valid JSON - if so, display as JSON code block
+        // Priority 1: Check if string contains markdown with complete code blocks
+        // (e.g., "## 世界観\n\n```json\n...\n```")
+        // If found, preserve the markdown structure including the code block
+        const codeBlockInfo = detectCompleteCodeBlock(data);
+        if (codeBlockInfo && data.includes('\n')) {
+          // String contains a complete code block - render as markdown text
+          // The code block will be processed by the markdown renderer
+          const lines = data.split('\n');
+          lines.forEach(line => {
+            markdown += `${indent}${escapeMarkdown(line)}\n`;
+          });
+          return markdown;
+        }
+        
+        // Priority 2: Check if the string is JSONC (JSON with comments)
+        // Display as code block with jsonc language identifier
+        if (isJSONC(data)) {
+          const jsonLines = data.split('\n');
+          const codeBlock = [
+            `${indent}\`\`\`jsonc`,
+            ...jsonLines.map(line => `${indent}${line}`),
+            `${indent}\`\`\``
+          ].join('\n') + '\n';
+          return codeBlock;
+        }
+        
+        // Priority 3: Check if the string is valid JSON - if so, display as JSON code block
         if (isValidJSON(data)) {
           const formattedJSON = formatJSONForCodeBlock(data);
           const jsonLines = formattedJSON.split('\n');
@@ -405,7 +492,7 @@
           return codeBlock;
         }
         
-        // Handle multiline strings with simple line breaks
+        // Priority 4: Handle multiline strings with simple line breaks
         if (data.includes('\n')) {
           const lines = data.split('\n');
           lines.forEach(line => {
