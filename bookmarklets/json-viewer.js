@@ -328,10 +328,16 @@
       } catch (e) {
         // Failed to parse as JSON
         // Check for comment patterns that suggest JSONC
-        // Look for // at start of line or after whitespace (not in strings)
-        // Look for /* */ style comments
-        const hasLineComments = /^\s*\/\/|[\n\r]\s*\/\//.test(trimmed);
-        const hasBlockComments = /\/\*[\s\S]*?\*\//.test(trimmed);
+        // Look for // at start of line or after newline (not URLs with //)
+        // Pattern explanation: (?:^|\n)\s*\/\/(?!\/) matches:
+        //   - Start of string or newline
+        //   - Optional whitespace
+        //   - Two slashes
+        //   - NOT followed by another slash (to exclude https://)
+        const hasLineComments = /(?:^|\n)\s*\/\/(?!\/)/.test(trimmed);
+        
+        // Look for /* */ style comments (optimized pattern)
+        const hasBlockComments = /\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//.test(trimmed);
         
         // If has comments and looks like JSON structure, it's likely JSONC
         if (hasLineComments || hasBlockComments) {
