@@ -2728,6 +2728,90 @@
               usageContent.appendChild(usageTitle);
               usageContent.appendChild(usageDescription);
               
+              // Tag feature section
+              const tagSection = createElement('div', [
+                'margin-bottom:24px',
+                'padding:16px',
+                'background:#f3e5f5',
+                'border-radius:8px',
+                'border-left:4px solid #9c27b0'
+              ].join(';'));
+              
+              const tagTitle = createElement('h4', [
+                'margin:0 0 12px 0',
+                'font-size:16px',
+                'font-weight:600',
+                'color:#9c27b0'
+              ].join(';'), '🏷️ タグ機能');
+              
+              const tagDesc = createElement('p', [
+                'margin:0 0 12px 0',
+                'color:#333',
+                'font-size:14px',
+                'line-height:1.6'
+              ].join(';'), 'メモにタグを付けて分類・管理できます。複数のタグを設定して、メモを整理しましょう。');
+              
+              const tagFeaturesList = createElement('ul', [
+                'margin:0 0 12px 0',
+                'padding-left:20px',
+                'color:#333',
+                'font-size:13px',
+                'line-height:1.8'
+              ].join(';'));
+              
+              const tagFeatures = [
+                'タグ入力時に自動補完とファジー検索で既存タグを簡単に選択',
+                'メモ作成・編集時にタグを追加・削除可能',
+                '一覧表示と全表示の両方でタグを表示',
+                'タグでメモをフィルタリング（複数タグ選択可能）',
+                'タグ管理画面で不要なタグを削除可能'
+              ];
+              
+              tagFeatures.forEach(feature => {
+                const li = createElement('li', [
+                  'margin-bottom:4px'
+                ].join(';'), feature);
+                tagFeaturesList.appendChild(li);
+              });
+              
+              const tagUsageTitle = createElement('div', [
+                'margin:16px 0 8px 0',
+                'font-weight:600',
+                'color:#333',
+                'font-size:14px'
+              ].join(';'), '💡 使い方:');
+              
+              const tagUsageSteps = createElement('ol', [
+                'margin:0',
+                'padding-left:20px',
+                'color:#5f6368',
+                'font-size:13px',
+                'line-height:1.8'
+              ].join(';'));
+              
+              const tagSteps = [
+                'メモ作成時または編集時に「タグ」フィールドにタグ名を入力してEnterキー',
+                '既存タグは自動補完されるので、選択するだけでOK',
+                'タグ横の×ボタンでタグを削除',
+                'ヘッダーの「🏷️ タグ」ボタンでタグフィルタリング',
+                '設定の「🏷️ タグ管理」でタグの一覧確認・削除'
+              ];
+              
+              tagSteps.forEach(step => {
+                const li = createElement('li', [
+                  'margin-bottom:4px'
+                ].join(';'), step);
+                tagUsageSteps.appendChild(li);
+              });
+              
+              tagSection.appendChild(tagTitle);
+              tagSection.appendChild(tagDesc);
+              tagSection.appendChild(tagFeaturesList);
+              tagSection.appendChild(tagUsageTitle);
+              tagSection.appendChild(tagUsageSteps);
+              
+              usageContent.appendChild(tagSection);
+              
               // Template feature section
               const templateSection = createElement('div', [
                 'margin-bottom:24px',
@@ -3222,6 +3306,140 @@
               renderVariableList();
               
               container.appendChild(settingsContent);
+            }
+          },
+          {
+            label: '🏷️ タグ管理',
+            content: (container) => {
+              // Tag management tab content
+              const tagContent = createElement('div', [
+                'font-size:14px',
+                'line-height:1.8',
+                'color:#333'
+              ].join(';'));
+              
+              const tagTitle = createElement('h3', [
+                'margin:0 0 16px 0',
+                'font-size:18px',
+                'font-weight:600',
+                'color:#333'
+              ].join(';'), '🏷️ タグ管理');
+              
+              const tagDescription = createElement('p', [
+                'margin:0 0 20px 0',
+                'color:#5f6368',
+                'font-size:14px',
+                'line-height:1.6'
+              ].join(';'), 'メモに設定されているすべてのタグを管理できます。使用されていないタグを削除することも可能です。');
+              
+              tagContent.appendChild(tagTitle);
+              tagContent.appendChild(tagDescription);
+              
+              // Get all tags
+              const allTags = loadAllTags();
+              
+              if (allTags.length === 0) {
+                const emptyMessage = createElement('div', [
+                  'padding:20px',
+                  'text-align:center',
+                  'color:#999',
+                  'font-style:italic'
+                ].join(';'), 'タグがまだ設定されていません。メモにタグを追加してください。');
+                tagContent.appendChild(emptyMessage);
+              } else {
+                // Calculate tag usage
+                const allData = load();
+                const tagUsage = {};
+                allTags.forEach(tag => {
+                  tagUsage[tag] = allData.filter(memo => memo.tags && memo.tags.includes(tag)).length;
+                });
+                
+                // Tag list container
+                const tagList = createElement('div', [
+                  'display:flex',
+                  'flex-direction:column',
+                  'gap:8px'
+                ].join(';'));
+                
+                allTags.forEach(tag => {
+                  const usage = tagUsage[tag];
+                  
+                  const tagItem = createElement('div', [
+                    'display:flex',
+                    'justify-content:space-between',
+                    'align-items:center',
+                    'padding:12px',
+                    'background:#f8f9fa',
+                    'border-radius:6px',
+                    'border:1px solid #e8eaed'
+                  ].join(';'));
+                  
+                  const tagInfo = createElement('div', [
+                    'display:flex',
+                    'align-items:center',
+                    'gap:12px',
+                    'flex:1'
+                  ].join(';'));
+                  
+                  const tagChip = createElement('span', [
+                    'display:inline-block',
+                    'padding:4px 12px',
+                    'background:#e3f2fd',
+                    'border:1px solid #90caf9',
+                    'border-radius:12px',
+                    'font-size:13px',
+                    'color:#1976d2',
+                    'font-weight:500'
+                  ].join(';'), tag);
+                  
+                  const usageInfo = createElement('span', [
+                    'color:#5f6368',
+                    'font-size:12px'
+                  ].join(';'), `${usage}件のメモで使用中`);
+                  
+                  tagInfo.appendChild(tagChip);
+                  tagInfo.appendChild(usageInfo);
+                  
+                  // Delete button
+                  const deleteButton = createElement('button', [
+                    'padding:6px 12px',
+                    'background:#ea4335',
+                    'color:#fff',
+                    'border:none',
+                    'border-radius:4px',
+                    'cursor:pointer',
+                    'font-size:12px',
+                    'font-weight:500',
+                    'transition:background 0.2s'
+                  ].join(';'), '削除', () => {
+                    if (usage > 0) {
+                      const confirmed = confirm(`タグ「${tag}」は${usage}件のメモで使用されています。削除してもよろしいですか？`);
+                      if (!confirmed) return;
+                    } else {
+                      const confirmed = confirm(`タグ「${tag}」を削除してもよろしいですか？`);
+                      if (!confirmed) return;
+                    }
+                    
+                    // Delete the tag
+                    deleteUnusedTags([tag]);
+                    
+                    // Re-render the tag management content
+                    container.innerHTML = '';
+                    this.content(container);
+                  });
+                  
+                  deleteButton.onmouseover = () => deleteButton.style.background = '#d33828';
+                  deleteButton.onmouseout = () => deleteButton.style.background = '#ea4335';
+                  
+                  tagItem.appendChild(tagInfo);
+                  tagItem.appendChild(deleteButton);
+                  tagList.appendChild(tagItem);
+                });
+                
+                tagContent.appendChild(tagList);
+              }
+              
+              container.appendChild(tagContent);
             }
           },
           {
