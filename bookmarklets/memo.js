@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v42
+// v43
 // 2026-02-10
 
 (function() {
@@ -122,11 +122,23 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v42',
+      CURRENT: 'v43',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-10',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v43',
+          date: '2026-02-10',
+          features: [
+            'タグフィルタドロップダウンの連続選択バグを修正：e.stopPropagation()を追加し、イベント伝播を防止',
+            'タグ項目クリック時の外側クリックハンドラー誤作動を解消：renderTagFilterDropdown()による要素再構築中のイベントバブリング問題を修正',
+            'クリアボタンにもe.stopPropagation()を追加：すべてのドロップダウン内クリックで一貫した動作を実現',
+            '非常にクリーンな実装：最小限の変更で確実にタグポップアップが開いたままの状態を維持',
+            'コードの可読性向上：明確なコメントを追加し、イベント伝播防止の意図を文書化',
+            '安全性と信頼性の向上：共通パターンに従い、不要な処理を追加せず本質的な問題のみを解決'
+          ]
+        },
         {
           version: 'v42',
           date: '2026-02-10',
@@ -2903,7 +2915,8 @@
           'font-weight:600',
           'color:#d32f2f',
           'transition:background 0.2s'
-        ].join(';'), `✕ フィルタをクリア (${currentTagFilter.length}件選択中)`, () => {
+        ].join(';'), `✕ フィルタをクリア (${currentTagFilter.length}件選択中)`, (e) => {
+          e.stopPropagation();
           currentTagFilter = [];
           saveTagFilter(currentTagFilter);
           tagFilterButton.style.background = '#9c27b0';
@@ -2931,7 +2944,10 @@
           'gap:8px',
           'transition:background 0.2s',
           isSelected ? 'background:#e3f2fd' : ''
-        ].join(';'), '', () => {
+        ].join(';'), '', (e) => {
+          // Prevent event from bubbling to outside click handler
+          e.stopPropagation();
+          
           // Toggle tag filter
           const index = currentTagFilter.indexOf(tag);
           if (index > -1) {
@@ -2947,7 +2963,7 @@
           tagFilterButton.style.background = currentTagFilter.length > 0 ? '#7b1fa2' : '#9c27b0';
           
           // Re-render dropdown to update selection state
-          // Note: Dropdown stays open for continuous selection
+          // Dropdown stays open for continuous selection
           renderTagFilterDropdown();
           renderList(load());
         });
