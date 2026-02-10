@@ -602,17 +602,12 @@
             }
           } else {
             // For complex values (objects/arrays), check if they have content
-            // If empty, show inline; otherwise show as a separate section
+            // If empty, always show inline (no heading, no separate section)
+            // If non-empty, show as separate section with heading (if applicable)
             if (!hasContent(value)) {
-              // Empty object or array - show inline
+              // Empty object or array - always show inline, never with heading
               const emptyLabel = Array.isArray(value) ? '*Empty Array*' : '*Empty Object*';
-              if (shouldShowHeading) {
-                const heading = createHeadingMarkup(level, currentPath);
-                markdown += `${indent}${heading}\n`;
-                markdown += `${indent}${emptyLabel}\n`;
-              } else {
-                markdown += `${indent}${escapeMarkdown(key)}: ${emptyLabel}\n`;
-              }
+              markdown += `${indent}${escapeMarkdown(key)}: ${emptyLabel}\n`;
             } else {
               // Non-empty object or array - show as separate section with heading
               if (shouldShowHeading) {
