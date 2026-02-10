@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v40
+// v41
 // 2026-02-10
 
 (function() {
@@ -122,11 +122,24 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v40',
+      CURRENT: 'v41',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-10',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v41',
+          date: '2026-02-10',
+          features: [
+            'タグ入力オートコンプリートの連続選択機能を実装：タグ選択後もドロップダウンが開いたままで連続してタグを追加可能に',
+            'タグ入力のESCキー挙動を修正：ESCキーでオートコンプリートドロップダウンのみを閉じ、ブックマークレット全体は開いたまま維持',
+            '選択後の自動フォーカス維持：タグ選択後、入力フィールドに自動的にフォーカスを戻し、スムーズな連続入力を実現',
+            'ESCキー処理の最適化：オートコンプリートが開いている時のみESCで閉じる処理を行い、不要なイベント伝播を防止',
+            'addTag関数のリファクタリング：ドロップダウンを閉じないようにし、入力フィールドのクリアとフォーカス維持を実現',
+            '可読性とメンテナンス性の向上：タグ入力の動作をより直感的で理解しやすいコードに改善',
+            '非常にクリーンな実装：既存の動作を維持しながら、ユーザビリティを大幅に向上させる安全な実装'
+          ]
+        },
         {
           version: 'v40',
           date: '2026-02-10',
@@ -2125,7 +2138,7 @@
         }
       };
       
-      // Function to add a tag
+      // Function to add a tag (keep dropdown open for continuous selection)
       const addTag = (tag) => {
         const trimmedTag = tag.trim();
         if (trimmedTag && !tags.includes(trimmedTag)) {
@@ -2133,8 +2146,12 @@
           renderTags();
           if (onTagsChange) onTagsChange(tags);
         }
+        // Clear input but keep dropdown open for continuous tag selection
         tagInput.value = '';
-        autocompleteDropdown.style.display = 'none';
+        // Refocus the input field for smooth continuous input
+        tagInput.focus();
+        // Show updated autocomplete suggestions (without the just-added tag)
+        showAutocomplete('');
       };
       
       // Function to show autocomplete suggestions
@@ -2187,10 +2204,16 @@
             addTag(query);
           }
         } else if (e.key === 'Escape') {
-          autocompleteDropdown.style.display = 'none';
-          tagInput.value = '';
+          // Only handle ESC if autocomplete is visible
+          if (autocompleteDropdown.style.display !== 'none') {
+            e.preventDefault();
+            e.stopPropagation();
+            autocompleteDropdown.style.display = 'none';
+            tagInput.value = '';
+          }
+          return;
         }
-        // Prevent event from bubbling up to parent handlers
+        // Prevent event from bubbling up to parent handlers for other keys
         e.stopPropagation();
       };
       
