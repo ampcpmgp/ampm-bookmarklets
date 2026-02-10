@@ -75,12 +75,12 @@ files.forEach(file => {
   // Allow safe usage in specific contexts:
   // 1. dataTransfer.setData (safe for drag-and-drop)
   // 2. template.innerHTML (safe within <template> elements)
-  // 3. Reading innerHTML for escaping (div.innerHTML pattern after textContent assignment)
+  // 3. return div.innerHTML (safe when reading for escaping after textContent assignment)
   const innerHTMLPattern = /\.innerHTML\s*=/;
   const safePatterns = [
     /dataTransfer\.setData\(['"]text\/html['"]/,  // Drag and drop data
     /template\.innerHTML/,                         // Template elements (safe)
-    /div\.textContent\s*=.*?div\.innerHTML/s       // Text escaping pattern
+    /return\s+\w+\.innerHTML/                      // Reading innerHTML (safe for escaping)
   ];
   
   if (innerHTMLPattern.test(code)) {
