@@ -72,32 +72,35 @@ files.forEach(file => {
     .trim();
   
   // Security check: Detect direct innerHTML usage (per CONTRIBUTING.md security guidelines)
-  // Allow safe usage in specific contexts:
-  // 1. dataTransfer.setData (safe for drag-and-drop)
-  // 2. template.innerHTML (safe within <template> elements)
-  // 3. return div.innerHTML (safe when reading for escaping after textContent assignment)
-  const innerHTMLPattern = /\.innerHTML\s*=/;
-  const safePatterns = [
-    /dataTransfer\.setData\(['"]text\/html['"]/,  // Drag and drop data
-    /template\.innerHTML/,                         // Template elements (safe)
-    /return\s+\w+\.innerHTML/                      // Reading innerHTML (safe for escaping)
-  ];
-  
-  if (innerHTMLPattern.test(code)) {
-    const isSafe = safePatterns.some(pattern => pattern.test(code));
-    if (!isSafe) {
-      hasInnerHTMLViolations = true;
-      const lines = content.split('\n');
-      const violationLines = lines
-        .map((line, index) => ({ line: line, number: index + 1 }))
-        .filter(item => innerHTMLPattern.test(item.line) && !safePatterns.some(p => p.test(item.line)))
-        .map(item => `  Line ${item.number}: ${item.line.trim()}`);
+  // Test each line individually for better accuracy
+  const contentLines = content.split('\n');
+  const violationLines = contentLines
+    .map((line, index) => ({ line: line, number: index + 1 }))
+    .filter(item => {
+      const trimmed = item.line.trim();
+      // Skip comment lines
+      if (trimmed.startsWith('//')) return false;
       
-      innerHTMLViolations.push({
-        file,
-        lines: violationLines
-      });
-    }
+      // Check if line has innerHTML assignment
+      if (!/\.innerHTML\s*=/.test(item.line)) return false;
+      
+      // Check if it matches any safe pattern
+      const safePatterns = [
+        /dataTransfer\.setData\(['"]text\/html['"]/,  // Drag and drop data
+        /template\.innerHTML/,                         // Template elements (safe)
+        /return\s+\w+\.innerHTML(?!\s*=)/              // Reading innerHTML (safe), but not assignment
+      ];
+      
+      return !safePatterns.some(p => p.test(item.line));
+    })
+    .map(item => `  Line ${item.number}: ${item.line.trim()}`);
+  
+  if (violationLines.length > 0) {
+    hasInnerHTMLViolations = true;
+    innerHTMLViolations.push({
+      file,
+      lines: violationLines
+    });
   }
   
   // Create bookmarklet URL
