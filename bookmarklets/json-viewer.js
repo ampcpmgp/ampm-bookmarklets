@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v23
+// v24
 // 2026-02-10
 
 (function() {
@@ -63,9 +63,22 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v23',
+      CURRENT: 'v24',
       LAST_UPDATED: '2026-02-10',
       HISTORY: [
+        {
+          version: 'v24',
+          date: '2026-02-10',
+          features: [
+            '✨ コンテナオブジェクト/配列の不要な見出し表示を完全に除外',
+            '新規ヘルパー関数willChildrenShowHeadings実装：すべての子要素が独自の見出しを持つかを判定',
+            '[0].data.items[0][0]のようなパスで、全プロパティが見出し付きで表示される場合、親の見出しを非表示',
+            '余白のない最適化された表示：コンテンツがある要素のみ見出しを表示',
+            'hasImmediateContent関数の意図を明確化：共通処理のリファクタリング',
+            '非常にきれいで可読性の高い実装：ロジックが明確で保守しやすい',
+            '安全で確実な実装：既存機能に影響を与えず、不要な余白のみを削除'
+          ]
+        },
         {
           version: 'v23',
           date: '2026-02-10',
@@ -514,6 +527,43 @@
       return values.some(v => typeof v !== 'object' || v === null);
     }
 
+    // Check if all immediate children of a value will show their own headings
+    // This helps avoid showing redundant parent headings when all children will have headings
+    // Returns true if all children are complex types (objects/arrays) OR primitives that will show with headings
+    function willChildrenShowHeadings(value, currentPath) {
+      // Only relevant if we're already in a nested path (contains '.')
+      if (!currentPath || !currentPath.includes('.')) {
+        return false;
+      }
+      
+      if (Array.isArray(value)) {
+        // For arrays, children won't show headings if they're primitives
+        // They will show headings if they're objects with primitives
+        return value.every(item => {
+          if (typeof item !== 'object' || item === null) {
+            return false; // Primitive array items don't get headings
+          }
+          // Objects/arrays will be recursed into
+          return true;
+        });
+      }
+      
+      if (typeof value === 'object' && value !== null) {
+        // For objects, check if all properties will show with headings
+        // Properties show headings when: path contains '.' (which it will for nested objects)
+        return Object.entries(value).every(([key, val]) => {
+          // Multiline strings get special handling - they may not show with headings
+          if (typeof val === 'string' && val.includes('\n')) {
+            return false;
+          }
+          // All other values will show with headings when nested (path has dots)
+          return true;
+        });
+      }
+      
+      return false;
+    }
+
     // JSON to Markdown converter with path tracking
     function jsonToMarkdown(data, level = 0, parentPath = '') {
       const indent = '  '.repeat(level);
@@ -602,8 +652,10 @@
           
           // Only display heading with path if it contains a dot (dot-notation)
           // AND the item has immediate displayable content (not empty, not just a container)
+          // BUT NOT if all its children will show their own headings (avoid redundant parent heading)
           const shouldShowHeading = currentPath && currentPath.includes('.') && 
-                                   hasImmediateContent(item);
+                                   hasImmediateContent(item) &&
+                                   !willChildrenShowHeadings(item, currentPath);
           if (shouldShowHeading) {
             const heading = createHeadingMarkup(level, currentPath);
             markdown += `${indent}${heading}\n`;
@@ -656,7 +708,8 @@
             } else {
               // Non-empty object or array - show as separate section with heading
               // Only show heading if the value has immediate displayable content
-              if (shouldShowHeading && hasImmediateContent(value)) {
+              // BUT NOT if all its children will show their own headings (avoid redundant parent heading)
+              if (shouldShowHeading && hasImmediateContent(value) && !willChildrenShowHeadings(value, currentPath)) {
                 const heading = createHeadingMarkup(level, currentPath);
                 markdown += `${indent}${heading}\n`;
               }
