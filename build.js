@@ -17,6 +17,11 @@ function escapeHtml(text) {
 const bookmarkletsDir = path.join(__dirname, 'bookmarklets');
 const bookmarklets = [];
 
+// Security check: Validate that bookmarklet code doesn't use innerHTML directly
+// This check ensures compliance with Trusted Types API requirements
+let hasInnerHTMLViolations = false;
+const innerHTMLViolations = [];
+
 // Get all .js files from bookmarklets directory
 const files = fs.readdirSync(bookmarkletsDir).filter(f => f.endsWith('.js'));
 
@@ -66,6 +71,35 @@ files.forEach(file => {
     .replace(/\s+$/gm, '') // Remove trailing whitespace
     .trim();
   
+  // Security check: Detect direct innerHTML usage (per CONTRIBUTING.md security guidelines)
+  // Allow safe usage in specific contexts:
+  // 1. dataTransfer.setData (safe for drag-and-drop)
+  // 2. template.innerHTML (safe within <template> elements)
+  // 3. Reading innerHTML for escaping (div.innerHTML pattern after textContent assignment)
+  const innerHTMLPattern = /\.innerHTML\s*=/;
+  const safePatterns = [
+    /dataTransfer\.setData\(['"]text\/html['"]/,  // Drag and drop data
+    /template\.innerHTML/,                         // Template elements (safe)
+    /div\.textContent\s*=.*?div\.innerHTML/s       // Text escaping pattern
+  ];
+  
+  if (innerHTMLPattern.test(code)) {
+    const isSafe = safePatterns.some(pattern => pattern.test(code));
+    if (!isSafe) {
+      hasInnerHTMLViolations = true;
+      const lines = content.split('\n');
+      const violationLines = lines
+        .map((line, index) => ({ line: line, number: index + 1 }))
+        .filter(item => innerHTMLPattern.test(item.line) && !safePatterns.some(p => p.test(item.line)))
+        .map(item => `  Line ${item.number}: ${item.line.trim()}`);
+      
+      innerHTMLViolations.push({
+        file,
+        lines: violationLines
+      });
+    }
+  }
+  
   // Create bookmarklet URL
   const bookmarkletUrl = 'javascript:' + encodeURIComponent(code);
   
@@ -80,12 +114,36 @@ files.forEach(file => {
   });
 });
 
+// Report innerHTML security violations
+if (hasInnerHTMLViolations) {
+  console.error('\n❌ SECURITY VIOLATION: Direct innerHTML usage detected!');
+  console.error('\nThe following files contain unsafe innerHTML usage:');
+  console.error('This violates the security guidelines in CONTRIBUTING.md');
+  console.error('Modern browsers with Trusted Types will throw an error:');
+  console.error('  "Failed to set the \'innerHTML\' property on \'Element\': This document requires \'TrustedHTML\' assignment."\n');
+  
+  innerHTMLViolations.forEach(violation => {
+    console.error(`File: ${violation.file}`);
+    violation.lines.forEach(line => console.error(line));
+    console.error('');
+  });
+  
+  console.error('Please use safe alternatives:');
+  console.error('  • Use createElement() + textContent');
+  console.error('  • Use appendChild() to build DOM');
+  console.error('  • See CONTRIBUTING.md for detailed examples\n');
+  
+  // Exit with error code to fail CI/CD pipeline
+  process.exit(1);
+}
+
 // Generate index.html
 const html = `<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
   <title>AMPM Bookmarklets</title>
   <style>
     * {
