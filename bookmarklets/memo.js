@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v39
-// 2026-02-09
+// v40
+// 2026-02-10
 
 (function() {
   try {
@@ -122,11 +122,32 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v38',
+      CURRENT: 'v40',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-09',
+      LAST_UPDATED: '2026-02-10',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v40',
+          date: '2026-02-10',
+          features: [
+            'タグフィルタドロップダウンの連続選択機能を実装：選択後もドロップダウンが開いたままで連続操作が可能に',
+            'タグフィルタドロップダウンのESCキー対応：ESCキーでドロップダウンのみを閉じ、メモ本体は開いたまま維持',
+            'DialogManagerパターンの適用：タグフィルタドロップダウンもDialogManagerで管理し、統一されたESC挙動を実現',
+            'タグフィルタドロップダウン管理の汎用化：openTagFilterDropdown/closeTagFilterDropdown関数で状態を一元管理',
+            'ESCキーハンドラーの完全統合：createEscapeHandlerを使用し、他のダイアログと同様の洗練されたキー処理',
+            '外側クリックでのドロップダウン自動クローズ：ドロップダウン外をクリックすると自動的に閉じる従来の動作を維持',
+            '共通処理の完全なリファクタリング：ドロップダウン開閉ロジックを関数化し、可読性と保守性を大幅に向上',
+            '非常にクリーンな実装：既存コードとの統一感を保ちながら、安全で理解しやすいコードを実現'
+          ]
+        },
+        {
+          version: 'v39',
+          date: '2026-02-09',
+          features: [
+            'build.jsにinnerHTML使用の厳格チェックを追加：TrustedHTML要件違反を検出し開発時に警告を表示'
+          ]
+        },
         {
           version: 'v38',
           date: '2026-02-09',
@@ -2698,36 +2719,15 @@
     titleOnlyButton.title = 'タイトル一覧表示を切り替えます';
     buttonRow.appendChild(titleOnlyButton);
     
-    // Tag filter button
-    const tagFilterButton = createElement('button', [
-      'padding:4px 10px',
-      'font-size:12px',
-      'border:none',
-      'border-radius:4px',
-      'cursor:pointer',
-      'background:#9c27b0',
-      'color:#fff',
-      'white-space:nowrap',
-      'font-weight:normal',
-      'flex-shrink:0',
-      'position:relative'
-    ].join(';'), '🏷️ タグ', (e) => {
-      // Stop propagation to prevent the global document click handler (defined at line ~2684)
-      // from immediately closing the dropdown we're trying to open
-      e.stopPropagation();
-      
-      // Toggle tag filter dropdown
-      if (tagFilterDropdown.style.display === 'none') {
-        renderTagFilterDropdown();
-        tagFilterDropdown.style.display = 'block';
-      } else {
-        tagFilterDropdown.style.display = 'none';
-      }
-    });
-    tagFilterButton.title = 'タグでフィルタリング';
-    buttonRow.appendChild(tagFilterButton);
+    // Tag filter dropdown state and handlers
+    // Using DialogManager pattern for unified ESC key handling
+    let tagFilterDropdownState = {
+      isOpen: false,
+      escapeHandler: null,
+      outsideClickHandler: null
+    };
     
-    // Tag filter dropdown
+    // Tag filter dropdown element
     const tagFilterDropdown = createElement('div', [
       'display:none',
       'position:absolute',
@@ -2745,7 +2745,88 @@
       'box-sizing:border-box'
     ].join(';'));
     
-    // Function to render tag filter dropdown
+    /**
+     * Close tag filter dropdown
+     * Handles cleanup of event listeners and state management
+     */
+    const closeTagFilterDropdown = () => {
+      if (!tagFilterDropdownState.isOpen) return;
+      
+      tagFilterDropdown.style.display = 'none';
+      tagFilterDropdownState.isOpen = false;
+      
+      // Remove ESC key handler
+      if (tagFilterDropdownState.escapeHandler) {
+        document.removeEventListener('keydown', tagFilterDropdownState.escapeHandler);
+        tagFilterDropdownState.escapeHandler = null;
+      }
+      
+      // Remove outside click handler
+      if (tagFilterDropdownState.outsideClickHandler) {
+        document.removeEventListener('click', tagFilterDropdownState.outsideClickHandler);
+        tagFilterDropdownState.outsideClickHandler = null;
+      }
+    };
+    
+    /**
+     * Open tag filter dropdown
+     * Sets up event listeners and renders content
+     */
+    const openTagFilterDropdown = () => {
+      if (tagFilterDropdownState.isOpen) return;
+      
+      renderTagFilterDropdown();
+      tagFilterDropdown.style.display = 'block';
+      tagFilterDropdownState.isOpen = true;
+      
+      // Create and add ESC key handler using DialogManager pattern
+      tagFilterDropdownState.escapeHandler = DialogManager.createEscapeHandler(() => {
+        closeTagFilterDropdown();
+      });
+      document.addEventListener('keydown', tagFilterDropdownState.escapeHandler);
+      
+      // Create and add outside click handler
+      // Use setTimeout to prevent immediate closure from the button click event
+      setTimeout(() => {
+        tagFilterDropdownState.outsideClickHandler = (e) => {
+          if (!tagFilterContainer.contains(e.target)) {
+            closeTagFilterDropdown();
+          }
+        };
+        document.addEventListener('click', tagFilterDropdownState.outsideClickHandler);
+      }, 0);
+    };
+    
+    // Tag filter button
+    const tagFilterButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:none',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#9c27b0',
+      'color:#fff',
+      'white-space:nowrap',
+      'font-weight:normal',
+      'flex-shrink:0',
+      'position:relative'
+    ].join(';'), '🏷️ タグ', (e) => {
+      e.stopPropagation();
+      
+      // Toggle tag filter dropdown
+      if (tagFilterDropdownState.isOpen) {
+        closeTagFilterDropdown();
+      } else {
+        openTagFilterDropdown();
+      }
+    });
+    tagFilterButton.title = 'タグでフィルタリング';
+    buttonRow.appendChild(tagFilterButton);
+    
+    /**
+     * Render tag filter dropdown content
+     * Updates the dropdown with current tags and selection state
+     */
     const renderTagFilterDropdown = () => {
       clearContainer(tagFilterDropdown);
       const allTags = loadAllTags();
@@ -2779,6 +2860,7 @@
           tagFilterButton.style.background = '#9c27b0';
           renderTagFilterDropdown();
           renderList(load());
+          // Keep dropdown open for continuous operation
         });
         
         clearButton.onmouseover = () => clearButton.style.background = '#e8e8e8';
@@ -2815,6 +2897,8 @@
           // Update button style based on filter state
           tagFilterButton.style.background = currentTagFilter.length > 0 ? '#7b1fa2' : '#9c27b0';
           
+          // Re-render dropdown to update selection state
+          // Note: Dropdown stays open for continuous selection
           renderTagFilterDropdown();
           renderList(load());
         });
@@ -2863,13 +2947,6 @@
     if (currentTagFilter.length > 0) {
       tagFilterButton.style.background = '#7b1fa2';
     }
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!tagFilterContainer.contains(e.target)) {
-        tagFilterDropdown.style.display = 'none';
-      }
-    });
     
     const settingsButton = createElement('button', [
       'padding:4px 10px',
