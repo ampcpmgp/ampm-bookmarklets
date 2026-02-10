@@ -2752,8 +2752,8 @@
     const closeTagFilterDropdown = () => {
       if (!tagFilterDropdownState.isOpen) return;
       
+      // Hide dropdown first
       tagFilterDropdown.style.display = 'none';
-      tagFilterDropdownState.isOpen = false;
       
       // Remove ESC key handler
       if (tagFilterDropdownState.escapeHandler) {
@@ -2766,6 +2766,9 @@
         document.removeEventListener('click', tagFilterDropdownState.outsideClickHandler);
         tagFilterDropdownState.outsideClickHandler = null;
       }
+      
+      // Set state to closed after cleanup is complete
+      tagFilterDropdownState.isOpen = false;
     };
     
     /**
@@ -2788,6 +2791,9 @@
       // Create and add outside click handler
       // Use setTimeout to prevent immediate closure from the button click event
       setTimeout(() => {
+        // Check if dropdown is still open before adding handler to prevent race condition
+        if (!tagFilterDropdownState.isOpen) return;
+        
         tagFilterDropdownState.outsideClickHandler = (e) => {
           if (!tagFilterContainer.contains(e.target)) {
             closeTagFilterDropdown();
