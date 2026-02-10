@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v41
+// v42
 // 2026-02-10
 
 (function() {
@@ -122,11 +122,22 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v41',
+      CURRENT: 'v42',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-10',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v42',
+          date: '2026-02-10',
+          features: [
+            'タグフィルタドロップダウンのESC動作を完全修正：ESCキーでタグポップアップのみを閉じ、本体ブックマークレットは開いたまま維持',
+            'KeyHandler.isModalOpenフラグの適用：タグポップアップ開閉時に適切にフラグを管理し、ESCイベント伝播を正確に制御',
+            'タグポップアップの連続選択を確認：項目クリック時にポップアップが閉じず、連続操作が可能な既存動作を維持',
+            '共通処理のリファクタリング：不要な処理を削除し、コードの可読性とメンテナンス性を向上',
+            '非常にクリーンな実装：既存コードパターンと完全に統一し、安全で理解しやすいコードを実現'
+          ]
+        },
         {
           version: 'v41',
           date: '2026-02-10',
@@ -2775,9 +2786,6 @@
      * Handles cleanup of event listeners and state management
      */
     const closeTagFilterDropdown = () => {
-      // Always attempt cleanup even if state says it's closed
-      // This provides defensive cleanup in case of state inconsistencies
-      
       // Hide dropdown first
       tagFilterDropdown.style.display = 'none';
       
@@ -2793,8 +2801,10 @@
         tagFilterDropdownState.outsideClickHandler = null;
       }
       
-      // Set state to closed after cleanup is complete
+      // Update state flags
       tagFilterDropdownState.isOpen = false;
+      // Clear modal flag to allow main bookmarklet to respond to ESC
+      KeyHandler.isModalOpen = false;
     };
     
     /**
@@ -2810,8 +2820,10 @@
       renderTagFilterDropdown();
       tagFilterDropdown.style.display = 'block';
       
-      // Set state to open before adding listeners
+      // Update state flags
       tagFilterDropdownState.isOpen = true;
+      // Set modal flag to prevent main ESC handler from closing bookmarklet
+      KeyHandler.isModalOpen = true;
       
       // Create and add ESC key handler using DialogManager pattern
       tagFilterDropdownState.escapeHandler = DialogManager.createEscapeHandler(() => {
@@ -2820,9 +2832,9 @@
       document.addEventListener('keydown', tagFilterDropdownState.escapeHandler);
       
       // Create and add outside click handler
-      // Use requestAnimationFrame for more predictable timing than setTimeout
+      // Use requestAnimationFrame for more predictable timing
       requestAnimationFrame(() => {
-        // Check if dropdown is still open before adding handler to prevent race condition
+        // Check if dropdown is still open before adding handler
         if (!tagFilterDropdownState.isOpen) return;
         
         tagFilterDropdownState.outsideClickHandler = (e) => {
