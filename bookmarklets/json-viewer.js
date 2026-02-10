@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v22
+// v23
 // 2026-02-10
 
 (function() {
@@ -63,9 +63,23 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v22',
+      CURRENT: 'v23',
       LAST_UPDATED: '2026-02-10',
       HISTORY: [
+        {
+          version: 'v23',
+          date: '2026-02-10',
+          features: [
+            '✨ 不要な余白の削除：コンテナのみの配列/オブジェクトの見出し表示を抑制',
+            '新規ヘルパー関数hasImmediateContentを実装：即座に表示可能なコンテンツがあるかを判定',
+            'ネストされた配列/オブジェクトの表示を最適化：中間のコンテナ層では見出しを表示せず、意味のある値がある層でのみ表示',
+            '例：[0].data.items[0][0]のような深いネストで、プリミティブ値を持つ層のみ見出しを表示',
+            '共通処理をリファクタリング：hasContent関数とhasImmediateContent関数を分離し、役割を明確化',
+            '配列とオブジェクトの両方で一貫した動作：コンテナのみの場合は見出しを非表示',
+            '非常にきれいで可読性の高い実装：新しいヘルパー関数により意図が明確',
+            '安全で確実な実装：既存機能に影響を与えず、コンテナ層の余白のみを削除'
+          ]
+        },
         {
           version: 'v22',
           date: '2026-02-10',
@@ -470,6 +484,36 @@
       return true; // All primitive types have content
     }
 
+    // Check if a value has immediate displayable content
+    // Returns true if the value is a primitive or has primitive values at the current level
+    // Returns false if the value is only a container for nested structures
+    function hasImmediateContent(value) {
+      if (value === null || value === undefined) {
+        return true; // null/undefined are displayable
+      }
+      
+      // Primitives are immediately displayable
+      if (typeof value !== 'object') {
+        return true;
+      }
+      
+      if (Array.isArray(value)) {
+        // Empty arrays have no immediate content
+        if (value.length === 0) {
+          return false;
+        }
+        // If all elements are objects/arrays, this is just a container
+        return value.some(item => typeof item !== 'object' || item === null);
+      }
+      
+      // For objects, check if any value is a primitive
+      const values = Object.values(value);
+      if (values.length === 0) {
+        return false;
+      }
+      return values.some(v => typeof v !== 'object' || v === null);
+    }
+
     // JSON to Markdown converter with path tracking
     function jsonToMarkdown(data, level = 0, parentPath = '') {
       const indent = '  '.repeat(level);
@@ -558,7 +602,9 @@
           
           // Only display heading with path if it contains a dot (dot-notation)
           // AND the item has meaningful content (not empty)
-          const shouldShowHeading = currentPath && currentPath.includes('.') && hasContent(item);
+          // AND the item has immediate displayable content (not just a container)
+          const shouldShowHeading = currentPath && currentPath.includes('.') && 
+                                   hasContent(item) && hasImmediateContent(item);
           if (shouldShowHeading) {
             const heading = createHeadingMarkup(level, currentPath);
             markdown += `${indent}${heading}\n`;
@@ -610,7 +656,8 @@
               markdown += `${indent}${escapeMarkdown(key)}: ${emptyLabel}\n`;
             } else {
               // Non-empty object or array - show as separate section with heading
-              if (shouldShowHeading) {
+              // Only show heading if the value has immediate displayable content
+              if (shouldShowHeading && hasImmediateContent(value)) {
                 const heading = createHeadingMarkup(level, currentPath);
                 markdown += `${indent}${heading}\n`;
               }
