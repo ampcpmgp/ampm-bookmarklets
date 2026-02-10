@@ -2214,7 +2214,7 @@
           e.preventDefault();
           e.stopPropagation();
         } else {
-          // Prevent other keys from bubbling up to parent handlers
+          // Prevent all other key events from bubbling to parent handlers
           e.stopPropagation();
         }
       };
