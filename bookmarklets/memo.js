@@ -2750,7 +2750,8 @@
      * Handles cleanup of event listeners and state management
      */
     const closeTagFilterDropdown = () => {
-      if (!tagFilterDropdownState.isOpen) return;
+      // Always attempt cleanup even if state says it's closed
+      // This provides defensive cleanup in case of state inconsistencies
       
       // Hide dropdown first
       tagFilterDropdown.style.display = 'none';
@@ -2776,10 +2777,15 @@
      * Sets up event listeners and renders content
      */
     const openTagFilterDropdown = () => {
-      if (tagFilterDropdownState.isOpen) return;
+      // If already open, close and clean up first to prevent duplicate listeners
+      if (tagFilterDropdownState.isOpen) {
+        closeTagFilterDropdown();
+      }
       
       renderTagFilterDropdown();
       tagFilterDropdown.style.display = 'block';
+      
+      // Set state to open before adding listeners
       tagFilterDropdownState.isOpen = true;
       
       // Create and add ESC key handler using DialogManager pattern
