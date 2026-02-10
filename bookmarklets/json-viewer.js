@@ -601,10 +601,9 @@
           const currentPath = buildPath(parentPath, indexKey);
           
           // Only display heading with path if it contains a dot (dot-notation)
-          // AND the item has meaningful content (not empty)
-          // AND the item has immediate displayable content (not just a container)
+          // AND the item has immediate displayable content (not empty, not just a container)
           const shouldShowHeading = currentPath && currentPath.includes('.') && 
-                                   hasContent(item) && hasImmediateContent(item);
+                                   hasImmediateContent(item);
           if (shouldShowHeading) {
             const heading = createHeadingMarkup(level, currentPath);
             markdown += `${indent}${heading}\n`;
