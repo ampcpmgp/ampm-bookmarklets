@@ -1,8 +1,8 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v21
-// 2026-02-09
+// v22
+// 2026-02-10
 
 (function() {
   try {
@@ -63,9 +63,22 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v21',
-      LAST_UPDATED: '2026-02-09',
+      CURRENT: 'v22',
+      LAST_UPDATED: '2026-02-10',
       HISTORY: [
+        {
+          version: 'v22',
+          date: '2026-02-10',
+          features: [
+            '✨ マークダウン表示の改善：空のオブジェクトや配列に対して不要な値表示領域を非表示化',
+            '新規ヘルパー関数hasContentを実装：値が空でないかを判定する汎用関数',
+            'オブジェクトと配列の処理をリファクタリング：空の値はインライン表示、非空の値は従来通りセクション表示',
+            '見出し表示の最適化：内容がある場合のみ見出しを表示し、空の場合は見出しとスペースを非表示',
+            '空のオブジェクトや配列は *Empty Object* / *Empty Array* としてキー名と同じ行にインライン表示',
+            '非常にきれいな実装で、可読性とメンテナンス性が高い',
+            '既存機能に影響を与えない安全で確実な実装'
+          ]
+        },
         {
           version: 'v21',
           date: '2026-02-09',
@@ -442,6 +455,21 @@
       return String(value);
     }
 
+    // Check if a value has meaningful content (not empty object/array)
+    // Returns true if the value is not an empty object or empty array
+    function hasContent(value) {
+      if (value === null || value === undefined) {
+        return true; // null/undefined are meaningful values
+      }
+      if (Array.isArray(value)) {
+        return value.length > 0;
+      }
+      if (typeof value === 'object') {
+        return Object.keys(value).length > 0;
+      }
+      return true; // All primitive types have content
+    }
+
     // JSON to Markdown converter with path tracking
     function jsonToMarkdown(data, level = 0, parentPath = '') {
       const indent = '  '.repeat(level);
@@ -529,7 +557,9 @@
           const currentPath = buildPath(parentPath, indexKey);
           
           // Only display heading with path if it contains a dot (dot-notation)
-          if (currentPath && currentPath.includes('.')) {
+          // AND the item has meaningful content (not empty)
+          const shouldShowHeading = currentPath && currentPath.includes('.') && hasContent(item);
+          if (shouldShowHeading) {
             const heading = createHeadingMarkup(level, currentPath);
             markdown += `${indent}${heading}\n`;
           }
@@ -571,12 +601,26 @@
               markdown += `${indent}${escapeMarkdown(key)}: ${escapeMarkdown(value)}\n`;
             }
           } else {
-            // For complex values, show on new line
-            if (shouldShowHeading) {
-              const heading = createHeadingMarkup(level, currentPath);
-              markdown += `${indent}${heading}\n`;
+            // For complex values (objects/arrays), check if they have content
+            // If empty, show inline; otherwise show as a separate section
+            if (!hasContent(value)) {
+              // Empty object or array - show inline
+              const emptyLabel = Array.isArray(value) ? '*Empty Array*' : '*Empty Object*';
+              if (shouldShowHeading) {
+                const heading = createHeadingMarkup(level, currentPath);
+                markdown += `${indent}${heading}\n`;
+                markdown += `${indent}${emptyLabel}\n`;
+              } else {
+                markdown += `${indent}${escapeMarkdown(key)}: ${emptyLabel}\n`;
+              }
+            } else {
+              // Non-empty object or array - show as separate section with heading
+              if (shouldShowHeading) {
+                const heading = createHeadingMarkup(level, currentPath);
+                markdown += `${indent}${heading}\n`;
+              }
+              markdown += jsonToMarkdown(value, level + 1, currentPath);
             }
-            markdown += jsonToMarkdown(value, level + 1, currentPath);
           }
         });
         return markdown;
