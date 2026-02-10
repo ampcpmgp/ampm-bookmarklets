@@ -134,7 +134,7 @@
             'タグ入力オートコンプリートの連続選択機能を実装：タグ選択後もドロップダウンが開いたままで連続してタグを追加可能に',
             'タグ入力のESCキー挙動を修正：ESCキーでオートコンプリートドロップダウンのみを閉じ、ブックマークレット全体は開いたまま維持',
             '選択後の自動フォーカス維持：タグ選択後、入力フィールドに自動的にフォーカスを戻し、スムーズな連続入力を実現',
-            'ESCキー処理の最適化：オートコンプリートが開いている時のみESCで閉じる処理を行い、不要なイベント伝播を防止',
+            'ESCキー処理の完全な制御：オートコンプリートの表示状態に関わらず、常にpreventDefaultとstopPropagationを呼び出してイベント伝播を確実に防止',
             'addTag関数のリファクタリング：ドロップダウンを閉じないようにし、入力フィールドのクリアとフォーカス維持を実現',
             '可読性とメンテナンス性の向上：タグ入力の動作をより直感的で理解しやすいコードに改善',
             '非常にクリーンな実装：既存の動作を維持しながら、ユーザビリティを大幅に向上させる安全な実装'
@@ -2203,18 +2203,20 @@
           if (query) {
             addTag(query);
           }
+          e.stopPropagation();
         } else if (e.key === 'Escape') {
-          // Only handle ESC if autocomplete is visible
+          // Only close autocomplete if it's visible
           if (autocompleteDropdown.style.display !== 'none') {
-            e.preventDefault();
-            e.stopPropagation();
             autocompleteDropdown.style.display = 'none';
             tagInput.value = '';
           }
-          return;
+          // Always prevent ESC from bubbling to parent handlers
+          e.preventDefault();
+          e.stopPropagation();
+        } else {
+          // Prevent other keys from bubbling up to parent handlers
+          e.stopPropagation();
         }
-        // Prevent event from bubbling up to parent handlers for other keys
-        e.stopPropagation();
       };
       
       // Close autocomplete when clicking outside
