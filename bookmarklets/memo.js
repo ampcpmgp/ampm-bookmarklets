@@ -2789,8 +2789,8 @@
       document.addEventListener('keydown', tagFilterDropdownState.escapeHandler);
       
       // Create and add outside click handler
-      // Use setTimeout to prevent immediate closure from the button click event
-      setTimeout(() => {
+      // Use requestAnimationFrame for more predictable timing than setTimeout
+      requestAnimationFrame(() => {
         // Check if dropdown is still open before adding handler to prevent race condition
         if (!tagFilterDropdownState.isOpen) return;
         
@@ -2800,7 +2800,7 @@
           }
         };
         document.addEventListener('click', tagFilterDropdownState.outsideClickHandler);
-      }, 0);
+      });
     };
     
     // Tag filter button
