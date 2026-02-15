@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v44
-// 2026-02-15
+// v43
+// 2026-02-10
 
 (function() {
   try {
@@ -122,24 +122,11 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v44',
+      CURRENT: 'v43',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-15',
+      LAST_UPDATED: '2026-02-10',
       // Complete version history (displayed in update information tab)
       HISTORY: [
-        {
-          version: 'v44',
-          date: '2026-02-15',
-          features: [
-            'エスケープ文字の自動修正機能を実装：テキストに含まれる不要なエスケープシーケンスを自動的に変換',
-            '\\[ターゲット\\]などの表示問題を解決：バックスラッシュとブラケットの組み合わせを正しく[ターゲット]と表示',
-            '\\nを実際の改行に変換：リテラル文字列の\\nを実際の改行文字に自動変換し、読みやすさを向上',
-            'データ読み込み時の自動クリーンアップ：load()関数でエスケープ解除処理を実行し、既存データも自動修正',
-            'unescapeText()ユーティリティ関数を追加：共通処理として再利用可能な形で実装',
-            '後方互換性を完全維持：通常のテキストには影響せず、エスケープシーケンスのみを対象に変換',
-            '非常にクリーンな実装：最小限の変更で安全かつ確実にエスケープ問題を解決し、コードの可読性とメンテナンス性を向上'
-          ]
-        },
         {
           version: 'v43',
           date: '2026-02-10',
@@ -774,33 +761,13 @@
       }
     };
 
-    /**
-     * Remove unnecessary escape sequences from text
-     * Converts literal escape sequences like \n, \[, \] to their actual characters
-     * This fixes issues where text contains visible backslashes that should be interpreted
-     * @param {string} text - Text that may contain escape sequences
-     * @returns {string} Text with escape sequences converted to actual characters
-     */
-    const unescapeText = (text) => {
-      if (!text || typeof text !== 'string') return text;
-      
-      return text
-        .replace(/\\n/g, '\n')   // Replace literal \n with actual newline
-        .replace(/\\r/g, '\r')   // Replace literal \r with carriage return
-        .replace(/\\t/g, '\t')   // Replace literal \t with tab
-        .replace(/\\\[/g, '[')   // Replace \[ with [
-        .replace(/\\\]/g, ']')   // Replace \] with ]
-        .replace(/\\\(/g, '(')   // Replace \( with (
-        .replace(/\\\)/g, ')');  // Replace \) with )
-    };
-
     const load = () => {
       try {
         const data = JSON.parse(localStorage.getItem(KEY) || '[]');
         // Ensure backward compatibility: add pinned, title, emoji, createdDate, updatedDate, and tags properties if missing
         return data.map(item => ({
-          title: unescapeText(item.title) || '',
-          text: unescapeText(item.text),
+          title: item.title || '',
+          text: item.text,
           // Migrate old 'date' field to createdDate and updatedDate
           createdDate: item.createdDate || item.date || new Date().toISOString(),
           updatedDate: item.updatedDate || item.date || new Date().toISOString(),
