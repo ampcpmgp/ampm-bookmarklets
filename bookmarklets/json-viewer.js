@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v25
+// v26
 // 2026-02-15
 
 (function() {
@@ -63,9 +63,28 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v25',
+      CURRENT: 'v26',
       LAST_UPDATED: '2026-02-15',
       HISTORY: [
+        {
+          version: 'v26',
+          date: '2026-02-15',
+          features: [
+            '🐛 h6以下（bold）の見出しに.no-marginスタイルが適用されない問題を修正',
+            'extractHeadingsWithIds関数：class属性を持つheadingタグを正しく抽出するように改善',
+            'addIdsToHeadings関数：class属性を保持したまま、IDを追加できるように改善',
+            '🐛 空のコンテンツと<br>タグのみの表示を除去',
+            'markdownToHtml関数：末尾の連続する<br>タグを削除する処理を追加',
+            '空の見出しや不要な余白を削減して、よりクリーンな表示を実現',
+            '🐛 エスケープ文字（\\[, \\]等）が表示される問題を修正',
+            'markdownToHtml関数：最終段階でエスケープされた文字を元に戻す処理を追加',
+            '\\[ターゲット\\]が正しく[ターゲット]として表示されるように改善',
+            'ユーザーテキストが本来の形式で正しく表示されることを保証',
+            '📝 コードの可読性とメンテナンス性の向上',
+            '各修正に詳細なコメントを追加：変更の意図を明確に文書化',
+            '既存機能への影響を最小限に抑え、安全で確実な実装を実現'
+          ]
+        },
         {
           version: 'v25',
           date: '2026-02-15',
@@ -851,6 +870,16 @@
       // Line breaks
       html = html.replace(/\n/g, '<br>');
 
+      // Unescape markdown special characters for display
+      // This must be done AFTER all markdown processing but BEFORE returning
+      // It converts escaped sequences like \[, \], \*, etc. back to their original characters
+      // Note: We must unescape backslashes LAST to handle double-escaped sequences correctly
+      html = unescapeMarkdown(html);
+
+      // Remove trailing <br> tags that have no content after them
+      // This cleans up empty lines at the end of sections
+      html = html.replace(/(<br>\s*)+$/g, '');
+
       return html;
     }
 
@@ -1015,14 +1044,16 @@
     }
 
     // Extract headings from HTML and generate unique IDs
-    // Captures both h1-h6 tags and strong tags (for deeper heading levels)
+    // Captures both h1-h6 tags (with or without class attributes) and strong tags (for deeper heading levels)
     function extractHeadingsWithIds(html) {
       const headings = [];
       const idCounter = {};
       
-      // Match all heading tags (h1-h6) and strong tags (for level 7+)
-      const headingPattern = /<(h[1-6])>(.*?)<\/\1>/gi;
-      const strongPattern = /<strong>(.*?)<\/strong>/gi;
+      // Match all heading tags (h1-h6) - with or without class attribute
+      // Pattern matches: <h1>, <h1 class="no-margin">, etc.
+      const headingPattern = /<(h[1-6])(?:\s+class="[^"]*")?>(.*?)<\/\1>/gi;
+      // Match strong tags (for level 7+) - with or without class attribute
+      const strongPattern = /<strong(?:\s+class="[^"]*")?>(.*?)<\/strong>/gi;
       let match;
       
       // Extract h1-h6 headings
@@ -1114,16 +1145,20 @@
     }
 
     // Add IDs to headings in HTML (both h1-h6 and strong tags)
+    // Preserves any existing class attributes while adding the id attribute
     function addIdsToHeadings(html, headings) {
       let result = html;
       let headingIndex = 0;
       
       // Replace h1-h6 headings with ID-annotated versions
-      result = result.replace(/<(h[1-6])>(.*?)<\/\1>/gi, (match, tag, content) => {
+      // Matches headings with or without class attributes and preserves the class
+      result = result.replace(/<(h[1-6])(?:\s+class="([^"]*)")?>(.*?)<\/\1>/gi, (match, tag, className, content) => {
         if (headingIndex < headings.length && headings[headingIndex].level <= 6) {
           const heading = headings[headingIndex];
           headingIndex++;
-          return `<${tag} id="${escapeHtml(heading.id)}">${content}</${tag}>`;
+          // Preserve the class attribute if it exists
+          const classAttr = className ? ` class="${className}"` : '';
+          return `<${tag}${classAttr} id="${escapeHtml(heading.id)}">${content}</${tag}>`;
         }
         return match;
       });
@@ -1131,7 +1166,7 @@
       // Replace strong tags (bold headings) with ID-annotated span wrappers
       // Only for strong tags that correspond to level 7+ headings
       // Must apply same isHeading check as in extractHeadingsWithIds
-      result = result.replace(/<strong>(.*?)<\/strong>/gi, (match, content, offset) => {
+      result = result.replace(/<strong(?:\s+class="([^"]*)")?>(.*?)<\/strong>/gi, (match, className, content, offset) => {
         // Check if this strong tag is likely a heading (same logic as extraction)
         const checkStart = Math.max(0, offset - 8);
         const beforeChars = result.slice(checkStart, offset);
@@ -1143,8 +1178,9 @@
         if (isHeading && headingIndex < headings.length && headings[headingIndex].level === 7) {
           const heading = headings[headingIndex];
           headingIndex++;
-          // Wrap strong tag in a span with ID for navigation
-          return `<span id="${escapeHtml(heading.id)}"><strong>${content}</strong></span>`;
+          // Wrap strong tag in a span with ID for navigation, preserve the class attribute
+          const classAttr = className ? ` class="${className}"` : '';
+          return `<span id="${escapeHtml(heading.id)}"><strong${classAttr}>${content}</strong></span>`;
         }
         return match;
       });
