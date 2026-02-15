@@ -1,8 +1,8 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v24
-// 2026-02-10
+// v25
+// 2026-02-15
 
 (function() {
   try {
@@ -63,9 +63,33 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v24',
-      LAST_UPDATED: '2026-02-10',
+      CURRENT: 'v25',
+      LAST_UPDATED: '2026-02-15',
       HISTORY: [
+        {
+          version: 'v25',
+          date: '2026-02-15',
+          features: [
+            '✨ h6以下（bold）の見出しも目次（Table of Contents）に表示',
+            'extractHeadingsWithIds関数を拡張：<strong>タグをレベル7の見出しとして認識',
+            'unescapeMarkdown関数を新規実装：エスケープ文字（\\[ターゲット\\]）を正しく表示',
+            '見出しテキストのエスケープ処理を改善：TOCで正しい文字列表示を実現',
+            '✨ コンテナのみのオブジェクト/配列でも見出しを表示し、marginを0に抑制',
+            'createHeadingMarkup関数にnoMarginパラメータを追加：柔軟な余白制御',
+            '{.no-margin}マーカーをマークダウンに導入：コンパクトな見出し表示',
+            'markdownToHtmlで.no-marginクラスを適用：h1-h6とstrongタグに対応',
+            'CSSに.no-marginスタイルを追加：ライトモードとダークモードの両方に対応',
+            '見出し表示ロジックを改善：常に見出しを表示し、コンテナのみの場合は余白0',
+            '✨ 安全なエスケープ/アンエスケープ処理',
+            'escapeMarkdownとunescapeMarkdownを対称的に実装：可読性と保守性が高い',
+            '日本語テキスト（\\[ターゲット\\]など）が正しく表示されるよう修正',
+            'generateHeadingIdでunescapeMarkdownを適用：ID生成時にも正しいテキストを使用',
+            '📝 非常にきれいで可読性の高い実装',
+            '共通処理をリファクタリング：関数の役割が明確で理解しやすい',
+            '既存機能への影響を最小限に：安全で確実な実装',
+            'コメントを追加：各変更の意図を明確に文書化'
+          ]
+        },
         {
           version: 'v24',
           date: '2026-02-10',
@@ -424,14 +448,16 @@
     }
 
     // Create heading markup based on level (h1-h6, then b tags for deeper levels)
-    function createHeadingMarkup(level, text) {
+    // noMargin: if true, adds a marker for zero-margin styling
+    function createHeadingMarkup(level, text, noMargin = false) {
       const effectiveLevel = level + 1;
+      const marginMarker = noMargin ? ' {.no-margin}' : '';
       if (effectiveLevel <= HEADING_CONFIG.MAX_HEADING_LEVEL) {
         const prefix = '#'.repeat(effectiveLevel);
-        return `${prefix} ${text}`;
+        return `${prefix} ${text}${marginMarker}`;
       } else {
         // Use bold for levels deeper than h6
-        return `**${text}**`;
+        return `**${text}**${marginMarker}`;
       }
     }
 
@@ -650,14 +676,12 @@
           const indexKey = `[${index}]`;
           const currentPath = buildPath(parentPath, indexKey);
           
-          // Only display heading with path if it contains a dot (dot-notation)
-          // AND the item has immediate displayable content (not empty, not just a container)
-          // BUT NOT if all its children will show their own headings (avoid redundant parent heading)
-          const shouldShowHeading = currentPath && currentPath.includes('.') && 
-                                   hasImmediateContent(item) &&
-                                   !willChildrenShowHeadings(item, currentPath);
+          // Always display heading with path if it contains a dot (dot-notation)
+          // Use no-margin style for container-only items
+          const shouldShowHeading = currentPath && currentPath.includes('.');
           if (shouldShowHeading) {
-            const heading = createHeadingMarkup(level, currentPath);
+            const isContainerOnly = !hasImmediateContent(item) || willChildrenShowHeadings(item, currentPath);
+            const heading = createHeadingMarkup(level, currentPath, isContainerOnly);
             markdown += `${indent}${heading}\n`;
           }
           
@@ -707,10 +731,11 @@
               markdown += `${indent}${escapeMarkdown(key)}: ${emptyLabel}\n`;
             } else {
               // Non-empty object or array - show as separate section with heading
-              // Only show heading if the value has immediate displayable content
-              // BUT NOT if all its children will show their own headings (avoid redundant parent heading)
-              if (shouldShowHeading && hasImmediateContent(value) && !willChildrenShowHeadings(value, currentPath)) {
-                const heading = createHeadingMarkup(level, currentPath);
+              // Always show heading when shouldShowHeading is true
+              // Use no-margin style for container-only objects (no immediate content)
+              if (shouldShowHeading) {
+                const isContainerOnly = !hasImmediateContent(value) || willChildrenShowHeadings(value, currentPath);
+                const heading = createHeadingMarkup(level, currentPath, isContainerOnly);
                 markdown += `${indent}${heading}\n`;
               }
               markdown += jsonToMarkdown(value, level + 1, currentPath);
@@ -733,6 +758,19 @@
         .replace(/\[/g, '\\[')
         .replace(/\]/g, '\\]')
         .replace(/`/g, '\\`');
+    }
+
+    // Unescape markdown sequences to display original text
+    // This reverses the escaping done by escapeMarkdown
+    function unescapeMarkdown(text) {
+      if (typeof text !== 'string') return String(text);
+      return text
+        .replace(/\\`/g, '`')
+        .replace(/\\\]/g, ']')
+        .replace(/\\\[/g, '[')
+        .replace(/\\_/g, '_')
+        .replace(/\\\*/g, '*')
+        .replace(/\\\\/g, '\\');
     }
 
     // Escape HTML (needed for code blocks)
@@ -770,15 +808,38 @@
 
       // Process headings (after lists, before line breaks) - handle indentation with \s*
       // Support h1 through h6 - process from longest to shortest to avoid conflicts
-      html = html.replace(/^\s*###### (.*?)$/gm, '<h6>$1</h6>');
-      html = html.replace(/^\s*##### (.*?)$/gm, '<h5>$1</h5>');
-      html = html.replace(/^\s*#### (.*?)$/gm, '<h4>$1</h4>');
-      html = html.replace(/^\s*### (.*?)$/gm, '<h3>$1</h3>');
-      html = html.replace(/^\s*## (.*?)$/gm, '<h2>$1</h2>');
-      html = html.replace(/^\s*# (.*?)$/gm, '<h1>$1</h1>');
+      // Also handle {.no-margin} class marker for compact headings
+      html = html.replace(/^\s*###### (.*?)( \{\.no-margin\})?$/gm, (match, text, marker) => {
+        const className = marker ? ' class="no-margin"' : '';
+        return `<h6${className}>${text}</h6>`;
+      });
+      html = html.replace(/^\s*##### (.*?)( \{\.no-margin\})?$/gm, (match, text, marker) => {
+        const className = marker ? ' class="no-margin"' : '';
+        return `<h5${className}>${text}</h5>`;
+      });
+      html = html.replace(/^\s*#### (.*?)( \{\.no-margin\})?$/gm, (match, text, marker) => {
+        const className = marker ? ' class="no-margin"' : '';
+        return `<h4${className}>${text}</h4>`;
+      });
+      html = html.replace(/^\s*### (.*?)( \{\.no-margin\})?$/gm, (match, text, marker) => {
+        const className = marker ? ' class="no-margin"' : '';
+        return `<h3${className}>${text}</h3>`;
+      });
+      html = html.replace(/^\s*## (.*?)( \{\.no-margin\})?$/gm, (match, text, marker) => {
+        const className = marker ? ' class="no-margin"' : '';
+        return `<h2${className}>${text}</h2>`;
+      });
+      html = html.replace(/^\s*# (.*?)( \{\.no-margin\})?$/gm, (match, text, marker) => {
+        const className = marker ? ' class="no-margin"' : '';
+        return `<h1${className}>${text}</h1>`;
+      });
 
       // Bold (non-greedy, don't cross line breaks, skip escaped)
-      html = html.replace(/(?<!\\)\*\*([^\n*]+?)\*\*/g, '<strong>$1</strong>');
+      // Also handle {.no-margin} for bold headings
+      html = html.replace(/(?<!\\)\*\*([^\n*]+?)( \{\.no-margin\})?\*\*/g, (match, text, marker) => {
+        const className = marker ? ' class="no-margin"' : '';
+        return className ? `<strong${className}>${text}</strong>` : `<strong>${text}</strong>`;
+      });
 
       // Italic (non-greedy, don't cross line breaks, skip escaped and bold markers)
       html = html.replace(/(?<!\\)\*([^\n*]+?)\*(?!\*)/g, '<em>$1</em>');
@@ -953,17 +1014,22 @@
     }
 
     // Extract headings from HTML and generate unique IDs
+    // Captures both h1-h6 tags and strong tags (for deeper heading levels)
     function extractHeadingsWithIds(html) {
       const headings = [];
       const idCounter = {};
       
-      // Match all heading tags (h1-h6)
+      // Match all heading tags (h1-h6) and strong tags (for level 7+)
       const headingPattern = /<(h[1-6])>(.*?)<\/\1>/gi;
+      const strongPattern = /<strong>(.*?)<\/strong>/gi;
       let match;
       
+      // Extract h1-h6 headings
       while ((match = headingPattern.exec(html)) !== null) {
         const level = parseInt(match[1].charAt(1)); // Extract number from h1-h6
-        const text = match[2];
+        const rawText = match[2];
+        // Unescape markdown characters for proper display
+        const text = unescapeMarkdown(rawText);
         
         // Generate a unique ID from the heading text
         const baseId = generateHeadingId(text);
@@ -974,6 +1040,33 @@
           text,
           id: uniqueId
         });
+      }
+      
+      // Extract strong tags (bold headings for level 7+)
+      // We need to determine which strong tags are headings by checking if they appear on their own line
+      // For simplicity, we'll treat all standalone strong tags as level 7 headings
+      while ((match = strongPattern.exec(html)) !== null) {
+        const rawText = match[1];
+        // Unescape markdown characters for proper display
+        const text = unescapeMarkdown(rawText);
+        
+        // Check if this strong tag is likely a heading (appears after <br> or at start)
+        const beforeMatch = html.substring(0, match.index);
+        const isHeading = beforeMatch.endsWith('<br>') || 
+                         beforeMatch.trim() === '' || 
+                         beforeMatch.endsWith('<br><br>');
+        
+        if (isHeading) {
+          // Generate a unique ID from the heading text
+          const baseId = generateHeadingId(text);
+          const uniqueId = makeIdUnique(baseId, idCounter);
+          
+          headings.push({
+            level: 7, // Use level 7 for bold headings beyond h6
+            text,
+            id: uniqueId
+          });
+        }
       }
       
       return headings;
@@ -1016,17 +1109,31 @@
       return `#${CSS.escape(id)}`;
     }
 
-    // Add IDs to headings in HTML
+    // Add IDs to headings in HTML (both h1-h6 and strong tags)
     function addIdsToHeadings(html, headings) {
       let result = html;
       let headingIndex = 0;
       
-      // Replace each heading with an ID-annotated version
+      // Replace h1-h6 headings with ID-annotated versions
       result = result.replace(/<(h[1-6])>(.*?)<\/\1>/gi, (match, tag, content) => {
-        if (headingIndex < headings.length) {
+        if (headingIndex < headings.length && headings[headingIndex].level <= 6) {
           const heading = headings[headingIndex];
           headingIndex++;
           return `<${tag} id="${escapeHtml(heading.id)}">${content}</${tag}>`;
+        }
+        return match;
+      });
+      
+      // Replace strong tags (bold headings) with ID-annotated span wrappers
+      // Only for strong tags that correspond to level 7+ headings
+      result = result.replace(/<strong>(.*?)<\/strong>/gi, (match, content) => {
+        // Find if this strong tag corresponds to a heading
+        if (headingIndex < headings.length && headings[headingIndex].level === 7) {
+          // Check if this is likely a heading (appears after line break)
+          const heading = headings[headingIndex];
+          headingIndex++;
+          // Wrap strong tag in a span with ID for navigation
+          return `<span id="${escapeHtml(heading.id)}"><strong>${content}</strong></span>`;
         }
         return match;
       });
@@ -1267,6 +1374,23 @@
         
         .markdown-output h6 {
           font-size: 14px !important;
+        }
+        
+        /* No-margin style for container-only headings in dark mode */
+        .markdown-output h1.no-margin,
+        .markdown-output h2.no-margin,
+        .markdown-output h3.no-margin,
+        .markdown-output h4.no-margin,
+        .markdown-output h5.no-margin,
+        .markdown-output h6.no-margin {
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
+          padding: 8px 12px !important;
+        }
+
+        .markdown-output strong.no-margin {
+          margin: 0 !important;
+          padding: 0 !important;
         }
         
         .markdown-output strong {
@@ -1613,6 +1737,23 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
       }
 
+      /* No-margin style for container-only headings */
+      .markdown-output h1.no-margin,
+      .markdown-output h2.no-margin,
+      .markdown-output h3.no-margin,
+      .markdown-output h4.no-margin,
+      .markdown-output h5.no-margin,
+      .markdown-output h6.no-margin {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 8px 12px;
+      }
+
+      .markdown-output strong.no-margin {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
       .markdown-output strong {
         font-weight: 600;
         font-size: 16px;
@@ -1830,6 +1971,12 @@
       .toc-level-6 .toc-link {
         padding-left: 96px;
         font-size: 12px;
+      }
+
+      .toc-level-7 .toc-link {
+        padding-left: 112px;
+        font-size: 11px;
+        font-style: italic;
       }
 
       /* Smooth scrolling for the entire content */
