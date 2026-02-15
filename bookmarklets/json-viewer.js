@@ -762,15 +762,16 @@
 
     // Unescape markdown sequences to display original text
     // This reverses the escaping done by escapeMarkdown
+    // Important: backslash must be unescaped FIRST to handle double-escaped sequences correctly
     function unescapeMarkdown(text) {
       if (typeof text !== 'string') return String(text);
       return text
+        .replace(/\\\\/g, '\\')  // Must be first to avoid double-unescaping
         .replace(/\\`/g, '`')
         .replace(/\\\]/g, ']')
         .replace(/\\\[/g, '[')
         .replace(/\\_/g, '_')
-        .replace(/\\\*/g, '*')
-        .replace(/\\\\/g, '\\');
+        .replace(/\\\*/g, '*');
     }
 
     // Escape HTML (needed for code blocks)
@@ -1051,10 +1052,13 @@
         const text = unescapeMarkdown(rawText);
         
         // Check if this strong tag is likely a heading (appears after <br> or at start)
-        const beforeMatch = html.substring(0, match.index);
-        const isHeading = beforeMatch.endsWith('<br>') || 
-                         beforeMatch.trim() === '' || 
-                         beforeMatch.endsWith('<br><br>');
+        // Optimize by checking characters directly before match.index instead of creating substring
+        const checkStart = Math.max(0, match.index - 8); // Check last 8 chars (enough for '<br><br>')
+        const beforeChars = html.slice(checkStart, match.index);
+        const isHeading = beforeChars.endsWith('<br>') || 
+                         beforeChars.endsWith('<br><br>') ||
+                         match.index === 0 || 
+                         beforeChars.trim() === '';
         
         if (isHeading) {
           // Generate a unique ID from the heading text
@@ -1126,10 +1130,17 @@
       
       // Replace strong tags (bold headings) with ID-annotated span wrappers
       // Only for strong tags that correspond to level 7+ headings
-      result = result.replace(/<strong>(.*?)<\/strong>/gi, (match, content) => {
-        // Find if this strong tag corresponds to a heading
-        if (headingIndex < headings.length && headings[headingIndex].level === 7) {
-          // Check if this is likely a heading (appears after line break)
+      // Must apply same isHeading check as in extractHeadingsWithIds
+      result = result.replace(/<strong>(.*?)<\/strong>/gi, (match, content, offset) => {
+        // Check if this strong tag is likely a heading (same logic as extraction)
+        const checkStart = Math.max(0, offset - 8);
+        const beforeChars = result.slice(checkStart, offset);
+        const isHeading = beforeChars.endsWith('<br>') || 
+                         beforeChars.endsWith('<br><br>') ||
+                         offset === 0 || 
+                         beforeChars.trim() === '';
+        
+        if (isHeading && headingIndex < headings.length && headings[headingIndex].level === 7) {
           const heading = headings[headingIndex];
           headingIndex++;
           // Wrap strong tag in a span with ID for navigation
