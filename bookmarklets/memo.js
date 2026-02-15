@@ -784,14 +784,19 @@
     const unescapeText = (text) => {
       if (!text || typeof text !== 'string') return text;
       
+      // Use a placeholder to preserve escaped backslashes (\\)
+      const BACKSLASH_PLACEHOLDER = '\uE000'; // Private Use Area character
+      
       return text
+        .replace(/\\\\/g, BACKSLASH_PLACEHOLDER)  // Preserve escaped backslashes temporarily
         .replace(/\\n/g, '\n')   // Replace literal \n with actual newline
         .replace(/\\r/g, '\r')   // Replace literal \r with carriage return
         .replace(/\\t/g, '\t')   // Replace literal \t with tab
         .replace(/\\\[/g, '[')   // Replace \[ with [
         .replace(/\\\]/g, ']')   // Replace \] with ]
         .replace(/\\\(/g, '(')   // Replace \( with (
-        .replace(/\\\)/g, ')');  // Replace \) with )
+        .replace(/\\\)/g, ')')   // Replace \) with )
+        .replace(new RegExp(BACKSLASH_PLACEHOLDER, 'g'), '\\');  // Restore escaped backslashes as single backslash
     };
 
     const load = () => {
