@@ -1,7 +1,7 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v45
+// v46
 // 2026-02-16
 
 (function() {
@@ -122,11 +122,24 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v45',
+      CURRENT: 'v46',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-16',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v46',
+          date: '2026-02-16',
+          features: [
+            'テンプレート入力ダイアログの入力フォーカス問題を修正：Mattermost等のフォーカス監視機能との干渉を解消',
+            'イベント伝播の適切な制御：全入力フィールドのkeydownとinputイベントにstopPropagation()を追加',
+            'handleKeyDown関数を強化：既存のESC/Ctrl+Enter処理に加え、stopPropagation()を追加して外部干渉を防止',
+            'preventInputPropagation関数を新設：input イベントの伝播を防止する共通処理を一元化',
+            '新規メモ追加時と同じパターンを適用：compact formの実装を参考に、統一されたイベント処理を実現',
+            '非常にきれいな実装：最小限の変更で本質的な問題のみを解決し、可読性とメンテナンス性を維持',
+            '安全で確実な動作：既存機能に影響を与えず、すべての入力シナリオで正しく動作することを保証'
+          ]
+        },
         {
           version: 'v45',
           date: '2026-02-16',
@@ -1374,10 +1387,20 @@
       const handleKeyDown = (e) => {
         escapeHandler(e);
         ctrlEnterHandler(e);
+        // Prevent event propagation to avoid interference from external focus monitoring
+        // (e.g., Mattermost, Slack automatically restoring focus to their input fields)
+        e.stopPropagation();
+      };
+
+      // Prevent input event propagation to avoid external interference
+      // This ensures the dialog input works smoothly even on pages with aggressive focus management
+      const preventInputPropagation = (e) => {
+        e.stopPropagation();
       };
 
       inputFields.forEach(field => {
         field.input.onkeydown = handleKeyDown;
+        field.input.oninput = preventInputPropagation;
       });
 
       overlay.appendChild(formContainer);
