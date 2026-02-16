@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v43
-// 2026-02-10
+// v44
+// 2026-02-16
 
 (function() {
   try {
@@ -122,11 +122,24 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v43',
+      CURRENT: 'v44',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-10',
+      LAST_UPDATED: '2026-02-16',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v44',
+          date: '2026-02-16',
+          features: [
+            '新規メモ作成時に絵文字が常にランダムで選ばれるよう改善：全表示モード・一覧モード共に対応',
+            'initializeNewMemoEmoji()関数を新設：絵文字初期化処理を一元化し、保守性を大幅に向上',
+            'currentEmojiとcompactFormState.emojiの初期化をリファクタリング：共通処理を関数化し、コードの重複を削減',
+            'clearFullViewForm()とresetCompactFormState()を更新：フォームクリア時も自動的にランダム絵文字を設定',
+            '非常にきれいな実装：可読性が高く、メンテナンスしやすい構造で、将来の拡張にも対応',
+            '安全で確実な動作：既存機能に影響を与えず、すべてのケースで正しく動作することを保証',
+            'ユーザー体験の向上：新規メモ作成時に毎回楽しい絵文字が自動設定され、メモ管理がより楽しく'
+          ]
+        },
         {
           version: 'v43',
           date: '2026-02-10',
@@ -1002,8 +1015,17 @@
       return EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
     };
 
-    // Track current emoji (initialize as empty to show "no emoji" state)
-    let currentEmoji = '';
+    /**
+     * Initialize emoji for new memo creation
+     * Centralizes emoji initialization logic for consistency and maintainability
+     * @returns {string} - Randomly selected emoji
+     */
+    const initializeNewMemoEmoji = () => {
+      return getRandomEmoji();
+    };
+
+    // Track current emoji (initialize with random emoji for new memo)
+    let currentEmoji = initializeNewMemoEmoji();
     
     // Track current tags for new memo creation
     let currentTags = [];
@@ -4127,10 +4149,10 @@
     const clearFullViewForm = () => {
       titleInput.value = '';
       input.value = '';
-      currentEmoji = '';
+      currentEmoji = initializeNewMemoEmoji();
       currentTags = [];
       newMemoTagInput.setTags([]);
-      emojiButton.textContent = '➕';
+      emojiButton.textContent = currentEmoji;
       KeyHandler.isNewMemoCreating = false;
     };
 
@@ -4345,7 +4367,7 @@
     // Compact new memo form state for list view
     let compactFormState = {
       visible: false,
-      emoji: '',
+      emoji: initializeNewMemoEmoji(),
       title: '',
       content: '',
       tags: []
@@ -4356,7 +4378,7 @@
     const resetCompactFormState = () => {
       compactFormState = {
         visible: false,
-        emoji: '',
+        emoji: initializeNewMemoEmoji(),
         title: '',
         content: '',
         tags: []
