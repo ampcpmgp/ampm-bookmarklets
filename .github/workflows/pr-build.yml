@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -16,6 +16,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -26,7 +29,15 @@ jobs:
         run: npm install
 
       - name: Build bookmarklets
-        run: node build.js
+        run: PR_PREVIEW=true node build.js
+
+      - name: Commit PR preview
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -f pr-preview.html
+          git diff --staged --quiet || git commit -m "Add PR preview [skip ci]"
+          git push
 
       - name: Upload built HTML artifact
         uses: actions/upload-artifact@v4
@@ -48,23 +59,36 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            const branch = context.payload.pull_request.head.ref;
+            const repo = context.repo.repo;
+            const owner = context.repo.owner;
+            
+            // Generate htmlpreview.github.io link for pr-preview.html
+            const previewUrl = `https://htmlpreview.github.io/?https://github.com/${owner}/${repo}/blob/${branch}/pr-preview.html`;
+            
             const message = `## 🎉 Build Successful!
             
-            ビルドされたHTMLファイルが利用可能です：
+            ### 🔗 **即座に動作確認**
+            以下のリンクから、ダウンロード不要でブックマークレットを確認できます：
             
-            ### 📦 Artifacts
+            **👉 [PR Preview を開く](${previewUrl})**
+            
+            このページでブックマークレットをブックマークバーにドラッグ&ドロップして、すぐに動作確認できます。
+            
+            ---
+            
+            ### 📦 Artifacts（従来の方法）
+            必要に応じて、以下の方法でもダウンロード可能です：
+            
             - **built-html**: ビルドされた \`index.html\` ファイル
             - **build-output**: 完全なビルド出力（index.html + bookmarklets/）
             
-            ### 📥 ダウンロード方法
+            #### ダウンロード方法
             1. このPRの「Checks」タブをクリック
             2. 左側のメニューから「PR Build and Artifact」を選択
             3. 「Summary」セクションにある「Artifacts」からダウンロード
             
-            または、[こちらのリンク](${context.payload.repository.html_url}/actions/runs/${context.runId}) から直接アクセスできます。
-            
-            ### 🔍 成果物の確認
-            ダウンロードしたHTMLファイルをブラウザで開いて、ブックマークレットの動作を確認してください。`;
+            または、[こちらのリンク](${context.payload.repository.html_url}/actions/runs/${context.runId}) から直接アクセスできます。`;
             
             const identifier = '<!-- pr-build-artifact-comment -->';
             const messageWithIdentifier = identifier + '\n' + message;
