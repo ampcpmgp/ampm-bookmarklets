@@ -1,0 +1,70 @@
+name: PR Build and Artifact
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build bookmarklets
+        run: node build.js
+
+      - name: Upload built HTML artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-html
+          path: index.html
+          retention-days: 30
+
+      - name: Upload full build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            index.html
+            bookmarklets/
+          retention-days: 30
+
+      - name: Comment PR with artifact info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const message = `## 🎉 Build Successful!
+            
+            ビルドされたHTMLファイルが利用可能です：
+            
+            ### 📦 Artifacts
+            - **built-html**: ビルドされた \`index.html\` ファイル
+            - **build-output**: 完全なビルド出力（index.html + bookmarklets/）
+            
+            ### 📥 ダウンロード方法
+            1. このPRの「Checks」タブをクリック
+            2. 左側のメニューから「PR Build and Artifact」を選択
+            3. 「Summary」セクションにある「Artifacts」からダウンロード
+            
+            または、[こちらのリンク](${context.payload.repository.html_url}/actions/runs/${{ github.run_id }}) から直接アクセスできます。
+            
+            ### 🔍 成果物の確認
+            ダウンロードしたHTMLファイルをブラウザで開いて、ブックマークレットの動作を確認してください。`;
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: message
+            });
