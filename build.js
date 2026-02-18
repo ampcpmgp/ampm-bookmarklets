@@ -253,6 +253,20 @@ const html = `<!DOCTYPE html>
       padding-top: 2rem;
       border-top: 1px solid rgba(255,255,255,0.3);
     }
+    .github-link {
+      display: inline-block;
+      color: rgba(255,255,255,0.9);
+      text-decoration: none;
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .github-link:hover {
+      background-color: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.5);
+    }
   </style>
 </head>
 <body>
@@ -277,6 +291,7 @@ ${bookmarklets.map(bm => `    <div class="bookmarklet-card">
     <footer>
       <p>Generated: ${new Date().toISOString().split('T')[0]}</p>
       <p>© 2026 AMPM Bookmarklets</p>
+      <p><a href="https://github.com/ampcpmgp/ampm-bookmarklets" class="github-link" target="_blank" rel="noopener noreferrer">⭐ View on GitHub</a></p>
     </footer>
   </div>
 </body>
