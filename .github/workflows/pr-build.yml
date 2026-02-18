@@ -57,14 +57,39 @@ jobs:
             2. 左側のメニューから「PR Build and Artifact」を選択
             3. 「Summary」セクションにある「Artifacts」からダウンロード
             
-            または、[こちらのリンク](${context.payload.repository.html_url}/actions/runs/${{ github.run_id }}) から直接アクセスできます。
+            または、[こちらのリンク](${context.payload.repository.html_url}/actions/runs/${context.runId}) から直接アクセスできます。
             
             ### 🔍 成果物の確認
             ダウンロードしたHTMLファイルをブラウザで開いて、ブックマークレットの動作を確認してください。`;
             
-            github.rest.issues.createComment({
+            const identifier = '<!-- pr-build-artifact-comment -->';
+            const messageWithIdentifier = identifier + '\n' + message;
+            
+            // Check if a comment already exists
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: message
             });
+            
+            const existingComment = comments.data.find(comment => 
+              comment.body.includes(identifier)
+            );
+            
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: messageWithIdentifier
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: messageWithIdentifier
+              });
+            }
