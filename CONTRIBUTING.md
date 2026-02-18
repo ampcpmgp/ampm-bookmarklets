@@ -59,6 +59,34 @@ node build.js
 
 `index.html` が生成されます。
 
+## GitHub Actions ワークフロー
+
+このリポジトリでは、以下のワークフローが自動実行されます：
+
+### デプロイワークフロー（deploy.yml）
+
+- **トリガー**: `main` ブランチへのプッシュ、または手動実行
+- **処理内容**:
+  1. ブックマークレットをビルド（`node build.js`）
+  2. GitHub Pages へデプロイ
+
+### PR ビルドワークフロー（pr-build.yml）
+
+- **トリガー**: Pull Request の作成・更新
+- **処理内容**:
+  1. ブックマークレットをビルド（`node build.js`）
+  2. ビルドされた `index.html` を Artifact としてアップロード
+  3. PR にビルド結果のコメントを自動投稿
+
+#### PR での成果物の確認方法
+
+1. Pull Request を作成すると、自動的にビルドワークフローが実行されます
+2. PR の「Checks」タブから「PR Build and Artifact」を選択
+3. 「Summary」セクションの「Artifacts」からビルドされた HTML ファイルをダウンロード
+4. ダウンロードした HTML ファイルをブラウザで開いて動作確認
+
+この機能により、PR をマージする前にビルド結果を確認できます。
+
 ## セキュリティガイドライン
 
 ### innerHTML の使用禁止
