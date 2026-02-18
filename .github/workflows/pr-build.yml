@@ -53,23 +53,6 @@ jobs:
         run: |
           echo "⚠️  Fork PR detected - skipping PR preview commit for security reasons"
           echo "Preview will not be available via htmlpreview.github.io"
-          echo "Reviewers should use the Artifacts download method instead"
-
-      - name: Upload built HTML artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: built-html
-          path: index.html
-          retention-days: 30
-
-      - name: Upload full build output
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            index.html
-            bookmarklets/
-          retention-days: 30
 
       - name: Comment PR with artifact info
         uses: actions/github-script@v7
@@ -121,33 +104,15 @@ jobs:
             **👉 [PR Preview を開く](${previewUrl})**
             
             このページでブックマークレットをブックマークバーにドラッグ&ドロップして、すぐに動作確認できます。
-            
-            ---
             `;
             } else {
               message += `
             ### ℹ️ Fork からの PR のため、プレビューは利用できません
             
             セキュリティ上の理由から、Fork からの PR では自動プレビューが無効になっています。
-            下記の Artifacts をダウンロードして動作確認してください。
-            
-            ---
+            ローカルでビルドして動作確認してください。
             `;
             }
-            
-            message += `
-            ### 📦 Artifacts（従来の方法）
-            必要に応じて、以下の方法でもダウンロード可能です：
-            
-            - **built-html**: ビルドされた \`index.html\` ファイル
-            - **build-output**: 完全なビルド出力（index.html + bookmarklets/）
-            
-            #### ダウンロード方法
-            1. このPRの「Checks」タブをクリック
-            2. 左側のメニューから「PR Build and Artifact」を選択
-            3. 「Summary」セクションにある「Artifacts」からダウンロード
-            
-            または、[こちらのリンク](${context.payload.repository.html_url}/actions/runs/${context.runId}) から直接アクセスできます。`;
             
             const identifier = '<!-- pr-build-artifact-comment -->';
             const messageWithIdentifier = identifier + '\n' + message;
