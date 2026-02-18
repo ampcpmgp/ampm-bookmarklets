@@ -88,11 +88,12 @@ jobs:
             if (!isFork) {
               // For non-fork PRs, wait for the commit to be processed
               // Try to verify the file is accessible before posting the link
-              const maxRetries = 3;
+              const MAX_RETRIES = 3;
+              const RETRY_DELAY_MS = 3000;
               let retries = 0;
               let fileExists = false;
               
-              while (retries < maxRetries && !fileExists) {
+              while (retries < MAX_RETRIES && !fileExists) {
                 try {
                   await github.rest.repos.getContent({
                     owner: context.payload.pull_request.head.repo.owner.login,
@@ -104,9 +105,9 @@ jobs:
                   console.log('✓ pr-preview.html is accessible');
                 } catch (error) {
                   retries++;
-                  if (retries < maxRetries) {
-                    console.log(`Waiting for pr-preview.html to be accessible (attempt ${retries}/${maxRetries})...`);
-                    await new Promise(resolve => setTimeout(resolve, 3000));
+                  if (retries < MAX_RETRIES) {
+                    console.log(`Waiting for pr-preview.html to be accessible (attempt ${retries}/${MAX_RETRIES})...`);
+                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
                   } else {
                     console.log('⚠️  Could not verify pr-preview.html accessibility, posting link anyway');
                   }
