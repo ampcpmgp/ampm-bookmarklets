@@ -32,12 +32,19 @@ jobs:
         run: PR_PREVIEW=true node build.js
 
       - name: Commit PR preview
+        # Only commit for non-fork PRs to prevent security risks
+        if: github.event.pull_request.head.repo.full_name == github.repository
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -f pr-preview.html
-          git diff --staged --quiet || git commit -m "Add PR preview [skip ci]"
-          git push
+          # Only commit if there are changes
+          if ! git diff --staged --quiet; then
+            git commit -m "Add PR preview [skip ci]"
+            git push
+          else
+            echo "No changes to pr-preview.html, skipping commit"
+          fi
 
       - name: Upload built HTML artifact
         uses: actions/upload-artifact@v4
@@ -62,12 +69,18 @@ jobs:
             const branch = context.payload.pull_request.head.ref;
             const repo = context.repo.repo;
             const owner = context.repo.owner;
+            const isFork = context.payload.pull_request.head.repo.full_name !== context.payload.repository.full_name;
             
             // Generate htmlpreview.github.io link for pr-preview.html
             const previewUrl = `https://htmlpreview.github.io/?https://github.com/${owner}/${repo}/blob/${branch}/pr-preview.html`;
             
-            const message = `## 🎉 Build Successful!
+            let message = `## 🎉 Build Successful!\n`;
             
+            if (!isFork) {
+              // For non-fork PRs, wait a moment for the commit to be processed
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              
+              message += `
             ### 🔗 **即座に動作確認**
             以下のリンクから、ダウンロード不要でブックマークレットを確認できます：
             
@@ -76,7 +89,19 @@ jobs:
             このページでブックマークレットをブックマークバーにドラッグ&ドロップして、すぐに動作確認できます。
             
             ---
+            `;
+            } else {
+              message += `
+            ### ℹ️ Fork からの PR のため、プレビューは利用できません
             
+            セキュリティ上の理由から、Fork からの PR では自動プレビューが無効になっています。
+            下記の Artifacts をダウンロードして動作確認してください。
+            
+            ---
+            `;
+            }
+            
+            message += `
             ### 📦 Artifacts（従来の方法）
             必要に応じて、以下の方法でもダウンロード可能です：
             
