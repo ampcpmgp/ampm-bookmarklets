@@ -35,6 +35,7 @@ jobs:
         # Only commit for non-fork PRs to prevent security risks
         if: github.event.pull_request.head.repo.full_name == github.repository
         run: |
+          echo "Committing PR preview (non-fork PR detected)"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -f pr-preview.html
@@ -42,9 +43,17 @@ jobs:
           if ! git diff --staged --quiet; then
             git commit -m "Add PR preview [skip ci]"
             git push
+            echo "PR preview committed successfully"
           else
             echo "No changes to pr-preview.html, skipping commit"
           fi
+
+      - name: Log fork PR detection
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "⚠️  Fork PR detected - skipping PR preview commit for security reasons"
+          echo "Preview will not be available via htmlpreview.github.io"
+          echo "Reviewers should use the Artifacts download method instead"
 
       - name: Upload built HTML artifact
         uses: actions/upload-artifact@v4
@@ -77,8 +86,32 @@ jobs:
             let message = `## 🎉 Build Successful!\n`;
             
             if (!isFork) {
-              // For non-fork PRs, wait a moment for the commit to be processed
-              await new Promise(resolve => setTimeout(resolve, 5000));
+              // For non-fork PRs, wait for the commit to be processed
+              // Try to verify the file is accessible before posting the link
+              const maxRetries = 3;
+              let retries = 0;
+              let fileExists = false;
+              
+              while (retries < maxRetries && !fileExists) {
+                try {
+                  await github.rest.repos.getContent({
+                    owner: context.payload.pull_request.head.repo.owner.login,
+                    repo: context.payload.pull_request.head.repo.name,
+                    path: 'pr-preview.html',
+                    ref: branch
+                  });
+                  fileExists = true;
+                  console.log('✓ pr-preview.html is accessible');
+                } catch (error) {
+                  retries++;
+                  if (retries < maxRetries) {
+                    console.log(`Waiting for pr-preview.html to be accessible (attempt ${retries}/${maxRetries})...`);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                  } else {
+                    console.log('⚠️  Could not verify pr-preview.html accessibility, posting link anyway');
+                  }
+                }
+              }
               
               message += `
             ### 🔗 **即座に動作確認**
