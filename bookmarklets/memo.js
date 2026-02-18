@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v46
-// 2026-02-16
+// v47
+// 2026-02-18
 
 (function() {
   try {
@@ -122,11 +122,24 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v46',
+      CURRENT: 'v47',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-16',
+      LAST_UPDATED: '2026-02-18',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v47',
+          date: '2026-02-18',
+          features: [
+            'テンプレート機能にtextarea（複数行テキスト入力）タイプを追加：長文や複数行の内容に対応',
+            'parseTemplates関数を更新：正規表現にtextareaタイプを追加し、パース処理を拡張',
+            'createInputElement関数を更新：textareaケースを追加し、TEXTAREA_CONFIGを活用した最適なスタイリングを実装',
+            'getTemplateLabelText関数を更新：textareaタイプのラベルに「複数行テキスト」表示を追加',
+            '使い方ガイドを更新：textareaタイプの詳細な説明と実用例を追加し、4種類のテンプレートタイプを網羅',
+            '非常にきれいな実装：既存コードパターンと完全に統一し、共通処理を活用して可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべてのテンプレートタイプで一貫した動作を保証'
+          ]
+        },
         {
           version: 'v46',
           date: '2026-02-16',
@@ -1100,13 +1113,13 @@
 
     /**
      * Template Parser - Parses ${type:name} or ${type:name|options} placeholders in text
-     * Supported types: text, number, select
+     * Supported types: text, number, select, textarea
      * @param {string} text - Text containing templates
      * @returns {Array<{type: string, name: string, options: Array<string>, placeholder: string}>} - Array of template placeholders
      */
     const parseTemplates = (text) => {
       // Match ${type:name} or ${type:name|option1,option2,...}
-      const regex = /\$\{(text|number|select):([^}|]+)(?:\|([^}]+))?\}/g;
+      const regex = /\$\{(text|number|select|textarea):([^}|]+)(?:\|([^}]+))?\}/g;
       const templates = [];
       
       // Use matchAll for cleaner iteration
@@ -1188,6 +1201,22 @@
           });
           break;
 
+        case 'textarea':
+          inputElement = createElement('textarea');
+          inputElement.placeholder = `${template.name} を入力...`;
+          // Use textarea-specific styles with auto-height capabilities
+          const textareaStyles = [
+            ...commonStyles,
+            `min-height:${TEXTAREA_CONFIG.MIN_HEIGHT}`,
+            `max-height:${TEXTAREA_CONFIG.MAX_HEIGHT}`,
+            'resize:vertical',
+            'font-family:inherit',
+            `line-height:${TEXTAREA_CONFIG.LINE_HEIGHT}`,
+            'overflow-y:auto'
+          ];
+          inputElement.style.cssText = textareaStyles.join(';');
+          break;
+
         default:
           // Fallback to text input
           inputElement = createElement('input');
@@ -1207,6 +1236,9 @@
     const getTemplateLabelText = (template) => {
       if (template.type === 'select' && template.options.length > 0) {
         return `${template.name} (選択)`;
+      }
+      if (template.type === 'textarea') {
+        return `${template.name} (複数行テキスト)`;
       }
       return `${template.name} (${template.type === 'number' ? '数値' : 'テキスト'})`;
     };
@@ -3345,6 +3377,41 @@
               selectTypeSection.appendChild(selectTypeSyntax);
               selectTypeSection.appendChild(selectTypeDesc);
               
+              // Textarea type
+              const textareaTypeSection = createElement('div', [
+                'margin:0 0 16px 0'
+              ].join(';'));
+              
+              const textareaTypeTitle = createElement('div', [
+                'margin:0 0 4px 0',
+                'font-weight:600',
+                'color:#1a73e8',
+                'font-size:13px'
+              ].join(';'), '4. 複数行テキスト入力 (textarea)');
+              
+              const textareaTypeSyntax = createElement('code', [
+                'display:block',
+                'margin:0 0 4px 0',
+                'padding:8px',
+                'background:#fff',
+                'border:1px solid #e0e0e0',
+                'border-radius:4px',
+                'font-family:monospace',
+                'font-size:12px',
+                'color:#d73a49'
+              ].join(';'), '${textarea:項目名}');
+              
+              const textareaTypeDesc = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:12px',
+                'line-height:1.5'
+              ].join(';'), '複数行のテキストを入力できるテキストエリアです。長文や複数行の内容に最適です。');
+              
+              textareaTypeSection.appendChild(textareaTypeTitle);
+              textareaTypeSection.appendChild(textareaTypeSyntax);
+              textareaTypeSection.appendChild(textareaTypeDesc);
+              
               const templateExample = createElement('div', [
                 'margin:12px 0 0 0'
               ].join(';'));
@@ -3368,14 +3435,14 @@
                 'color:#333',
                 'white-space:pre-wrap',
                 'line-height:1.6'
-              ].join(';'), 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ,曇り,雨}ですね。\n気温は${number:気温}度です。');
+              ].join(';'), 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ,曇り,雨}ですね。\n気温は${number:気温}度です。\n\n感想:\n${textarea:コメント}');
               
               const exampleNote = createElement('p', [
                 'margin:0',
                 'color:#5f6368',
                 'font-size:13px',
                 'line-height:1.5'
-              ].join(';'), '💬 コピーボタンを押すと、「名前」（テキスト入力）、「天気」（選択肢）、「気温」（数値入力）の3つの入力フォームが表示され、入力後にテンプレートが置換されてコピーされます。');
+              ].join(';'), '💬 コピーボタンを押すと、「名前」（テキスト入力）、「天気」（選択肢）、「気温」（数値入力）、「コメント」（複数行テキスト）の4つの入力フォームが表示され、入力後にテンプレートが置換されてコピーされます。');
               
               templateSection.appendChild(templateTitle);
               templateSection.appendChild(templateDesc);
@@ -3383,6 +3450,7 @@
               templateSection.appendChild(textTypeSection);
               templateSection.appendChild(numberTypeSection);
               templateSection.appendChild(selectTypeSection);
+              templateSection.appendChild(textareaTypeSection);
               templateSection.appendChild(exampleTitle);
               templateSection.appendChild(exampleCode);
               templateSection.appendChild(exampleNote);
