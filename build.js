@@ -305,9 +305,3 @@ console.log(`✓ Generated index.html with ${bookmarklets.length} bookmarklet(s)
 bookmarklets.forEach(bm => {
   console.log(`  - ${bm.title}`);
 });
-
-// If PR_PREVIEW environment variable is set, also generate pr-preview.html
-if (process.env.PR_PREVIEW === 'true') {
-  fs.writeFileSync(path.join(__dirname, 'pr-preview.html'), html);
-  console.log('✓ Generated pr-preview.html for PR preview');
-}
