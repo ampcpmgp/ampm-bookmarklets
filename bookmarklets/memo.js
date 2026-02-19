@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v47
-// 2026-02-18
+// v48
+// 2026-02-19
 
 (function() {
   try {
@@ -122,11 +122,23 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v47',
+      CURRENT: 'v48',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-18',
+      LAST_UPDATED: '2026-02-19',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v48',
+          date: '2026-02-19',
+          features: [
+            'textareaテンプレートの表示を改善：最小高さを60pxから82pxに変更し、最低3行分の高さを確保',
+            'textareaテンプレートに自動高さ調整機能を追加：入力時に行の長さが広がるにつれてtextareaが自動的に拡大',
+            'setupAutoHeight()をcreateInputElement関数のtextareaケースに適用し、スムーズなコンテンツ拡張を実現',
+            'overflow-yをhiddenに変更し、transitionを追加して滑らかな高さ変更アニメーションを実装',
+            '非常にきれいな実装：既存のauto-height機能を活用し、共通処理を最大限に利用して可読性とメンテナンス性を向上',
+            '安全で確実な動作：既存機能に影響を与えず、すべてのtextarea要素で一貫した動作を保証'
+          ]
+        },
         {
           version: 'v47',
           date: '2026-02-18',
@@ -522,8 +534,9 @@
     // UI/UX constants for textarea dimensions
     // Optimized for comfortable editing with auto-height adjustment
     const TEXTAREA_CONFIG = {
-      // Initial minimum height when empty (compact for better UX)
-      MIN_HEIGHT: '60px',
+      // Initial minimum height ensures at least 3 visible rows
+      // Calculation: 3 rows × 13px font × 1.6 line-height + 20px padding = 82.4px
+      MIN_HEIGHT: '82px',
       // Maximum height before scrolling (allows ~13+ visible lines)
       MAX_HEIGHT: '300px',
       // Font size for consistent readability
@@ -1212,9 +1225,12 @@
             'resize:vertical',
             'font-family:inherit',
             `line-height:${TEXTAREA_CONFIG.LINE_HEIGHT}`,
-            'overflow-y:auto'
+            'overflow-y:hidden',
+            'transition:height 0.1s ease'
           ];
           inputElement.style.cssText = textareaStyles.join(';');
+          // Enable auto-height adjustment for smooth content expansion
+          setupAutoHeight(inputElement);
           break;
 
         default:
