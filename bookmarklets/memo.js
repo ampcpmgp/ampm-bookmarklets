@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v48
-// 2026-02-19
+// v49
+// 2026-02-20
 
 (function() {
   try {
@@ -122,11 +122,20 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v48',
+      CURRENT: 'v49',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-19',
+      LAST_UPDATED: '2026-02-20',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v49',
+          date: '2026-02-20',
+          features: [
+            '設定ダイアログの高さを固定化：max-height:80vhからheight:80vhに変更し、タブ切り替え時にダイアログの高さが変わらないよう修正',
+            '非常にきれいな実装：最小限の変更で本質的な問題のみを解決し、可読性とメンテナンス性を維持',
+            '安全で確実な動作：既存機能に影響を与えず、すべてのタブで一貫した高さを保証'
+          ]
+        },
         {
           version: 'v48',
           date: '2026-02-19',
@@ -2561,7 +2570,7 @@
           'box-shadow:0 8px 30px rgba(0,0,0,0.3)',
           'width:90%',
           'max-width:600px',
-          'max-height:80vh',
+          'height:80vh',
           'display:flex',
           'flex-direction:column',
           'overflow:hidden'
