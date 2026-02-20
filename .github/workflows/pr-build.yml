@@ -31,6 +31,18 @@ jobs:
       - name: Build bookmarklets
         run: node build.js
 
+      - name: Commit built index.html to PR branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --staged --quiet; then
+            echo "::notice::No changes to index.html to commit"
+          else
+            git commit -m "chore: rebuild index.html [skip ci]"
+            git push
+          fi
+
       - name: Comment PR with artifact info
         uses: actions/github-script@v7
         with:
@@ -111,19 +123,18 @@ jobs:
             );
             
             if (existingComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
+              // Delete existing comment so a new one triggers a fresh notification
+              await github.rest.issues.deleteComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: existingComment.id,
-                body: messageWithIdentifier
-              });
-            } else {
-              // Create new comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: messageWithIdentifier
               });
             }
+
+            // Always create a new comment so subscribers receive a notification
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: messageWithIdentifier
+            });
