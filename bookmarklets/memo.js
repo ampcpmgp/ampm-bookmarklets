@@ -1,8 +1,8 @@
 // ローカルメモ
 // localStorageにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v49
-// 2026-02-20
+// v50
+// 2026-02-21
 
 (function() {
   try {
@@ -122,11 +122,24 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v49',
+      CURRENT: 'v50',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-20',
+      LAST_UPDATED: '2026-02-21',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v50',
+          date: '2026-02-21',
+          features: [
+            '設定ダイアログの「設定」タブを「変数設定」に名称変更：変数管理タブの役割を明確化',
+            '「使い方」タブの内容順序を変更：テンプレート機能→変数機能→タグ機能の論理的な順序に整理',
+            '「その他設定」タブを新規追加：将来の設定項目のためのプレースホルダー（現状は未設定項目なし）',
+            'タブナビゲーションに横スクロール機能を追加：ダイアログ幅が狭い場合にタブをスクロール可能に',
+            'マウスホイールでタブを横スクロール操作できるよう対応：直感的な操作性を実現',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべてのタブで一貫した動作を保証'
+          ]
+        },
         {
           version: 'v49',
           date: '2026-02-20',
@@ -2628,8 +2641,19 @@
             'display:flex',
             'background:#fff',
             'border-bottom:1px solid #ddd',
-            'padding:0 20px'
+            'padding:0 20px',
+            'overflow-x:auto',
+            'white-space:nowrap',
+            'scrollbar-width:none'
           ].join(';'));
+          
+          // Enable horizontal scroll with mouse wheel
+          tabNav.addEventListener('wheel', (e) => {
+            if (e.deltaY !== 0) {
+              e.preventDefault();
+              tabNav.scrollLeft += e.deltaY;
+            }
+          }, { passive: false });
           
           const tabContents = [];
           let activeTabIndex = 0;
@@ -2646,7 +2670,9 @@
               'font-weight:500',
               'color:#5f6368',
               'border-bottom:2px solid transparent',
-              'transition:all 0.2s'
+              'transition:all 0.2s',
+              'white-space:nowrap',
+              'flex-shrink:0'
             ].join(';'), tab.label, () => {
               // Switch to this tab
               activeTabIndex = index;
@@ -3265,8 +3291,6 @@
               tagSection.appendChild(tagUsageTitle);
               tagSection.appendChild(tagUsageSteps);
               
-              usageContent.appendChild(tagSection);
-              
               // Template feature section
               const templateSection = createElement('div', [
                 'margin-bottom:24px',
@@ -3480,8 +3504,6 @@
               templateSection.appendChild(exampleCode);
               templateSection.appendChild(exampleNote);
               
-              usageContent.appendChild(templateSection);
-              
               // Variable feature section
               const variableSection = createElement('div', [
                 'margin-bottom:24px',
@@ -3519,7 +3541,7 @@
               ].join(';'));
               
               const variableSteps = [
-                '「⚙️ 設定」タブを開き、「➕ 新しい変数を追加」をクリック',
+                '「🔧 変数設定」タブを開き、「➕ 新しい変数を追加」をクリック',
                 '変数名と値を入力して保存',
                 'メモ本文で ${var:変数名} として使用',
                 'コピー時に自動的に変数の値が置き換えられます'
@@ -3571,8 +3593,6 @@
               variableSection.appendChild(variableExampleCode);
               variableSection.appendChild(variableExampleNote);
               
-              usageContent.appendChild(variableSection);
-              
               // Tips section
               const tipsSection = createElement('div', [
                 'margin-bottom:16px'
@@ -3611,13 +3631,18 @@
               
               tipsSection.appendChild(tipsTitle);
               tipsSection.appendChild(tipsList);
+              
+              // Append sections in logical order: テンプレート機能 → 変数機能 → タグ機能 → ヒント
+              usageContent.appendChild(templateSection);
+              usageContent.appendChild(variableSection);
+              usageContent.appendChild(tagSection);
               usageContent.appendChild(tipsSection);
               
               container.appendChild(usageContent);
             }
           },
           {
-            label: '⚙️ 設定',
+            label: '🔧 変数設定',
             content: (container) => {
               // Settings tab content - Variable management
               const settingsContent = createElement('div', [
@@ -3931,6 +3956,40 @@
               }
               
               container.appendChild(tagContent);
+            }
+          },
+          {
+            label: '⚙️ その他設定',
+            content: (container) => {
+              // Other settings tab content
+              const otherContent = createElement('div', [
+                'font-size:14px',
+                'line-height:1.8',
+                'color:#333'
+              ].join(';'));
+              
+              const otherTitle = createElement('h3', [
+                'margin:0 0 16px 0',
+                'font-size:18px',
+                'font-weight:600',
+                'color:#333'
+              ].join(';'), '⚙️ その他設定');
+              
+              const otherDesc = createElement('p', [
+                'margin:0',
+                'color:#5f6368',
+                'font-size:14px',
+                'line-height:1.6',
+                'padding:20px',
+                'background:#f8f9fa',
+                'border-radius:8px',
+                'text-align:center'
+              ].join(';'), '現在、その他の設定項目はありません。');
+              
+              otherContent.appendChild(otherTitle);
+              otherContent.appendChild(otherDesc);
+              
+              container.appendChild(otherContent);
             }
           },
           {
