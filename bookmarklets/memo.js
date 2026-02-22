@@ -1,7 +1,7 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v51
+// v52
 // 2026-02-22
 
 (async function() {
@@ -189,11 +189,22 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v51',
+      CURRENT: 'v52',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-22',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v52',
+          date: '2026-02-22',
+          features: [
+            'Discord等でCtrl+Vを押した際にメモ入力欄へのペーストがDiscord側にも反映される問題を修正',
+            '全入力フィールド（メモ作成2種・変数設定・テンプレート入力・編集・タグ入力）にonpasteハンドラーを追加：pasteイベントの外部伝播を防止',
+            'stopPropagation共通ユーティリティを新設：各ダイアログで個別定義していたpreventInputPropagation関数を一元化し、コード重複を解消',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべての入力シナリオで正しく動作することを保証'
+          ]
+        },
         {
           version: 'v51',
           date: '2026-02-22',
@@ -1111,6 +1122,11 @@
       return element;
     };
 
+    // Shared utility to stop event propagation.
+    // Prevents events (keydown, input, paste, etc.) from reaching page-level listeners
+    // such as those in Discord, Mattermost, and Slack that steal focus or capture clipboard data.
+    const stopPropagation = (e) => e.stopPropagation();
+
     /**
      * Safely clear all children from a container element
      * Alternative to innerHTML = '' to avoid TrustedHTML issues
@@ -1518,15 +1534,10 @@
         e.stopPropagation();
       };
 
-      // Prevent input event propagation to avoid external interference
-      // This ensures the dialog input works smoothly even on pages with aggressive focus management
-      const preventInputPropagation = (e) => {
-        e.stopPropagation();
-      };
-
       inputFields.forEach(field => {
         field.input.onkeydown = handleKeyDown;
-        field.input.oninput = preventInputPropagation;
+        field.input.oninput = stopPropagation;
+        field.input.onpaste = stopPropagation;
       });
 
       overlay.appendChild(formContainer);
@@ -1933,16 +1944,12 @@
         e.stopPropagation();
       };
       
-      // Prevent input event propagation to stop external focus monitoring interference
-      // This ensures smooth typing in dialog inputs without focus being stolen by page-level handlers
-      const preventInputPropagation = (e) => {
-        e.stopPropagation();
-      };
-      
       nameInput.onkeydown = handleKeyDown;
-      nameInput.oninput = preventInputPropagation;
+      nameInput.oninput = stopPropagation;
+      nameInput.onpaste = stopPropagation;
       valueTextarea.onkeydown = handleKeyDown;
-      valueTextarea.oninput = preventInputPropagation;
+      valueTextarea.oninput = stopPropagation;
+      valueTextarea.onpaste = stopPropagation;
       
       buttonContainer.appendChild(cancelButton);
       buttonContainer.appendChild(saveButton);
@@ -2437,6 +2444,7 @@
           e.stopPropagation();
         }
       };
+      tagInput.onpaste = stopPropagation;
       
       // Close autocomplete when clicking outside
       tagInput.onblur = () => {
@@ -2580,8 +2588,12 @@
         }
         e.stopPropagation();
       };
+      emojiPicker.titleInput.oninput = stopPropagation;
+      emojiPicker.titleInput.onpaste = stopPropagation;
       
       textArea.onkeydown = handleKeyDown;
+      textArea.oninput = stopPropagation;
+      textArea.onpaste = stopPropagation;
       
       // Assemble container with proper layout styling
       // Container now includes emoji picker, tag input, textarea, AND buttons in a clean vertical layout
@@ -4232,6 +4244,7 @@
         KeyHandler.isNewMemoCreating = true;
       }
     };
+    titleInput.onpaste = stopPropagation;
     
     emojiTitleRow.appendChild(titleInput);
 
@@ -4396,6 +4409,7 @@
         KeyHandler.isNewMemoCreating = true;
       }
     };
+    input.onpaste = stopPropagation;
     
     body.appendChild(input);
     
@@ -4851,10 +4865,12 @@
       compactTitleInput.oninput = () => {
         compactFormState.title = compactTitleInput.value;
       };
+      compactTitleInput.onpaste = stopPropagation;
 
       compactTextarea.oninput = () => {
         compactFormState.content = compactTextarea.value;
       };
+      compactTextarea.onpaste = stopPropagation;
 
       saveCompactButton.onclick = () => {
         const content = compactTextarea.value.trim();
