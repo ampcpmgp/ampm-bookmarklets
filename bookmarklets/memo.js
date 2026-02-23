@@ -1,10 +1,10 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v54
+// v55
 // 2026-02-23
 
-(async function run() {
+(async function run(startupOptions = {}) {
   try {
     const ID = 'ls-memo-final';
     const old = document.getElementById(ID);
@@ -191,11 +191,23 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v54',
+      CURRENT: 'v55',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-23',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v55',
+          date: '2026-02-23',
+          features: [
+            '表示言語切り替え時に設定ダイアログを閉じないよう修正：切替後も「その他」タブが開いたままになる',
+            'run()にstartupOptionsパラメーターを追加：再起動時に設定ダイアログの初期タブを指定可能',
+            'openSettings(initialTabIndex)関数を新設：PopupModal.createの設定ダイアログ呼び出しを一元化',
+            'PopupModal.createにinitialTabIndexオプションを追加：任意のタブを初期表示タブとして指定可能',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべての言語環境で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v54',
           date: '2026-02-23',
@@ -3141,7 +3153,7 @@
       
       // Create and display a modal with tabs
       create: function(options) {
-        const { title, tabs, onClose } = options;
+        const { title, tabs, onClose, initialTabIndex = 0 } = options;
         
         // Close any existing modal
         if (this.activeModal) {
@@ -3242,7 +3254,7 @@
           }, { passive: false });
           
           const tabContents = [];
-          let activeTabIndex = 0;
+          let activeTabIndex = initialTabIndex;
           
           // Create tab buttons and content areas
           tabs.forEach((tab, index) => {
@@ -3265,7 +3277,7 @@
               updateTabs();
             });
             
-            if (index === 0) {
+            if (index === initialTabIndex) {
               tabButton.style.color = '#1a73e8';
               tabButton.style.borderBottomColor = '#1a73e8';
             }
@@ -3288,7 +3300,7 @@
               'padding:20px',
               'overflow-y:auto',
               'flex:1',
-              'display:' + (index === 0 ? 'block' : 'none')
+              'display:' + (index === initialTabIndex ? 'block' : 'none')
             ].join(';'));
             
             // Add content from tab configuration
@@ -3752,21 +3764,11 @@
       tagFilterButton.style.background = '#7b1fa2';
     }
     
-    const settingsButton = createElement('button', [
-      'padding:4px 10px',
-      'font-size:12px',
-      'border:none',
-      'border-radius:4px',
-      'cursor:pointer',
-      'background:#5f6368',
-      'color:#fff',
-      'white-space:nowrap',
-      'font-weight:normal',
-      'flex-shrink:0'
-    ].join(';'), T.settings, () => {
-      // Open settings popup with tabs
+    // Opens the settings dialog at the specified tab index (default: first tab)
+    const openSettings = (initialTabIndex = 0) => {
       PopupModal.create({
         title: T.settingsModalTitle,
+        initialTabIndex,
         tabs: [
           {
             label: T.tabUsage,
@@ -4593,7 +4595,8 @@
                   await saveLanguage(lang.code);
                   close();
                   await Promise.resolve(); // yield to event loop before re-initialization
-                  run();
+                  // Re-open settings dialog at the 'Other' tab (index 3) so it stays visible
+                  run({ openSettingsTab: 3 });
                 };
 
                 langButtons.appendChild(btn);
@@ -4675,6 +4678,21 @@
           }
         ]
       });
+    };
+
+    const settingsButton = createElement('button', [
+      'padding:4px 10px',
+      'font-size:12px',
+      'border:none',
+      'border-radius:4px',
+      'cursor:pointer',
+      'background:#5f6368',
+      'color:#fff',
+      'white-space:nowrap',
+      'font-weight:normal',
+      'flex-shrink:0'
+    ].join(';'), T.settings, () => {
+      openSettings();
     });
     settingsButton.title = T.settingsTitle;
     buttonRow.appendChild(settingsButton);
@@ -5947,6 +5965,11 @@
       newMemoTagInput.container.style.display = 'none';
       input.style.display = 'none';
       saveButton.style.display = 'none';
+    }
+
+    // If requested (e.g. after language change), open the settings dialog at the specified tab
+    if (startupOptions.openSettingsTab !== undefined) {
+      openSettings(startupOptions.openSettingsTab);
     }
   } catch (error) {
     console.error(error);
