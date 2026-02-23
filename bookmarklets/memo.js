@@ -1,8 +1,8 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v52
-// 2026-02-22
+// v53
+// 2026-02-23
 
 (async function() {
   try {
@@ -189,11 +189,25 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v52',
+      CURRENT: 'v53',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-22',
+      LAST_UPDATED: '2026-02-23',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v53',
+          date: '2026-02-23',
+          features: [
+            '多言語対応を実装：日本語・英語・簡体字中国語・韓国語・繁体字中国語の5言語をサポート',
+            'ブラウザ標準言語をデフォルト言語として自動検出：navigator.languageを使用',
+            'TRANSLATIONSオブジェクトを新設：全UI文字列を一元管理し、メンテナンス性を大幅向上',
+            'getLang()関数を新設：ブラウザ言語を解析し、サポート言語にマッピング（非対応言語は英語にフォールバック）',
+            'T定数を新設：選択された言語のTRANSLATIONSセットへの参照を提供',
+            '全UIテキストをT.xxxで参照するよう変換：ハードコードされた日本語文字列を完全に置き換え',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべての言語環境で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v52',
           date: '2026-02-22',
@@ -713,7 +727,459 @@
       '🔮', '🌟', '🌠', '🎇', '🎆'
     ];
 
-    // Drag & Drop Manager for pinned items reordering
+
+    // Detect browser language and select appropriate translation set
+    // Supports: ja (Japanese), en (English), zh-CN (Simplified Chinese), ko (Korean), zh-TW (Traditional Chinese)
+    const getLang = () => {
+      const lang = (navigator.language || 'ja').toLowerCase();
+      if (lang.startsWith('ja')) return 'ja';
+      if (lang.startsWith('ko')) return 'ko';
+      if (lang.startsWith('zh')) {
+        return (lang.includes('tw') || lang.includes('hk') || lang.includes('hant')) ? 'zh-TW' : 'zh-CN';
+      }
+      if (lang.startsWith('en')) return 'en';
+      return 'en';
+    };
+
+    // All UI text strings organized by language
+    // Add new languages here - each key must exist in all language objects
+    const TRANSLATIONS = {
+      ja: {
+        viewFull: '📝 全表示', viewList: '📋 一覧',
+        viewToggleTitle: 'タイトル一覧表示を切り替えます',
+        tagFilter: '🏷️ タグ', tagFilterTitle: 'タグでフィルタリング',
+        settings: '⚙️ 設定', settingsTitle: 'バージョン情報を表示',
+        deleteAll: '🗑️ 一括削除', deleteAllTitle: 'ピンを除いて一括削除を行います',
+        titlePlaceholder: 'タイトル（省略可）',
+        memoPlaceholder: 'テキストを入力...',
+        memoContentPlaceholder: 'メモ内容を入力...',
+        memoCompactPlaceholder: 'メモ内容...',
+        tagInputPlaceholder: 'タグを入力してEnter...',
+        saveMemo: '💾 保存 (Ctrl+Enter)', saveCompact: '💾 保存',
+        saveBtn: '✓ 保存', cancelBtn: '✗ キャンセル',
+        cancelEsc: '✗ キャンセル (ESC)', saveCtrlEnter: '✓ 保存 (Ctrl+Enter)',
+        copyBtn: '✓ コピー',
+        randomEmoji: '🎲 ランダム選択', clearEmoji: '🗑️ 削除',
+        tagLabel: '🏷️ タグ', noTags: 'タグなし', noTagsAvailable: 'タグがありません',
+        clearFilter: (n) => `✕ フィルタをクリア (${n}件選択中)`,
+        pinBtn: (pinned, c) => pinned ? (c ? '📌' : '📌 Pin') : 'Pin',
+        unpinTitle: 'ピン留めを解除', pinTitle: 'ピン留めする',
+        editBtn: (c) => c ? '✏️' : 'Edit', editTitle: '編集する',
+        copyAction: (c) => c ? '📋' : 'Copy', copyTitle: 'コピーする',
+        deleteBtn: (c) => c ? '🗑️' : 'Del', deleteTitle: '削除する',
+        confirmDeleteMemo: 'このメモを削除しますか？',
+        addNewMemo: '➕ 新規メモを追加',
+        createdLabel: '作成:', updatedLabel: '更新:',
+        showMore: '▼ もっと見る', showLess: '▲ 閉じる',
+        maxMemos: (m) => `最大${m}件です`,
+        maxMemosCompact: (m) => `メモの保存に失敗しました。最大${m}件です`,
+        deleteAllConfirm: (n) => `ピン留め以外の${n}件を削除しますか？`,
+        noMemosToDelete: '削除するメモがありません',
+        enterMemoContent: 'メモ内容を入力してください',
+        templateFormTitle: '📝 テンプレート入力',
+        templateFormDesc: '各項目を入力してください。コピー時にテンプレートが置き換えられます。',
+        templateInputPlaceholder: (name) => `${name} を入力...`,
+        templateSelectPlaceholder: (name) => `${name} を選択...`,
+        templateLabelSelect: '(選択)', templateLabelTextarea: '(複数行テキスト)',
+        templateLabelNumber: '数値', templateLabelText: 'テキスト',
+        addVariableTitle: '➕ 新しい変数を追加', editVariableTitle: '✏️ 変数を編集',
+        variableNameLabel: '変数名', variableNamePlaceholder: '例: ユーザー名, メールアドレス',
+        variableValueLabel: '値', variableValuePlaceholder: '変数の値を入力...',
+        variableNameRequired: '変数名を入力してください',
+        variableNameDuplicate: (name) => `変数名「${name}」は既に使用されています`,
+        variableEmpty: '(空)', variableDeleteConfirm: (name) => `変数「${name}」を削除しますか？`,
+        settingsModalTitle: '設定',
+        tabUsage: '📖 使い方', tabVariables: '🔧 変数',
+        tabTagManagement: '🏷️ タグ管理', tabOther: '⚙️ その他', tabHistory: '📋 更新履歴',
+        usageTitle: '📖 使い方ガイド', usageIntro: 'このメモツールの便利な機能をご紹介します。',
+        tagFeatureTitle: '🏷️ タグ機能',
+        tagFeatureDesc: 'メモにタグを付けて分類・管理できます。複数のタグを設定して、メモを整理しましょう。',
+        tagFeatures: ['タグ入力時に自動補完とファジー検索で既存タグを簡単に選択', 'メモ作成・編集時にタグを追加・削除可能', '一覧表示と全表示の両方でタグを表示', 'タグでメモをフィルタリング（複数タグ選択可能）', 'タグ管理画面で不要なタグを削除可能'],
+        tagUsageTitle: '💡 使い方:',
+        tagSteps: ['メモ作成時または編集時に「タグ」フィールドにタグ名を入力してEnterキー', '既存タグは自動補完されるので、選択するだけでOK', 'タグ横の×ボタンでタグを削除', 'ヘッダーの「🏷️ タグ」ボタンでタグフィルタリング', '設定の「🏷️ タグ管理」でタグの一覧確認・削除'],
+        templateFeatureTitle: '✨ テンプレート機能',
+        templateFeatureDesc: 'メモ本文にプレースホルダを記述することで、コピー時に入力フォームが表示され、柔軟なテキスト生成が可能になります。',
+        templateTypesTitle: '📝 テンプレートの種類:',
+        textTypeTitle: '1. テキスト入力 (text)', textTypeDesc: '自由なテキストを入力できる基本的な入力フィールドです。',
+        numberTypeTitle: '2. 数値入力 (number)', numberTypeDesc: '数値のみを入力できる入力フィールドです。',
+        selectTypeTitle: '3. 選択入力 (select)', selectTypeDesc: 'ドロップダウンメニューから選択肢を選べます。カンマ (,) で区切って選択肢を指定します。注意: 選択肢の値にカンマを含めることはできません。',
+        textareaTypeTitle: '4. 複数行テキスト入力 (textarea)', textareaTypeDesc: '複数行のテキストを入力できるテキストエリアです。長文や複数行の内容に最適です。',
+        exampleTitle: '💡 使用例:',
+        exampleCode: 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ,曇り,雨}ですね。\n気温は${number:気温}度です。\n\n感想:\n${textarea:コメント}',
+        exampleNote: '💬 コピーボタンを押すと、「名前」（テキスト入力）、「天気」（選択肢）、「気温」（数値入力）、「コメント」（複数行テキスト）の4つの入力フォームが表示され、入力後にテンプレートが置換されてコピーされます。',
+        variableFeatureTitle: '🔧 変数機能',
+        variableFeatureDesc: '変数を定義すると、メモ本文で繰り返し使用できる値を事前に登録できます。変数はテンプレート機能と組み合わせて使用することもできます。',
+        variableUsageTitle: '📝 変数の使い方:',
+        variableSteps: ['「🔧 変数」タブを開き、「➕ 新しい変数を追加」をクリック', '変数名と値を入力して保存', 'メモ本文で ${var:変数名} として使用', 'コピー時に自動的に変数の値が置き換えられます'],
+        variableExampleTitle: '💡 使用例:',
+        variableExampleCode: '変数設定:\n・ユーザー名 → 山田太郎\n・メール → taro@example.com\n\nメモ本文:\nお名前: ${var:ユーザー名}\n連絡先: ${var:メール}',
+        variableExampleNote: '💬 変数とテンプレートを組み合わせることで、さらに柔軟なメモ作成が可能です。変数は設定で一度定義すれば、すべてのメモで使用できます。',
+        tipsTitle: '💡 ヒント',
+        tips: ['テンプレートがない場合は、通常通りメモ本文がそのままコピーされます', '同じ項目名と型は複数回使用できます（例: ${text:名前} を2箇所）', 'select型では選択肢をカンマ (,) で区切って指定します', '入力フォームではESCキーでキャンセル、Ctrl+Enterで送信できます', 'ピン留め機能でよく使うテンプレートを上部に固定できます'],
+        variableSettingsTitle: '🔧 変数設定',
+        variableSettingsDesc: '変数を定義すると、メモ本文で ${var:変数名} として使用できます。コピー時に自動的に値が置き換えられます。',
+        noVariables: '変数が登録されていません', addVariable: '➕ 新しい変数を追加', editVariable: '✏️ 編集',
+        tagManagementTitle: '🏷️ タグ管理',
+        tagManagementDesc: 'メモに設定されているすべてのタグを管理できます。使用されていないタグを削除することも可能です。',
+        noTagsYet: 'タグがまだ設定されていません。メモにタグを追加してください。',
+        tagUsageCount: (n) => `${n}件のメモで使用中`, deleteTag: '削除',
+        deleteTagConfirm: (tag, n) => `タグ「${tag}」は${n}件のメモで使用されています。削除してもよろしいですか？`,
+        deleteTagConfirmNoMemo: (tag) => `タグ「${tag}」を削除してもよろしいですか？`,
+        otherSettingsTitle: '⚙️ その他', otherSettingsDesc: '現在、その他の設定項目はありません。',
+        appTitle: 'ローカルメモ',
+        appDesc: 'IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット',
+        dateLocale: 'ja-JP'
+      },
+      en: {
+        viewFull: '📝 Full', viewList: '📋 List',
+        viewToggleTitle: 'Toggle list/full view',
+        tagFilter: '🏷️ Tags', tagFilterTitle: 'Filter by tags',
+        settings: '⚙️ Settings', settingsTitle: 'Show settings',
+        deleteAll: '🗑️ Delete All', deleteAllTitle: 'Delete all unpinned memos',
+        titlePlaceholder: 'Title (optional)',
+        memoPlaceholder: 'Enter text...',
+        memoContentPlaceholder: 'Enter memo content...',
+        memoCompactPlaceholder: 'Memo content...',
+        tagInputPlaceholder: 'Type tag and press Enter...',
+        saveMemo: '💾 Save (Ctrl+Enter)', saveCompact: '💾 Save',
+        saveBtn: '✓ Save', cancelBtn: '✗ Cancel',
+        cancelEsc: '✗ Cancel (ESC)', saveCtrlEnter: '✓ Save (Ctrl+Enter)',
+        copyBtn: '✓ Copy',
+        randomEmoji: '🎲 Random', clearEmoji: '🗑️ Clear',
+        tagLabel: '🏷️ Tags', noTags: 'No tags', noTagsAvailable: 'No tags',
+        clearFilter: (n) => `✕ Clear filter (${n} selected)`,
+        pinBtn: (pinned, c) => pinned ? (c ? '📌' : '📌 Pin') : 'Pin',
+        unpinTitle: 'Unpin', pinTitle: 'Pin',
+        editBtn: (c) => c ? '✏️' : 'Edit', editTitle: 'Edit',
+        copyAction: (c) => c ? '📋' : 'Copy', copyTitle: 'Copy',
+        deleteBtn: (c) => c ? '🗑️' : 'Del', deleteTitle: 'Delete',
+        confirmDeleteMemo: 'Delete this memo?',
+        addNewMemo: '➕ Add New Memo',
+        createdLabel: 'Created:', updatedLabel: 'Updated:',
+        showMore: '▼ Show more', showLess: '▲ Show less',
+        maxMemos: (m) => `Maximum ${m} memos`,
+        maxMemosCompact: (m) => `Save failed. Maximum is ${m} memos`,
+        deleteAllConfirm: (n) => `Delete ${n} unpinned memo(s)?`,
+        noMemosToDelete: 'No memos to delete',
+        enterMemoContent: 'Please enter memo content',
+        templateFormTitle: '📝 Template Input',
+        templateFormDesc: 'Fill in each field. Templates will be replaced when copied.',
+        templateInputPlaceholder: (name) => `Enter ${name}...`,
+        templateSelectPlaceholder: (name) => `Select ${name}...`,
+        templateLabelSelect: '(select)', templateLabelTextarea: '(multiline text)',
+        templateLabelNumber: 'number', templateLabelText: 'text',
+        addVariableTitle: '➕ Add New Variable', editVariableTitle: '✏️ Edit Variable',
+        variableNameLabel: 'Variable Name', variableNamePlaceholder: 'e.g. username, email',
+        variableValueLabel: 'Value', variableValuePlaceholder: 'Enter variable value...',
+        variableNameRequired: 'Please enter a variable name',
+        variableNameDuplicate: (name) => `Variable name "${name}" is already in use`,
+        variableEmpty: '(empty)', variableDeleteConfirm: (name) => `Delete variable "${name}"?`,
+        settingsModalTitle: 'Settings',
+        tabUsage: '📖 How to Use', tabVariables: '🔧 Variables',
+        tabTagManagement: '🏷️ Tag Manager', tabOther: '⚙️ Other', tabHistory: '📋 Changelog',
+        usageTitle: '📖 How to Use', usageIntro: 'Here are the useful features of this memo tool.',
+        tagFeatureTitle: '🏷️ Tag Feature',
+        tagFeatureDesc: 'Add tags to memos for categorization and management. Set multiple tags to organize your memos.',
+        tagFeatures: ['Autocomplete and fuzzy search for existing tags when typing', 'Add/remove tags when creating or editing memos', 'Tags are displayed in both list and full view', 'Filter memos by tags (multiple tags supported)', 'Delete unused tags in the Tag Manager'],
+        tagUsageTitle: '💡 How to use:',
+        tagSteps: ['Type a tag name in the "Tags" field and press Enter when creating or editing a memo', 'Existing tags are autocompleted - just select them', 'Click × next to a tag to remove it', 'Click "🏷️ Tags" in the header to filter by tags', 'Go to Settings → "🏷️ Tag Manager" to view and delete tags'],
+        templateFeatureTitle: '✨ Template Feature',
+        templateFeatureDesc: 'Write placeholders in memo content to display an input form when copying, enabling flexible text generation.',
+        templateTypesTitle: '📝 Template Types:',
+        textTypeTitle: '1. Text Input (text)', textTypeDesc: 'A basic text input field for free-form text.',
+        numberTypeTitle: '2. Number Input (number)', numberTypeDesc: 'An input field that only accepts numbers.',
+        selectTypeTitle: '3. Dropdown Selection (select)', selectTypeDesc: 'Choose from a dropdown menu. Separate options with commas (,). Note: option values cannot contain commas.',
+        textareaTypeTitle: '4. Multiline Text Input (textarea)', textareaTypeDesc: 'A textarea for multiline text. Best for long content.',
+        exampleTitle: '💡 Example:',
+        exampleCode: "Hello, ${text:Name}!\nToday's weather is ${select:Weather|Sunny,Cloudy,Rainy}.\nTemperature: ${number:Temp} degrees.\n\nComment:\n${textarea:Notes}",
+        exampleNote: '💬 When you click Copy, input forms for "Name" (text), "Weather" (select), "Temp" (number), and "Notes" (textarea) will appear. After filling them in, the templates are replaced and copied.',
+        variableFeatureTitle: '🔧 Variable Feature',
+        variableFeatureDesc: 'Define variables to pre-register values you use repeatedly in memo content. Variables can also be combined with the template feature.',
+        variableUsageTitle: '📝 How to use variables:',
+        variableSteps: ['Open the "🔧 Variables" tab and click "➕ Add New Variable"', 'Enter the variable name and value, then save', 'Use ${var:VariableName} in memo content', 'The variable value is automatically substituted when copying'],
+        variableExampleTitle: '💡 Example:',
+        variableExampleCode: 'Variable settings:\n・username → John Doe\n・email → john@example.com\n\nMemo content:\nName: ${var:username}\nContact: ${var:email}',
+        variableExampleNote: '💬 Combining variables and templates allows even more flexible memo creation. Once defined in settings, variables can be used in all memos.',
+        tipsTitle: '💡 Tips',
+        tips: ['Without templates, the memo content is copied as-is', 'The same name and type can be used multiple times (e.g., ${text:Name} in two places)', 'For select type, separate options with commas (,)', 'In input forms: ESC to cancel, Ctrl+Enter to submit', 'Pin your frequently used templates to keep them at the top'],
+        variableSettingsTitle: '🔧 Variable Settings',
+        variableSettingsDesc: 'Define variables to use as ${var:VariableName} in memo content. Values are automatically substituted when copying.',
+        noVariables: 'No variables registered', addVariable: '➕ Add New Variable', editVariable: '✏️ Edit',
+        tagManagementTitle: '🏷️ Tag Manager',
+        tagManagementDesc: 'Manage all tags assigned to memos. You can also delete unused tags.',
+        noTagsYet: 'No tags yet. Add tags to your memos.',
+        tagUsageCount: (n) => `Used in ${n} memo(s)`, deleteTag: 'Delete',
+        deleteTagConfirm: (tag, n) => `Tag "${tag}" is used in ${n} memo(s). Delete anyway?`,
+        deleteTagConfirmNoMemo: (tag) => `Delete tag "${tag}"?`,
+        otherSettingsTitle: '⚙️ Other', otherSettingsDesc: 'No other settings available.',
+        appTitle: 'Local Memo',
+        appDesc: 'A floating memo widget that saves memos to IndexedDB with edit, copy, and delete features',
+        dateLocale: 'en-US'
+      },
+      'zh-CN': {
+        viewFull: '📝 全显示', viewList: '📋 列表',
+        viewToggleTitle: '切换列表/全显示',
+        tagFilter: '🏷️ 标签', tagFilterTitle: '按标签筛选',
+        settings: '⚙️ 设置', settingsTitle: '显示设置',
+        deleteAll: '🗑️ 批量删除', deleteAllTitle: '删除所有未固定的备忘录',
+        titlePlaceholder: '标题（可省略）',
+        memoPlaceholder: '输入文本...',
+        memoContentPlaceholder: '输入备忘录内容...',
+        memoCompactPlaceholder: '备忘录内容...',
+        tagInputPlaceholder: '输入标签后按Enter...',
+        saveMemo: '💾 保存 (Ctrl+Enter)', saveCompact: '💾 保存',
+        saveBtn: '✓ 保存', cancelBtn: '✗ 取消',
+        cancelEsc: '✗ 取消 (ESC)', saveCtrlEnter: '✓ 保存 (Ctrl+Enter)',
+        copyBtn: '✓ 复制',
+        randomEmoji: '🎲 随机选择', clearEmoji: '🗑️ 清除',
+        tagLabel: '🏷️ 标签', noTags: '无标签', noTagsAvailable: '没有标签',
+        clearFilter: (n) => `✕ 清除筛选 (已选 ${n} 个)`,
+        pinBtn: (pinned, c) => pinned ? (c ? '📌' : '📌 固定') : '固定',
+        unpinTitle: '取消固定', pinTitle: '固定',
+        editBtn: (c) => c ? '✏️' : '编辑', editTitle: '编辑',
+        copyAction: (c) => c ? '📋' : '复制', copyTitle: '复制',
+        deleteBtn: (c) => c ? '🗑️' : '删除', deleteTitle: '删除',
+        confirmDeleteMemo: '删除此备忘录？',
+        addNewMemo: '➕ 新建备忘录',
+        createdLabel: '创建:', updatedLabel: '更新:',
+        showMore: '▼ 显示更多', showLess: '▲ 收起',
+        maxMemos: (m) => `最多 ${m} 条`,
+        maxMemosCompact: (m) => `保存失败，最多 ${m} 条`,
+        deleteAllConfirm: (n) => `删除 ${n} 条未固定的备忘录？`,
+        noMemosToDelete: '没有可删除的备忘录',
+        enterMemoContent: '请输入备忘录内容',
+        templateFormTitle: '📝 模板输入',
+        templateFormDesc: '请填写每个字段，复制时将替换模板。',
+        templateInputPlaceholder: (name) => `输入 ${name}...`,
+        templateSelectPlaceholder: (name) => `选择 ${name}...`,
+        templateLabelSelect: '(选择)', templateLabelTextarea: '(多行文本)',
+        templateLabelNumber: '数字', templateLabelText: '文本',
+        addVariableTitle: '➕ 添加新变量', editVariableTitle: '✏️ 编辑变量',
+        variableNameLabel: '变量名', variableNamePlaceholder: '例如：用户名、邮箱',
+        variableValueLabel: '值', variableValuePlaceholder: '输入变量值...',
+        variableNameRequired: '请输入变量名',
+        variableNameDuplicate: (name) => `变量名「${name}」已被使用`,
+        variableEmpty: '(空)', variableDeleteConfirm: (name) => `删除变量「${name}」？`,
+        settingsModalTitle: '设置',
+        tabUsage: '📖 使用说明', tabVariables: '🔧 变量',
+        tabTagManagement: '🏷️ 标签管理', tabOther: '⚙️ 其他', tabHistory: '📋 更新历史',
+        usageTitle: '📖 使用说明', usageIntro: '以下是此备忘录工具的实用功能介绍。',
+        tagFeatureTitle: '🏷️ 标签功能',
+        tagFeatureDesc: '为备忘录添加标签以分类和管理。设置多个标签来整理您的备忘录。',
+        tagFeatures: ['输入时自动补全和模糊搜尋现有标签', '创建或编辑备忘录时可添加/删除标签', '列表和全显示模式均显示标签', '按标签筛选备忘录（支持多选）', '在标签管理中删除不需要的标签'],
+        tagUsageTitle: '💡 使用方法：',
+        tagSteps: ['创建或编辑备忘录时，在「标签」字段输入标签名后按Enter', '已有标签会自动补全，选择即可', '点击标签旁的×可删除标签', '点击标题栏「🏷️ 标签」按钮按标签筛选', '在设置「🏷️ 标签管理」中查看和删除标签'],
+        templateFeatureTitle: '✨ 模板功能',
+        templateFeatureDesc: '在备忘录内容中写入占位符，复制时会显示输入表单，实现灵活的文本生成。',
+        templateTypesTitle: '📝 模板类型：',
+        textTypeTitle: '1. 文本输入 (text)', textTypeDesc: '可自由输入文本的基本输入字段。',
+        numberTypeTitle: '2. 数字输入 (number)', numberTypeDesc: '只能输入数字的输入字段。',
+        selectTypeTitle: '3. 下拉选择 (select)', selectTypeDesc: '从下拉菜单中选择。用逗号(,)分隔选项。注意：选项值不能包含逗号。',
+        textareaTypeTitle: '4. 多行文本输入 (textarea)', textareaTypeDesc: '可输入多行文本的文本框，适合长内容。',
+        exampleTitle: '💡 使用示例：',
+        exampleCode: '你好，${text:姓名}！\n今天天气${select:天气|晴天,多云,下雨}。\n气温${number:温度}度。\n\n感想：\n${textarea:备注}',
+        exampleNote: '💬 点击复制按钮后，会显示「姓名」（文本）、「天气」（选择）、「温度」（数字）、「备注」（多行文本）四个输入表单，填写后模板将被替换并复制。',
+        variableFeatureTitle: '🔧 变量功能',
+        variableFeatureDesc: '定义变量可以预先注册在备忘录内容中重复使用的值，也可以与模板功能组合使用。',
+        variableUsageTitle: '📝 变量使用方法：',
+        variableSteps: ['打开「🔧 变量」选项卡，点击「➕ 添加新变量」', '输入变量名和值后保存', '在备忘录内容中使用 ${var:变量名}', '复制时自动替换为变量的值'],
+        variableExampleTitle: '💡 使用示例：',
+        variableExampleCode: '变量设置：\n・用户名 → 张三\n・邮箱 → zhang@example.com\n\n备忘录内容：\n姓名：${var:用户名}\n联系方式：${var:邮箱}',
+        variableExampleNote: '💬 变量与模板组合使用可实现更灵活的备忘录创建。在设置中定义一次后，所有备忘录都可以使用。',
+        tipsTitle: '💡 提示',
+        tips: ['没有模板时，备忘录内容将直接复制', '相同名称和类型可多次使用（例如在两处使用 ${text:姓名}）', 'select类型用逗号(,)分隔选项', '在输入表单中可用ESC取消，Ctrl+Enter提交', '使用固定功能将常用模板置顶'],
+        variableSettingsTitle: '🔧 变量设置',
+        variableSettingsDesc: '定义变量后，可在备忘录内容中使用 ${var:变量名}，复制时自动替换为变量值。',
+        noVariables: '尚未注册变量', addVariable: '➕ 添加新变量', editVariable: '✏️ 编辑',
+        tagManagementTitle: '🏷️ 标签管理',
+        tagManagementDesc: '管理备忘录中设置的所有标签，也可以删除不再使用的标签。',
+        noTagsYet: '尚未设置标签，请为备忘录添加标签。',
+        tagUsageCount: (n) => `在 ${n} 条备忘录中使用`, deleteTag: '删除',
+        deleteTagConfirm: (tag, n) => `标签「${tag}」在 ${n} 条备忘录中使用，确定删除？`,
+        deleteTagConfirmNoMemo: (tag) => `确定删除标签「${tag}」？`,
+        otherSettingsTitle: '⚙️ 其他', otherSettingsDesc: '目前没有其他设置项。',
+        appTitle: '本地备忘录',
+        appDesc: '将备忘录保存到IndexedDB，支持编辑、复制和删除的浮动备忘录小组件',
+        dateLocale: 'zh-CN'
+      },
+      ko: {
+        viewFull: '📝 전체 보기', viewList: '📋 목록',
+        viewToggleTitle: '목록/전체 보기 전환',
+        tagFilter: '🏷️ 태그', tagFilterTitle: '태그로 필터링',
+        settings: '⚙️ 설정', settingsTitle: '설정 표시',
+        deleteAll: '🗑️ 일괄 삭제', deleteAllTitle: '고정되지 않은 메모 모두 삭제',
+        titlePlaceholder: '제목 (선택사항)',
+        memoPlaceholder: '텍스트 입력...',
+        memoContentPlaceholder: '메모 내용 입력...',
+        memoCompactPlaceholder: '메모 내용...',
+        tagInputPlaceholder: '태그 입력 후 Enter...',
+        saveMemo: '💾 저장 (Ctrl+Enter)', saveCompact: '💾 저장',
+        saveBtn: '✓ 저장', cancelBtn: '✗ 취소',
+        cancelEsc: '✗ 취소 (ESC)', saveCtrlEnter: '✓ 저장 (Ctrl+Enter)',
+        copyBtn: '✓ 복사',
+        randomEmoji: '🎲 랜덤 선택', clearEmoji: '🗑️ 삭제',
+        tagLabel: '🏷️ 태그', noTags: '태그 없음', noTagsAvailable: '태그 없음',
+        clearFilter: (n) => `✕ 필터 초기화 (${n}개 선택됨)`,
+        pinBtn: (pinned, c) => pinned ? (c ? '📌' : '📌 고정') : '고정',
+        unpinTitle: '고정 해제', pinTitle: '고정',
+        editBtn: (c) => c ? '✏️' : '편집', editTitle: '편집',
+        copyAction: (c) => c ? '📋' : '복사', copyTitle: '복사',
+        deleteBtn: (c) => c ? '🗑️' : '삭제', deleteTitle: '삭제',
+        confirmDeleteMemo: '이 메모를 삭제하시겠습니까?',
+        addNewMemo: '➕ 새 메모 추가',
+        createdLabel: '생성:', updatedLabel: '수정:',
+        showMore: '▼ 더 보기', showLess: '▲ 닫기',
+        maxMemos: (m) => `최대 ${m}개`,
+        maxMemosCompact: (m) => `저장 실패. 최대 ${m}개`,
+        deleteAllConfirm: (n) => `고정되지 않은 ${n}개를 삭제하시겠습니까?`,
+        noMemosToDelete: '삭제할 메모가 없습니다',
+        enterMemoContent: '메모 내용을 입력해주세요',
+        templateFormTitle: '📝 템플릿 입력',
+        templateFormDesc: '각 항목을 입력해주세요. 복사 시 템플릿이 대체됩니다.',
+        templateInputPlaceholder: (name) => `${name} 입력...`,
+        templateSelectPlaceholder: (name) => `${name} 선택...`,
+        templateLabelSelect: '(선택)', templateLabelTextarea: '(여러 줄 텍스트)',
+        templateLabelNumber: '숫자', templateLabelText: '텍스트',
+        addVariableTitle: '➕ 새 변수 추가', editVariableTitle: '✏️ 변수 편집',
+        variableNameLabel: '변수명', variableNamePlaceholder: '예: 사용자명, 이메일',
+        variableValueLabel: '값', variableValuePlaceholder: '변수 값 입력...',
+        variableNameRequired: '변수명을 입력해주세요',
+        variableNameDuplicate: (name) => `변수명 「${name}」은 이미 사용 중입니다`,
+        variableEmpty: '(비어있음)', variableDeleteConfirm: (name) => `변수 「${name}」를 삭제하시겠습니까?`,
+        settingsModalTitle: '설정',
+        tabUsage: '📖 사용법', tabVariables: '🔧 변수',
+        tabTagManagement: '🏷️ 태그 관리', tabOther: '⚙️ 기타', tabHistory: '📋 업데이트 기록',
+        usageTitle: '📖 사용 가이드', usageIntro: '이 메모 도구의 편리한 기능을 소개합니다.',
+        tagFeatureTitle: '🏷️ 태그 기능',
+        tagFeatureDesc: '메모에 태그를 붙여 분류하고 관리할 수 있습니다. 여러 태그를 설정하여 메모를 정리하세요.',
+        tagFeatures: ['태그 입력 시 자동 완성 및 퍼지 검색으로 기존 태그 선택 가능', '메모 작성/편집 시 태그 추가/삭제 가능', '목록 보기와 전체 보기 모두에서 태그 표시', '태그로 메모 필터링 (다중 태그 선택 가능)', '태그 관리 화면에서 불필요한 태그 삭제 가능'],
+        tagUsageTitle: '💡 사용 방법:',
+        tagSteps: ['메모 작성 또는 편집 시 「태그」 필드에 태그명 입력 후 Enter', '기존 태그는 자동 완성되므로 선택만 하면 됩니다', '태그 옆의 × 버튼으로 태그 삭제', '헤더의 「🏷️ 태그」 버튼으로 태그 필터링', '설정의 「🏷️ 태그 관리」에서 태그 목록 확인 및 삭제'],
+        templateFeatureTitle: '✨ 템플릿 기능',
+        templateFeatureDesc: '메모 내용에 플레이스홀더를 작성하면 복사 시 입력 폼이 표시되어 유연한 텍스트 생성이 가능합니다.',
+        templateTypesTitle: '📝 템플릿 유형:',
+        textTypeTitle: '1. 텍스트 입력 (text)', textTypeDesc: '자유로운 텍스트를 입력할 수 있는 기본 입력 필드입니다.',
+        numberTypeTitle: '2. 숫자 입력 (number)', numberTypeDesc: '숫자만 입력할 수 있는 입력 필드입니다.',
+        selectTypeTitle: '3. 선택 입력 (select)', selectTypeDesc: '드롭다운 메뉴에서 선택할 수 있습니다. 쉼표(,)로 선택지를 구분합니다. 주의: 선택지 값에 쉼표를 포함할 수 없습니다.',
+        textareaTypeTitle: '4. 여러 줄 텍스트 입력 (textarea)', textareaTypeDesc: '여러 줄 텍스트를 입력할 수 있는 텍스트 영역입니다. 긴 내용에 적합합니다.',
+        exampleTitle: '💡 사용 예시:',
+        exampleCode: '안녕하세요, ${text:이름}님!\n오늘 날씨는 ${select:날씨|맑음,흐림,비}입니다.\n기온은 ${number:기온}도입니다.\n\n감상:\n${textarea:코멘트}',
+        exampleNote: '💬 복사 버튼을 누르면 「이름」(텍스트), 「날씨」(선택), 「기온」(숫자), 「코멘트」(여러 줄 텍스트) 4개의 입력 폼이 표시되고, 입력 후 템플릿이 대체되어 복사됩니다.',
+        variableFeatureTitle: '🔧 변수 기능',
+        variableFeatureDesc: '변수를 정의하면 메모 내용에서 반복적으로 사용하는 값을 미리 등록할 수 있습니다. 템플릿 기능과 조합하여 사용할 수도 있습니다.',
+        variableUsageTitle: '📝 변수 사용 방법:',
+        variableSteps: ['「🔧 변수」 탭을 열고 「➕ 새 변수 추가」 클릭', '변수명과 값을 입력하고 저장', '메모 내용에서 ${var:변수명}으로 사용', '복사 시 자동으로 변수 값으로 대체됩니다'],
+        variableExampleTitle: '💡 사용 예시:',
+        variableExampleCode: '변수 설정:\n・사용자명 → 홍길동\n・이메일 → hong@example.com\n\n메모 내용:\n이름: ${var:사용자명}\n연락처: ${var:이메일}',
+        variableExampleNote: '💬 변수와 템플릿을 조합하면 더욱 유연한 메모 작성이 가능합니다. 설정에서 한 번 정의하면 모든 메모에서 사용할 수 있습니다.',
+        tipsTitle: '💡 팁',
+        tips: ['템플릿이 없는 경우 메모 내용이 그대로 복사됩니다', '같은 항목명과 유형을 여러 번 사용할 수 있습니다 (예: ${text:이름}을 2곳에)', 'select 유형에서는 쉼표(,)로 선택지를 구분합니다', '입력 폼에서 ESC로 취소, Ctrl+Enter로 제출할 수 있습니다', '고정 기능으로 자주 사용하는 템플릿을 상단에 고정할 수 있습니다'],
+        variableSettingsTitle: '🔧 변수 설정',
+        variableSettingsDesc: '변수를 정의하면 메모 내용에서 ${var:변수명}으로 사용할 수 있습니다. 복사 시 자동으로 값이 대체됩니다.',
+        noVariables: '등록된 변수가 없습니다', addVariable: '➕ 새 변수 추가', editVariable: '✏️ 편집',
+        tagManagementTitle: '🏷️ 태그 관리',
+        tagManagementDesc: '메모에 설정된 모든 태그를 관리할 수 있습니다. 사용하지 않는 태그도 삭제할 수 있습니다.',
+        noTagsYet: '아직 태그가 설정되지 않았습니다. 메모에 태그를 추가해주세요.',
+        tagUsageCount: (n) => `${n}개의 메모에서 사용 중`, deleteTag: '삭제',
+        deleteTagConfirm: (tag, n) => `태그 「${tag}」는 ${n}개의 메모에서 사용 중입니다. 삭제하시겠습니까?`,
+        deleteTagConfirmNoMemo: (tag) => `태그 「${tag}」를 삭제하시겠습니까?`,
+        otherSettingsTitle: '⚙️ 기타', otherSettingsDesc: '현재 다른 설정 항목이 없습니다.',
+        appTitle: '로컬 메모',
+        appDesc: 'IndexedDB에 메모를 저장하고 편집, 복사, 삭제가 가능한 플로팅 메모 위젯',
+        dateLocale: 'ko-KR'
+      },
+      'zh-TW': {
+        viewFull: '📝 全顯示', viewList: '📋 清單',
+        viewToggleTitle: '切換清單/全顯示',
+        tagFilter: '🏷️ 標籤', tagFilterTitle: '依標籤篩選',
+        settings: '⚙️ 設定', settingsTitle: '顯示設定',
+        deleteAll: '🗑️ 批次刪除', deleteAllTitle: '刪除所有未固定的備忘錄',
+        titlePlaceholder: '標題（可省略）',
+        memoPlaceholder: '輸入文字...',
+        memoContentPlaceholder: '輸入備忘錄內容...',
+        memoCompactPlaceholder: '備忘錄內容...',
+        tagInputPlaceholder: '輸入標籤後按Enter...',
+        saveMemo: '💾 儲存 (Ctrl+Enter)', saveCompact: '💾 儲存',
+        saveBtn: '✓ 儲存', cancelBtn: '✗ 取消',
+        cancelEsc: '✗ 取消 (ESC)', saveCtrlEnter: '✓ 儲存 (Ctrl+Enter)',
+        copyBtn: '✓ 複製',
+        randomEmoji: '🎲 隨機選擇', clearEmoji: '🗑️ 清除',
+        tagLabel: '🏷️ 標籤', noTags: '無標籤', noTagsAvailable: '沒有標籤',
+        clearFilter: (n) => `✕ 清除篩選 (已選 ${n} 個)`,
+        pinBtn: (pinned, c) => pinned ? (c ? '📌' : '📌 固定') : '固定',
+        unpinTitle: '取消固定', pinTitle: '固定',
+        editBtn: (c) => c ? '✏️' : '編輯', editTitle: '編輯',
+        copyAction: (c) => c ? '📋' : '複製', copyTitle: '複製',
+        deleteBtn: (c) => c ? '🗑️' : '刪除', deleteTitle: '刪除',
+        confirmDeleteMemo: '刪除此備忘錄？',
+        addNewMemo: '➕ 新增備忘錄',
+        createdLabel: '建立:', updatedLabel: '更新:',
+        showMore: '▼ 顯示更多', showLess: '▲ 收起',
+        maxMemos: (m) => `最多 ${m} 條`,
+        maxMemosCompact: (m) => `儲存失敗，最多 ${m} 條`,
+        deleteAllConfirm: (n) => `刪除 ${n} 條未固定的備忘錄？`,
+        noMemosToDelete: '沒有可刪除的備忘錄',
+        enterMemoContent: '請輸入備忘錄內容',
+        templateFormTitle: '📝 範本輸入',
+        templateFormDesc: '請填寫每個欄位，複製時將替換範本。',
+        templateInputPlaceholder: (name) => `輸入 ${name}...`,
+        templateSelectPlaceholder: (name) => `選擇 ${name}...`,
+        templateLabelSelect: '(選擇)', templateLabelTextarea: '(多行文字)',
+        templateLabelNumber: '數字', templateLabelText: '文字',
+        addVariableTitle: '➕ 新增變數', editVariableTitle: '✏️ 編輯變數',
+        variableNameLabel: '變數名稱', variableNamePlaceholder: '例如：使用者名稱、電子郵件',
+        variableValueLabel: '值', variableValuePlaceholder: '輸入變數值...',
+        variableNameRequired: '請輸入變數名稱',
+        variableNameDuplicate: (name) => `變數名稱「${name}」已被使用`,
+        variableEmpty: '(空)', variableDeleteConfirm: (name) => `刪除變數「${name}」？`,
+        settingsModalTitle: '設定',
+        tabUsage: '📖 使用說明', tabVariables: '🔧 變數',
+        tabTagManagement: '🏷️ 標籤管理', tabOther: '⚙️ 其他', tabHistory: '📋 更新記錄',
+        usageTitle: '📖 使用說明', usageIntro: '以下是此備忘錄工具的實用功能介紹。',
+        tagFeatureTitle: '🏷️ 標籤功能',
+        tagFeatureDesc: '為備忘錄新增標籤以分類和管理。設定多個標籤來整理您的備忘錄。',
+        tagFeatures: ['輸入時自動補全和模糊搜尋現有標籤', '建立或編輯備忘錄時可新增/刪除標籤', '清單和全顯示模式均顯示標籤', '依標籤篩選備忘錄（支援多選）', '在標籤管理中刪除不需要的標籤'],
+        tagUsageTitle: '💡 使用方法：',
+        tagSteps: ['建立或編輯備忘錄時，在「標籤」欄位輸入標籤名稱後按Enter', '已有標籤會自動補全，選擇即可', '點選標籤旁的×可刪除標籤', '點選標題列「🏷️ 標籤」按鈕依標籤篩選', '在設定「🏷️ 標籤管理」中查看和刪除標籤'],
+        templateFeatureTitle: '✨ 範本功能',
+        templateFeatureDesc: '在備忘錄內容中寫入占位符，複製時會顯示輸入表單，實現靈活的文字生成。',
+        templateTypesTitle: '📝 範本類型：',
+        textTypeTitle: '1. 文字輸入 (text)', textTypeDesc: '可自由輸入文字的基本輸入欄位。',
+        numberTypeTitle: '2. 數字輸入 (number)', numberTypeDesc: '只能輸入數字的輸入欄位。',
+        selectTypeTitle: '3. 下拉選擇 (select)', selectTypeDesc: '從下拉選單中選擇。用逗號(,)分隔選項。注意：選項值不能包含逗號。',
+        textareaTypeTitle: '4. 多行文字輸入 (textarea)', textareaTypeDesc: '可輸入多行文字的文字區域，適合長內容。',
+        exampleTitle: '💡 使用範例：',
+        exampleCode: '您好，${text:姓名}！\n今天天氣${select:天氣|晴天,多雲,下雨}。\n氣溫${number:溫度}度。\n\n感想：\n${textarea:備注}',
+        exampleNote: '💬 點選複製按鈕後，會顯示「姓名」（文字）、「天氣」（選擇）、「溫度」（數字）、「備注」（多行文字）四個輸入表單，填寫後範本將被替換並複製。',
+        variableFeatureTitle: '🔧 變數功能',
+        variableFeatureDesc: '定義變數可以預先登錄在備忘錄內容中重複使用的值，也可以與範本功能組合使用。',
+        variableUsageTitle: '📝 變數使用方法：',
+        variableSteps: ['開啟「🔧 變數」索引標籤，點選「➕ 新增變數」', '輸入變數名稱和值後儲存', '在備忘錄內容中使用 ${var:變數名稱}', '複製時自動替換為變數的值'],
+        variableExampleTitle: '💡 使用範例：',
+        variableExampleCode: '變數設定：\n・使用者名稱 → 王小明\n・電子郵件 → wang@example.com\n\n備忘錄內容：\n姓名：${var:使用者名稱}\n聯絡方式：${var:電子郵件}',
+        variableExampleNote: '💬 變數與範本組合使用可實現更靈活的備忘錄建立。在設定中定義一次後，所有備忘錄都可以使用。',
+        tipsTitle: '💡 提示',
+        tips: ['沒有範本時，備忘錄內容將直接複製', '相同名稱和類型可多次使用（例如在兩處使用 ${text:姓名}）', 'select類型用逗號(,)分隔選項', '在輸入表單中可用ESC取消，Ctrl+Enter提交', '使用固定功能將常用範本置頂'],
+        variableSettingsTitle: '🔧 變數設定',
+        variableSettingsDesc: '定義變數後，可在備忘錄內容中使用 ${var:變數名稱}，複製時自動替換為變數值。',
+        noVariables: '尚未登錄變數', addVariable: '➕ 新增變數', editVariable: '✏️ 編輯',
+        tagManagementTitle: '🏷️ 標籤管理',
+        tagManagementDesc: '管理備忘錄中設定的所有標籤，也可以刪除不再使用的標籤。',
+        noTagsYet: '尚未設定標籤，請為備忘錄新增標籤。',
+        tagUsageCount: (n) => `在 ${n} 條備忘錄中使用`, deleteTag: '刪除',
+        deleteTagConfirm: (tag, n) => `標籤「${tag}」在 ${n} 條備忘錄中使用，確定刪除？`,
+        deleteTagConfirmNoMemo: (tag) => `確定刪除標籤「${tag}」？`,
+        otherSettingsTitle: '⚙️ 其他', otherSettingsDesc: '目前沒有其他設定項目。',
+        appTitle: '本地備忘錄',
+        appDesc: '將備忘錄儲存到IndexedDB，支援編輯、複製和刪除的浮動備忘錄小工具',
+        dateLocale: 'zh-TW'
+      }
+    };
+
+    // Select translation set based on browser language
+    const T = TRANSLATIONS[getLang()];
+
+    // Drag & Drop Manager
     // Provides clean, maintainable drag & drop functionality with visual feedback
     const DragDropManager = {
       // State tracking for drag operations
@@ -1276,14 +1742,14 @@
         case 'text':
           inputElement = createElement('input');
           inputElement.type = 'text';
-          inputElement.placeholder = `${template.name} を入力...`;
+          inputElement.placeholder = T.templateInputPlaceholder(template.name);
           inputElement.style.cssText = commonStyles.join(';');
           break;
 
         case 'number':
           inputElement = createElement('input');
           inputElement.type = 'number';
-          inputElement.placeholder = `${template.name} を入力...`;
+          inputElement.placeholder = T.templateInputPlaceholder(template.name);
           inputElement.style.cssText = commonStyles.join(';');
           break;
 
@@ -1294,7 +1760,7 @@
           // Add default empty option
           const defaultOption = createElement('option');
           defaultOption.value = '';
-          defaultOption.textContent = `${template.name} を選択...`;
+          defaultOption.textContent = T.templateSelectPlaceholder(template.name);
           defaultOption.disabled = true;
           defaultOption.selected = true;
           inputElement.appendChild(defaultOption);
@@ -1310,7 +1776,7 @@
 
         case 'textarea':
           inputElement = createElement('textarea');
-          inputElement.placeholder = `${template.name} を入力...`;
+          inputElement.placeholder = T.templateInputPlaceholder(template.name);
           // Use textarea-specific styles with auto-height capabilities
           const textareaStyles = [
             ...commonStyles,
@@ -1331,7 +1797,7 @@
           // Fallback to text input
           inputElement = createElement('input');
           inputElement.type = 'text';
-          inputElement.placeholder = `${template.name} を入力...`;
+          inputElement.placeholder = T.templateInputPlaceholder(template.name);
           inputElement.style.cssText = commonStyles.join(';');
       }
 
@@ -1345,12 +1811,12 @@
      */
     const getTemplateLabelText = (template) => {
       if (template.type === 'select' && template.options.length > 0) {
-        return `${template.name} (選択)`;
+        return `${template.name} ${T.templateLabelSelect}`;
       }
       if (template.type === 'textarea') {
-        return `${template.name} (複数行テキスト)`;
+        return `${template.name} ${T.templateLabelTextarea}`;
       }
-      return `${template.name} (${template.type === 'number' ? '数値' : 'テキスト'})`;
+      return `${template.name} (${template.type === 'number' ? T.templateLabelNumber : T.templateLabelText})`;
     };
 
     /**
@@ -1395,7 +1861,7 @@
         'font-size:16px',
         'font-weight:600',
         'color:#202124'
-      ].join(';'), '📝 テンプレート入力');
+      ].join(';'), T.templateFormTitle);
 
       // Description
       const description = createElement('p', [
@@ -1403,7 +1869,7 @@
         'font-size:13px',
         'color:#5f6368',
         'line-height:1.5'
-      ].join(';'), '各項目を入力してください。コピー時にテンプレートが置き換えられます。');
+      ].join(';'), T.templateFormDesc);
 
       formContainer.appendChild(title);
       formContainer.appendChild(description);
@@ -1477,7 +1943,7 @@
         'color:#202124',
         'font-weight:500',
         'transition:all 0.2s'
-      ].join(';'), '✗ キャンセル', () => {
+      ].join(';'), T.cancelBtn, () => {
         DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
         onCancel();
       });
@@ -1502,7 +1968,7 @@
         'color:#fff',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '✓ コピー', () => {
+      ].join(';'), T.copyBtn, () => {
         const values = {};
         inputFields.forEach(field => {
           values[field.name] = field.input.value.trim();
@@ -1780,7 +2246,7 @@
         'font-size:16px',
         'font-weight:600',
         'color:#202124'
-      ].join(';'), isNew ? '➕ 新しい変数を追加' : '✏️ 変数を編集');
+      ].join(';'), isNew ? T.addVariableTitle : T.editVariableTitle);
       
       // Name label
       const nameLabel = createElement('label', [
@@ -1789,7 +2255,7 @@
         'font-size:13px',
         'font-weight:500',
         'color:#202124'
-      ].join(';'), '変数名');
+      ].join(';'), T.variableNameLabel);
       
       // Name input
       const nameInput = createElement('input', [
@@ -1803,7 +2269,7 @@
         'transition:border-color 0.2s'
       ].join(';'));
       nameInput.type = 'text';
-      nameInput.placeholder = '例: ユーザー名, メールアドレス';
+      nameInput.placeholder = T.variableNamePlaceholder;
       nameInput.value = variable ? variable.name : '';
       
       nameInput.onfocus = () => nameInput.style.borderColor = '#1a73e8';
@@ -1816,7 +2282,7 @@
         'font-size:13px',
         'font-weight:500',
         'color:#202124'
-      ].join(';'), '値');
+      ].join(';'), T.variableValueLabel);
       
       // Value textarea
       const valueTextarea = createElement('textarea', [
@@ -1832,7 +2298,7 @@
         'font-family:sans-serif',
         'transition:border-color 0.2s'
       ].join(';'));
-      valueTextarea.placeholder = '変数の値を入力...';
+      valueTextarea.placeholder = T.variableValuePlaceholder;
       valueTextarea.value = variable ? variable.value : '';
       
       valueTextarea.onfocus = () => valueTextarea.style.borderColor = '#1a73e8';
@@ -1865,7 +2331,7 @@
         'color:#202124',
         'font-weight:500',
         'transition:all 0.2s'
-      ].join(';'), '✗ キャンセル', () => {
+      ].join(';'), T.cancelBtn, () => {
         DialogManager.closeDialog({ overlay, clickHandler, escapeHandler });
       });
       
@@ -1889,7 +2355,7 @@
         'color:#fff',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '✓ 保存');
+      ].join(';'), T.saveBtn);
       
       saveButton.onmouseover = () => saveButton.style.background = COLORS.SAVE_BUTTON_HOVER;
       saveButton.onmouseout = () => saveButton.style.background = COLORS.SAVE_BUTTON;
@@ -1900,7 +2366,7 @@
         const value = valueTextarea.value.trim();
         
         if (!name) {
-          alert('変数名を入力してください');
+          alert(T.variableNameRequired);
           nameInput.focus();
           return;
         }
@@ -1909,7 +2375,7 @@
         const variables = loadVariables();
         const duplicateIndex = variables.findIndex(v => v.name === name);
         if (duplicateIndex !== -1 && duplicateIndex !== index) {
-          alert(`変数名「${name}」は既に使用されています`);
+          alert(T.variableNameDuplicate(name));
           nameInput.focus();
           return;
         }
@@ -2035,7 +2501,7 @@
      */
      const createTextarea = (options = {}) => {
       const {
-        placeholder = 'メモ内容を入力...',
+        placeholder = T.memoContentPlaceholder,
         value = '',
         borderColor = '#1a73e8',
         marginBottom = '12px'
@@ -2130,7 +2596,7 @@
         'box-sizing:border-box'
       ].join(';'));
       titleInput.type = 'text';
-      titleInput.placeholder = 'タイトル（省略可）';
+      titleInput.placeholder = T.titlePlaceholder;
       
       emojiTitleRow.appendChild(emojiButton);
       emojiTitleRow.appendChild(titleInput);
@@ -2164,7 +2630,7 @@
         'color:#fff',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '🎲 ランダム選択', () => {
+      ].join(';'), T.randomEmoji, () => {
         selectedEmoji = getRandomEmoji();
         emojiButton.textContent = selectedEmoji;
         dropdown.style.display = 'none';
@@ -2185,7 +2651,7 @@
         'color:#fff',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '🗑️ 削除', () => {
+      ].join(';'), T.clearEmoji, () => {
         selectedEmoji = '';
         emojiButton.textContent = '➕';
         dropdown.style.display = 'none';
@@ -2264,7 +2730,7 @@
         'color:#555',
         'margin-bottom:4px',
         'font-weight:500'
-      ].join(';'), '🏷️ タグ');
+      ].join(';'), T.tagLabel);
       container.appendChild(label);
       
       // Tags display container
@@ -2291,7 +2757,7 @@
         'box-sizing:border-box'
       ].join(';'));
       tagInput.type = 'text';
-      tagInput.placeholder = 'タグを入力してEnter...';
+      tagInput.placeholder = T.tagInputPlaceholder;
       
       // Autocomplete dropdown
       const autocompleteDropdown = createElement('div', [
@@ -2359,7 +2825,7 @@
             'color:#999',
             'font-size:12px',
             'font-style:italic'
-          ].join(';'), 'タグなし');
+          ].join(';'), T.noTags);
           tagsDisplay.appendChild(emptyText);
         }
       };
@@ -2493,7 +2959,7 @@
       
       // Text area - use centralized textarea creation for consistent UI/UX
       const textArea = createTextarea({
-        placeholder: 'メモ内容を入力...',
+        placeholder: T.memoContentPlaceholder,
         value: item.text,
         borderColor: '#1a73e8',
         marginBottom: '12px'
@@ -2521,7 +2987,7 @@
         'white-space:nowrap',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '✓ 保存 (Ctrl+Enter)', () => {
+      ].join(';'), T.saveCtrlEnter, () => {
         const newTitle = emojiPicker.titleInput.value.trim();
         const newText = textArea.value.trim();
         if (!newText) return;
@@ -2549,7 +3015,7 @@
         'white-space:nowrap',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '✗ キャンセル (ESC)', onCancel);
+      ].join(';'), T.cancelEsc, onCancel);
       
       // Add hover effect to cancel button
       cancelButton.onmouseover = () => cancelButton.style.background = '#d33828';
@@ -2957,9 +3423,9 @@
       'white-space:nowrap',
       'font-weight:normal',
       'flex-shrink:0'
-    ].join(';'), isTitleOnlyMode ? '📝 全表示' : '📋 一覧', () => {
+    ].join(';'), isTitleOnlyMode ? T.viewFull : T.viewList, () => {
       isTitleOnlyMode = !isTitleOnlyMode;
-      titleOnlyButton.textContent = isTitleOnlyMode ? '📝 全表示' : '📋 一覧';
+      titleOnlyButton.textContent = isTitleOnlyMode ? T.viewFull : T.viewList;
       titleOnlyButton.style.background = isTitleOnlyMode ? '#1a73e8' : '#34a853';
       
       // Save view mode to IndexedDB
@@ -2985,7 +3451,7 @@
       
       renderList(load());
     });
-    titleOnlyButton.title = 'タイトル一覧表示を切り替えます';
+    titleOnlyButton.title = T.viewToggleTitle;
     buttonRow.appendChild(titleOnlyButton);
     
     // Tag filter dropdown state and handlers
@@ -3092,7 +3558,7 @@
       'font-weight:normal',
       'flex-shrink:0',
       'position:relative'
-    ].join(';'), '🏷️ タグ', (e) => {
+    ].join(';'), T.tagFilter, (e) => {
       e.stopPropagation();
       
       // Toggle tag filter dropdown
@@ -3102,7 +3568,7 @@
         openTagFilterDropdown();
       }
     });
-    tagFilterButton.title = 'タグでフィルタリング';
+    tagFilterButton.title = T.tagFilterTitle;
     buttonRow.appendChild(tagFilterButton);
     
     /**
@@ -3120,7 +3586,7 @@
           'font-size:12px',
           'text-align:center',
           'font-style:italic'
-        ].join(';'), 'タグがありません');
+        ].join(';'), T.noTagsAvailable);
         tagFilterDropdown.appendChild(emptyMsg);
         return;
       }
@@ -3136,7 +3602,7 @@
           'font-weight:600',
           'color:#d32f2f',
           'transition:background 0.2s'
-        ].join(';'), `✕ フィルタをクリア (${currentTagFilter.length}件選択中)`, (e) => {
+        ].join(';'), T.clearFilter(currentTagFilter.length), (e) => {
           e.stopPropagation();
           currentTagFilter = [];
           saveTagFilter(currentTagFilter);
@@ -3245,13 +3711,13 @@
       'white-space:nowrap',
       'font-weight:normal',
       'flex-shrink:0'
-    ].join(';'), '⚙️ 設定', () => {
+    ].join(';'), T.settings, () => {
       // Open settings popup with tabs
       PopupModal.create({
-        title: '設定',
+        title: T.settingsModalTitle,
         tabs: [
           {
-            label: '📖 使い方',
+            label: T.tabUsage,
             content: (container) => {
               // Usage guide tab content
               const usageContent = createElement('div', [
@@ -3265,14 +3731,14 @@
                 'font-size:18px',
                 'font-weight:600',
                 'color:#333'
-              ].join(';'), '📖 使い方ガイド');
+              ].join(';'), T.usageTitle);
               
               const usageDescription = createElement('p', [
                 'margin:0 0 20px 0',
                 'color:#5f6368',
                 'font-size:14px',
                 'line-height:1.6'
-              ].join(';'), 'このメモツールの便利な機能をご紹介します。');
+              ].join(';'), T.usageIntro);
               
               usageContent.appendChild(usageTitle);
               usageContent.appendChild(usageDescription);
@@ -3291,14 +3757,14 @@
                 'font-size:16px',
                 'font-weight:600',
                 'color:#9c27b0'
-              ].join(';'), '🏷️ タグ機能');
+              ].join(';'), T.tagFeatureTitle);
               
               const tagDesc = createElement('p', [
                 'margin:0 0 12px 0',
                 'color:#333',
                 'font-size:14px',
                 'line-height:1.6'
-              ].join(';'), 'メモにタグを付けて分類・管理できます。複数のタグを設定して、メモを整理しましょう。');
+              ].join(';'), T.tagFeatureDesc);
               
               const tagFeaturesList = createElement('ul', [
                 'margin:0 0 12px 0',
@@ -3308,13 +3774,7 @@
                 'line-height:1.8'
               ].join(';'));
               
-              const tagFeatures = [
-                'タグ入力時に自動補完とファジー検索で既存タグを簡単に選択',
-                'メモ作成・編集時にタグを追加・削除可能',
-                '一覧表示と全表示の両方でタグを表示',
-                'タグでメモをフィルタリング（複数タグ選択可能）',
-                'タグ管理画面で不要なタグを削除可能'
-              ];
+              const tagFeatures = T.tagFeatures;
               
               tagFeatures.forEach(feature => {
                 const li = createElement('li', [
@@ -3328,7 +3788,7 @@
                 'font-weight:600',
                 'color:#333',
                 'font-size:14px'
-              ].join(';'), '💡 使い方:');
+              ].join(';'), T.tagUsageTitle);
               
               const tagUsageSteps = createElement('ol', [
                 'margin:0',
@@ -3338,13 +3798,7 @@
                 'line-height:1.8'
               ].join(';'));
               
-              const tagSteps = [
-                'メモ作成時または編集時に「タグ」フィールドにタグ名を入力してEnterキー',
-                '既存タグは自動補完されるので、選択するだけでOK',
-                'タグ横の×ボタンでタグを削除',
-                'ヘッダーの「🏷️ タグ」ボタンでタグフィルタリング',
-                '設定の「🏷️ タグ管理」でタグの一覧確認・削除'
-              ];
+              const tagSteps = T.tagSteps;
               
               tagSteps.forEach(step => {
                 const li = createElement('li', [
@@ -3373,21 +3827,21 @@
                 'font-size:16px',
                 'font-weight:600',
                 'color:#1a73e8'
-              ].join(';'), '✨ テンプレート機能');
+              ].join(';'), T.templateFeatureTitle);
               
               const templateDesc = createElement('p', [
                 'margin:0 0 12px 0',
                 'color:#333',
                 'font-size:14px',
                 'line-height:1.6'
-              ].join(';'), 'メモ本文にプレースホルダを記述することで、コピー時に入力フォームが表示され、柔軟なテキスト生成が可能になります。');
+              ].join(';'), T.templateFeatureDesc);
               
               const templateSyntaxTitle = createElement('div', [
                 'margin:0 0 8px 0',
                 'font-weight:600',
                 'color:#333',
                 'font-size:14px'
-              ].join(';'), '📝 テンプレートの種類:');
+              ].join(';'), T.templateTypesTitle);
               
               // Text type
               const textTypeSection = createElement('div', [
@@ -3399,7 +3853,7 @@
                 'font-weight:600',
                 'color:#1a73e8',
                 'font-size:13px'
-              ].join(';'), '1. テキスト入力 (text)');
+              ].join(';'), T.textTypeTitle);
               
               const textTypeSyntax = createElement('code', [
                 'display:block',
@@ -3418,7 +3872,7 @@
                 'color:#5f6368',
                 'font-size:12px',
                 'line-height:1.5'
-              ].join(';'), '自由なテキストを入力できる基本的な入力フィールドです。');
+              ].join(';'), T.textTypeDesc);
               
               textTypeSection.appendChild(textTypeTitle);
               textTypeSection.appendChild(textTypeSyntax);
@@ -3434,7 +3888,7 @@
                 'font-weight:600',
                 'color:#1a73e8',
                 'font-size:13px'
-              ].join(';'), '2. 数値入力 (number)');
+              ].join(';'), T.numberTypeTitle);
               
               const numberTypeSyntax = createElement('code', [
                 'display:block',
@@ -3453,7 +3907,7 @@
                 'color:#5f6368',
                 'font-size:12px',
                 'line-height:1.5'
-              ].join(';'), '数値のみを入力できる入力フィールドです。');
+              ].join(';'), T.numberTypeDesc);
               
               numberTypeSection.appendChild(numberTypeTitle);
               numberTypeSection.appendChild(numberTypeSyntax);
@@ -3469,7 +3923,7 @@
                 'font-weight:600',
                 'color:#1a73e8',
                 'font-size:13px'
-              ].join(';'), '3. 選択入力 (select)');
+              ].join(';'), T.selectTypeTitle);
               
               const selectTypeSyntax = createElement('code', [
                 'display:block',
@@ -3488,7 +3942,7 @@
                 'color:#5f6368',
                 'font-size:12px',
                 'line-height:1.5'
-              ].join(';'), 'ドロップダウンメニューから選択肢を選べます。カンマ (,) で区切って選択肢を指定します。注意: 選択肢の値にカンマを含めることはできません。');
+              ].join(';'), T.selectTypeDesc);
               
               selectTypeSection.appendChild(selectTypeTitle);
               selectTypeSection.appendChild(selectTypeSyntax);
@@ -3504,7 +3958,7 @@
                 'font-weight:600',
                 'color:#1a73e8',
                 'font-size:13px'
-              ].join(';'), '4. 複数行テキスト入力 (textarea)');
+              ].join(';'), T.textareaTypeTitle);
               
               const textareaTypeSyntax = createElement('code', [
                 'display:block',
@@ -3523,7 +3977,7 @@
                 'color:#5f6368',
                 'font-size:12px',
                 'line-height:1.5'
-              ].join(';'), '複数行のテキストを入力できるテキストエリアです。長文や複数行の内容に最適です。');
+              ].join(';'), T.textareaTypeDesc);
               
               textareaTypeSection.appendChild(textareaTypeTitle);
               textareaTypeSection.appendChild(textareaTypeSyntax);
@@ -3538,7 +3992,7 @@
                 'font-weight:600',
                 'color:#333',
                 'font-size:14px'
-              ].join(';'), '💡 使用例:');
+              ].join(';'), T.exampleTitle);
               
               const exampleCode = createElement('code', [
                 'display:block',
@@ -3552,14 +4006,14 @@
                 'color:#333',
                 'white-space:pre-wrap',
                 'line-height:1.6'
-              ].join(';'), 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ,曇り,雨}ですね。\n気温は${number:気温}度です。\n\n感想:\n${textarea:コメント}');
+              ].join(';'), T.exampleCode);
               
               const exampleNote = createElement('p', [
                 'margin:0',
                 'color:#5f6368',
                 'font-size:13px',
                 'line-height:1.5'
-              ].join(';'), '💬 コピーボタンを押すと、「名前」（テキスト入力）、「天気」（選択肢）、「気温」（数値入力）、「コメント」（複数行テキスト）の4つの入力フォームが表示され、入力後にテンプレートが置換されてコピーされます。');
+              ].join(';'), T.exampleNote);
               
               templateSection.appendChild(templateTitle);
               templateSection.appendChild(templateDesc);
@@ -3586,21 +4040,21 @@
                 'font-size:16px',
                 'font-weight:600',
                 'color:#34a853'
-              ].join(';'), '🔧 変数機能');
+              ].join(';'), T.variableFeatureTitle);
               
               const variableDesc = createElement('p', [
                 'margin:0 0 12px 0',
                 'color:#333',
                 'font-size:14px',
                 'line-height:1.6'
-              ].join(';'), '変数を定義すると、メモ本文で繰り返し使用できる値を事前に登録できます。変数はテンプレート機能と組み合わせて使用することもできます。');
+              ].join(';'), T.variableFeatureDesc);
               
               const variableSyntaxTitle = createElement('div', [
                 'margin:0 0 8px 0',
                 'font-weight:600',
                 'color:#333',
                 'font-size:14px'
-              ].join(';'), '📝 変数の使い方:');
+              ].join(';'), T.variableUsageTitle);
               
               const variableStepsList = createElement('ol', [
                 'margin:0 0 12px 0',
@@ -3608,12 +4062,7 @@
                 'list-style-type:decimal'
               ].join(';'));
               
-              const variableSteps = [
-                '「🔧 変数」タブを開き、「➕ 新しい変数を追加」をクリック',
-                '変数名と値を入力して保存',
-                'メモ本文で ${var:変数名} として使用',
-                'コピー時に自動的に変数の値が置き換えられます'
-              ];
+              const variableSteps = T.variableSteps;
               
               variableSteps.forEach(step => {
                 const listItem = createElement('li', [
@@ -3630,7 +4079,7 @@
                 'font-weight:600',
                 'color:#333',
                 'font-size:14px'
-              ].join(';'), '💡 使用例:');
+              ].join(';'), T.variableExampleTitle);
               
               const variableExampleCode = createElement('code', [
                 'display:block',
@@ -3644,14 +4093,14 @@
                 'color:#333',
                 'white-space:pre-wrap',
                 'line-height:1.6'
-              ].join(';'), '変数設定:\n・ユーザー名 → 山田太郎\n・メール → taro@example.com\n\nメモ本文:\nお名前: ${var:ユーザー名}\n連絡先: ${var:メール}');
+              ].join(';'), T.variableExampleCode);
               
               const variableExampleNote = createElement('p', [
                 'margin:0',
                 'color:#5f6368',
                 'font-size:13px',
                 'line-height:1.5'
-              ].join(';'), '💬 変数とテンプレートを組み合わせることで、さらに柔軟なメモ作成が可能です。変数は設定で一度定義すれば、すべてのメモで使用できます。');
+              ].join(';'), T.variableExampleNote);
               
               variableSection.appendChild(variableTitle);
               variableSection.appendChild(variableDesc);
@@ -3671,7 +4120,7 @@
                 'font-size:16px',
                 'font-weight:600',
                 'color:#34a853'
-              ].join(';'), '💡 ヒント');
+              ].join(';'), T.tipsTitle);
               
               const tipsList = createElement('ul', [
                 'margin:0',
@@ -3679,13 +4128,7 @@
                 'list-style-type:disc'
               ].join(';'));
               
-              const tips = [
-                'テンプレートがない場合は、通常通りメモ本文がそのままコピーされます',
-                '同じ項目名と型は複数回使用できます（例: ${text:名前} を2箇所）',
-                'select型では選択肢をカンマ (,) で区切って指定します',
-                '入力フォームではESCキーでキャンセル、Ctrl+Enterで送信できます',
-                'ピン留め機能でよく使うテンプレートを上部に固定できます'
-              ];
+              const tips = T.tips;
               
               tips.forEach(tip => {
                 const listItem = createElement('li', [
@@ -3710,7 +4153,7 @@
             }
           },
           {
-            label: '🔧 変数',
+            label: T.tabVariables,
             content: (container) => {
               // Settings tab content - Variable management
               const settingsContent = createElement('div', [
@@ -3724,13 +4167,13 @@
                 'font-size:16px',
                 'font-weight:600',
                 'color:#333'
-              ].join(';'), '🔧 変数設定');
+              ].join(';'), T.variableSettingsTitle);
               const settingsDesc = createElement('p', [
                 'margin:0 0 20px 0',
                 'color:#5f6368',
                 'font-size:14px',
                 'line-height:1.6'
-              ].join(';'), '変数を定義すると、メモ本文で ${var:変数名} として使用できます。コピー時に自動的に値が置き換えられます。');
+              ].join(';'), T.variableSettingsDesc);
               
               settingsContent.appendChild(settingsTitle);
               settingsContent.appendChild(settingsDesc);
@@ -3754,7 +4197,7 @@
                     'background:#f8f9fa',
                     'border-radius:4px',
                     'margin:0'
-                  ].join(';'), '変数が登録されていません');
+                  ].join(';'), T.noVariables);
                   variableListContainer.appendChild(emptyMessage);
                   return;
                 }
@@ -3795,7 +4238,7 @@
                     'overflow:hidden',
                     'text-overflow:ellipsis',
                     'white-space:nowrap'
-                  ].join(';'), variable.value || '(空)');
+                  ].join(';'), variable.value || T.variableEmpty);
                   
                   // Edit button
                   const editBtn = createElement('button', [
@@ -3808,7 +4251,7 @@
                     'color:#202124',
                     'flex-shrink:0',
                     'transition:all 0.2s'
-                  ].join(';'), '✏️ 編集', () => {
+                  ].join(';'), T.editVariable, () => {
                     showVariableEditDialog(variable, index, renderVariableList);
                   });
                   
@@ -3833,7 +4276,7 @@
                     'flex-shrink:0',
                     'transition:background 0.2s'
                   ].join(';'), '🗑️', () => {
-                    if (confirm(`変数「${variable.name}」を削除しますか？`)) {
+                    if (confirm(T.variableDeleteConfirm(variable.name))) {
                       const vars = loadVariables();
                       vars.splice(index, 1);
                       saveVariables(vars);
@@ -3867,7 +4310,7 @@
                 'font-weight:500',
                 'margin-bottom:16px',
                 'transition:all 0.2s'
-              ].join(';'), '➕ 新しい変数を追加', () => {
+              ].join(';'), T.addVariable, () => {
                 showVariableEditDialog(null, -1, renderVariableList);
               });
               
@@ -3892,7 +4335,7 @@
             }
           },
           {
-            label: '🏷️ タグ管理',
+            label: T.tabTagManagement,
             content: (container) => {
               // Tag management tab content
               const tagContent = createElement('div', [
@@ -3906,14 +4349,14 @@
                 'font-size:18px',
                 'font-weight:600',
                 'color:#333'
-              ].join(';'), '🏷️ タグ管理');
+              ].join(';'), T.tagManagementTitle);
               
               const tagDescription = createElement('p', [
                 'margin:0 0 20px 0',
                 'color:#5f6368',
                 'font-size:14px',
                 'line-height:1.6'
-              ].join(';'), 'メモに設定されているすべてのタグを管理できます。使用されていないタグを削除することも可能です。');
+              ].join(';'), T.tagManagementDesc);
               
               tagContent.appendChild(tagTitle);
               tagContent.appendChild(tagDescription);
@@ -3927,7 +4370,7 @@
                   'text-align:center',
                   'color:#999',
                   'font-style:italic'
-                ].join(';'), 'タグがまだ設定されていません。メモにタグを追加してください。');
+                ].join(';'), T.noTagsYet);
                 tagContent.appendChild(emptyMessage);
               } else {
                 // Calculate tag usage
@@ -3978,7 +4421,7 @@
                   const usageInfo = createElement('span', [
                     'color:#5f6368',
                     'font-size:12px'
-                  ].join(';'), `${usage}件のメモで使用中`);
+                  ].join(';'), T.tagUsageCount(usage));
                   
                   tagInfo.appendChild(tagChip);
                   tagInfo.appendChild(usageInfo);
@@ -3994,12 +4437,12 @@
                     'font-size:12px',
                     'font-weight:500',
                     'transition:background 0.2s'
-                  ].join(';'), '削除', () => {
+                  ].join(';'), T.deleteTag, () => {
                     if (usage > 0) {
-                      const confirmed = confirm(`タグ「${tag}」は${usage}件のメモで使用されています。削除してもよろしいですか？`);
+                      const confirmed = confirm(T.deleteTagConfirm(tag, usage));
                       if (!confirmed) return;
                     } else {
-                      const confirmed = confirm(`タグ「${tag}」を削除してもよろしいですか？`);
+                      const confirmed = confirm(T.deleteTagConfirmNoMemo(tag));
                       if (!confirmed) return;
                     }
                     
@@ -4026,7 +4469,7 @@
             }
           },
           {
-            label: '⚙️ その他',
+            label: T.tabOther,
             content: (container) => {
               // Other settings tab content
               const otherContent = createElement('div', [
@@ -4040,7 +4483,7 @@
                 'font-size:18px',
                 'font-weight:600',
                 'color:#333'
-              ].join(';'), '⚙️ その他');
+              ].join(';'), T.otherSettingsTitle);
               
               const otherDesc = createElement('p', [
                 'margin:0',
@@ -4051,7 +4494,7 @@
                 'background:#f8f9fa',
                 'border-radius:8px',
                 'text-align:center'
-              ].join(';'), '現在、その他の設定項目はありません。');
+              ].join(';'), T.otherSettingsDesc);
               
               otherContent.appendChild(otherTitle);
               otherContent.appendChild(otherDesc);
@@ -4060,7 +4503,7 @@
             }
           },
           {
-            label: '📋 更新履歴',
+            label: T.tabHistory,
             content: (container) => {
               // Update history tab content
               const historyContent = createElement('div', [
@@ -4074,13 +4517,13 @@
                 'font-size:18px',
                 'font-weight:600',
                 'color:#333'
-              ].join(';'), 'ローカルメモ');
+              ].join(';'), T.appTitle);
               
               const appDescription = createElement('p', [
                 'margin:0 0 20px 0',
                 'color:#5f6368',
                 'font-size:14px'
-              ].join(';'), 'IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット');
+              ].join(';'), T.appDesc);
               
               historyContent.appendChild(appTitle);
               historyContent.appendChild(appDescription);
@@ -4126,7 +4569,7 @@
         ]
       });
     });
-    settingsButton.title = 'バージョン情報を表示';
+    settingsButton.title = T.settingsTitle;
     buttonRow.appendChild(settingsButton);
     
     const deleteAllButton = createElement('button', [
@@ -4140,21 +4583,21 @@
       'white-space:nowrap',
       'font-weight:normal',
       'flex-shrink:0'
-    ].join(';'), '🗑️ 一括削除', () => {
+    ].join(';'), T.deleteAll, () => {
       const data = load();
       const unpinnedCount = data.filter(item => !item.pinned).length;
       
       if (unpinnedCount === 0) {
-        alert('削除するメモがありません');
+        alert(T.noMemosToDelete);
         return;
       }
       
-      if (confirm(`ピン留め以外の${unpinnedCount}件を削除しますか？`)) {
+      if (confirm(T.deleteAllConfirm(unpinnedCount))) {
         const newData = data.filter(item => item.pinned);
         save(newData);
       }
     });
-    deleteAllButton.title = 'ピンを除いて一括削除を行います';
+    deleteAllButton.title = T.deleteAllTitle;
     buttonRow.appendChild(deleteAllButton);
     
     header.appendChild(buttonRow);
@@ -4220,7 +4663,7 @@
       'box-sizing:border-box'
     ].join(';'));
     titleInput.type = 'text';
-    titleInput.placeholder = 'タイトル（省略可）';
+    titleInput.placeholder = T.titlePlaceholder;
     titleInput.onkeydown = (e) => {
       if (e.key === KeyHandler.ESC) {
         e.preventDefault();
@@ -4277,7 +4720,7 @@
       'color:#fff',
       'font-weight:500',
       'transition:background 0.2s'
-    ].join(';'), '🎲 ランダム選択', () => {
+    ].join(';'), T.randomEmoji, () => {
       const emoji = getRandomEmoji();
       currentEmoji = emoji;
       emojiButton.textContent = emoji;
@@ -4308,7 +4751,7 @@
       'color:#fff',
       'font-weight:500',
       'transition:background 0.2s'
-    ].join(';'), '🗑️ 削除', () => {
+    ].join(';'), T.clearEmoji, () => {
       currentEmoji = '';
       emojiButton.textContent = '➕';
       emojiDropdown.style.display = 'none';
@@ -4377,7 +4820,7 @@
 
     // Use centralized textarea creation for consistent UI/UX
     const input = createTextarea({
-      placeholder: 'テキストを入力...',
+      placeholder: T.memoPlaceholder,
       value: '',
       borderColor: '#ccc',
       marginBottom: '10px'
@@ -4437,14 +4880,14 @@
       'font-weight:bold',
       'font-size:13px',
       'box-sizing:border-box'
-    ].join(';'), '💾 保存 (Ctrl+Enter)', () => {
+    ].join(';'), T.saveMemo, () => {
       const title = titleInput.value.trim();
       const value = input.value.trim();
       if (!value) return;
 
       const data = load();
       if (data.length >= MAX) {
-        alert(`最大${MAX}件です`);
+        alert(T.maxMemos(MAX));
         return;
       }
 
@@ -4521,20 +4964,20 @@
         ...buttonStyle,
         'background:' + (item.pinned ? '#fbbf24' : '#e5e7eb'),
         'color:' + (item.pinned ? '#fff' : '#374151')
-      ].join(';'), item.pinned ? (isCompactMode ? '📌' : '📌 Pin') : (isCompactMode ? 'Pin' : 'Pin'), () => {
+      ].join(';'), T.pinBtn(item.pinned, isCompactMode), () => {
         const currentData = load();
         if (currentData[originalIndex]) {
           currentData[originalIndex].pinned = !currentData[originalIndex].pinned;
           save(currentData);
         }
       });
-      pinButton.title = item.pinned ? 'ピン留めを解除' : 'ピン留めする';
+      pinButton.title = item.pinned ? T.unpinTitle : T.pinTitle;
 
       const editButton = createElement('button', [
         ...buttonStyle,
         'background:#1a73e8',
         'color:#fff'
-      ].join(';'), isCompactMode ? '✏️' : 'Edit', () => {
+      ].join(';'), T.editBtn(isCompactMode), () => {
         // Enter edit mode
         KeyHandler.isEditMode = true;
         
@@ -4577,13 +5020,13 @@
           editUI.textArea.setSelectionRange(editUI.textArea.value.length, editUI.textArea.value.length);
         });
       });
-      editButton.title = '編集する';
+      editButton.title = T.editTitle;
 
       const copyButton = createElement('button', [
         ...buttonStyle,
         'background:#34a853',
         'color:#fff'
-      ].join(';'), isCompactMode ? '📋' : 'Copy', () => {
+      ].join(';'), T.copyAction(isCompactMode), () => {
         // Resolve variables first, then check for templates
         const resolvedText = resolveVariables(item.text);
         
@@ -4608,14 +5051,14 @@
           });
         }
       });
-      copyButton.title = 'コピーする';
+      copyButton.title = T.copyTitle;
 
       const deleteButton = createElement('button', [
         ...buttonStyle,
         'background:#ea4335',
         'color:#fff'
-      ].join(';'), isCompactMode ? '🗑️' : 'Del', () => {
-        if (confirm('このメモを削除しますか？')) {
+      ].join(';'), T.deleteBtn(isCompactMode), () => {
+        if (confirm(T.confirmDeleteMemo)) {
           const currentData = load();
           if (originalIndex < currentData.length) {
             currentData.splice(originalIndex, 1);
@@ -4623,7 +5066,7 @@
           }
         }
       });
-      deleteButton.title = '削除する';
+      deleteButton.title = T.deleteTitle;
 
       actions.appendChild(pinButton);
       actions.appendChild(editButton);
@@ -4710,7 +5153,7 @@
         'box-sizing:border-box'
       ].join(';'));
       compactTitleInput.type = 'text';
-      compactTitleInput.placeholder = 'タイトル（省略可）';
+      compactTitleInput.placeholder = T.titlePlaceholder;
       compactTitleInput.value = compactFormState.title;
 
       firstRow.appendChild(compactEmojiButton);
@@ -4724,7 +5167,7 @@
 
       // Second row: Compact textarea
       const compactTextarea = createTextarea({
-        placeholder: 'メモ内容...',
+        placeholder: T.memoCompactPlaceholder,
         value: compactFormState.content,
         borderColor: '#ccc',
         marginBottom: '0'
@@ -4749,7 +5192,7 @@
         'font-weight:500',
         'font-size:12px',
         'transition:background 0.2s'
-      ].join(';'), '💾 保存');
+      ].join(';'), T.saveCompact);
 
       const cancelCompactButton = createElement('button', [
         'padding:6px 12px',
@@ -4761,7 +5204,7 @@
         'font-weight:500',
         'font-size:12px',
         'transition:background 0.2s'
-      ].join(';'), '✗ キャンセル');
+      ].join(';'), T.cancelBtn);
 
       buttonRow.appendChild(saveCompactButton);
       buttonRow.appendChild(cancelCompactButton);
@@ -4795,7 +5238,7 @@
         'color:#fff',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '🎲 ランダム選択', () => {
+      ].join(';'), T.randomEmoji, () => {
         const emoji = getRandomEmoji();
         compactFormState.emoji = emoji;
         compactEmojiButton.textContent = emoji;
@@ -4815,7 +5258,7 @@
         'color:#fff',
         'font-weight:500',
         'transition:background 0.2s'
-      ].join(';'), '🗑️ 削除', () => {
+      ].join(';'), T.clearEmoji, () => {
         compactFormState.emoji = '';
         compactEmojiButton.textContent = '➕';
         compactEmojiDropdown.style.display = 'none';
@@ -4875,13 +5318,13 @@
       saveCompactButton.onclick = () => {
         const content = compactTextarea.value.trim();
         if (!content) {
-          alert('メモ内容を入力してください');
+          alert(T.enterMemoContent);
           return;
         }
 
         const data = load();
         if (data.length >= MAX) {
-          alert(`メモの保存に失敗しました。最大${MAX}件です`);
+          alert(T.maxMemosCompact(MAX));
           return;
         }
 
@@ -4994,7 +5437,7 @@
             'align-items:center',
             'justify-content:center',
             'gap:6px'
-          ].join(';'), '➕ 新規メモを追加', () => {
+          ].join(';'), T.addNewMemo, () => {
             compactFormState.visible = true;
             KeyHandler.isNewMemoCreating = true; // Prevent ESC from closing bookmarklet
             renderList(data);
@@ -5149,7 +5592,7 @@
           if (!item.pinned) {
             contentArea.onclick = () => {
               isTitleOnlyMode = false;
-              titleOnlyButton.textContent = '📋 一覧';
+              titleOnlyButton.textContent = T.viewList;
               titleOnlyButton.style.background = '#34a853';
               
               // Show input fields
@@ -5297,8 +5740,8 @@
         
         const createdDate = new Date(item.createdDate);
         const updatedDate = new Date(item.updatedDate);
-        const createdDateStr = createdDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
-        const updatedDateStr = updatedDate.toLocaleDateString('ja-JP', { year: 'numeric', month: 'short', day: 'numeric' });
+        const createdDateStr = createdDate.toLocaleDateString(T.dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
+        const updatedDateStr = updatedDate.toLocaleDateString(T.dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
         
         // Show creation date
         const createdSpan = createElement('span', [
@@ -5306,7 +5749,7 @@
           'align-items:center',
           'gap:3px'
         ].join(';'));
-        const createdLabel = createElement('span', 'opacity:0.7', '作成:');
+        const createdLabel = createElement('span', 'opacity:0.7', T.createdLabel);
         createdSpan.appendChild(createdLabel);
         createdSpan.appendChild(document.createTextNode(' ' + createdDateStr));
         timestampContainer.appendChild(createdSpan);
@@ -5321,7 +5764,7 @@
             'align-items:center',
             'gap:3px'
           ].join(';'));
-          const updatedLabel = createElement('span', 'opacity:0.7', '更新:');
+          const updatedLabel = createElement('span', 'opacity:0.7', T.updatedLabel);
           updatedSpan.appendChild(updatedLabel);
           updatedSpan.appendChild(document.createTextNode(' ' + updatedDateStr));
           timestampContainer.appendChild(updatedSpan);
@@ -5348,7 +5791,7 @@
               'color:#666',
               'transition:all 0.2s',
               'font-weight:500'
-            ].join(';'), '▼ もっと見る');
+            ].join(';'), T.showMore);
             
             let isExpanded = false;
             toggleButton.onclick = () => {
@@ -5361,7 +5804,7 @@
                   'line-height:1.6',
                   'white-space:pre-wrap'
                 ].join(';');
-                toggleButton.textContent = '▲ 閉じる';
+                toggleButton.textContent = T.showLess;
               } else {
                 textElement.style.cssText = [
                   'word-break:break-all',
@@ -5373,7 +5816,7 @@
                   '-webkit-box-orient:vertical',
                   'overflow:hidden'
                 ].join(';');
-                toggleButton.textContent = '▼ もっと見る';
+                toggleButton.textContent = T.showMore;
               }
             };
             
