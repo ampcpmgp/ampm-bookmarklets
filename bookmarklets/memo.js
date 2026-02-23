@@ -1,10 +1,10 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v53
+// v54
 // 2026-02-23
 
-(async function() {
+(async function run() {
   try {
     const ID = 'ls-memo-final';
     const old = document.getElementById(ID);
@@ -154,7 +154,8 @@
       memos: [],
       viewMode: null,
       variables: [],
-      tagFilter: []
+      tagFilter: [],
+      language: null
     };
 
     // Initialize IndexedDB, populate cache, and migrate localStorage data on first run
@@ -181,6 +182,7 @@
       _cache.viewMode = await loadWithMigration('viewMode', LS_VIEW_MODE_KEY, null);
       _cache.variables = await loadWithMigration('variables', LS_VARIABLES_KEY, []);
       _cache.tagFilter = await loadWithMigration('tagFilter', LS_TAG_FILTER_KEY, []);
+      _cache.language = (await dbGet(_db, 'language')) || null;
     };
 
     await initDB();
@@ -189,11 +191,24 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v53',
+      CURRENT: 'v54',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-02-23',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v54',
+          date: '2026-02-23',
+          features: [
+            '多言語対応を「その他」設定から切替できるよう実装：洗練されたボタングループUIで直感的に操作',
+            '自動（ブラウザ設定）・日本語・英語・簡体字中国語・韓国語・繁体字中国語の6オプションをサポート',
+            '言語設定をIndexedDBに永続化：再起動後も選択した言語を維持',
+            '言語変更時はポップアップを即時再起動：変更後すぐに新しい言語で表示',
+            'IIFEを名前付き関数runに変更：言語変更後の再起動処理を実現',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべての言語環境で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v53',
           date: '2026-02-23',
@@ -730,7 +745,9 @@
 
     // Detect browser language and select appropriate translation set
     // Supports: ja (Japanese), en (English), zh-CN (Simplified Chinese), ko (Korean), zh-TW (Traditional Chinese)
+    // Returns the user-saved language preference, or auto-detects from navigator.language
     const getLang = () => {
+      if (_cache.language) return _cache.language;
       const lang = (navigator.language || 'en').toLowerCase();
       if (lang.startsWith('ja')) return 'ja';
       if (lang.startsWith('ko')) return 'ko';
@@ -825,7 +842,10 @@
         tagUsageCount: (n) => `${n}件のメモで使用中`, deleteTag: '削除',
         deleteTagConfirm: (tag, n) => `タグ「${tag}」は${n}件のメモで使用されています。削除してもよろしいですか？`,
         deleteTagConfirmNoMemo: (tag) => `タグ「${tag}」を削除してもよろしいですか？`,
-        otherSettingsTitle: '⚙️ その他', otherSettingsDesc: '現在、その他の設定項目はありません。',
+        otherSettingsTitle: '⚙️ その他',
+        languageSectionTitle: '🌐 表示言語',
+        languageSectionDesc: 'UIの表示言語を変更できます。変更後は即座に反映されます。',
+        languageAuto: '🌐 自動（ブラウザ設定）',
         appTitle: 'ローカルメモ',
         appDesc: 'IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット',
         dateLocale: 'ja-JP'
@@ -911,7 +931,10 @@
         tagUsageCount: (n) => `Used in ${n} memo(s)`, deleteTag: 'Delete',
         deleteTagConfirm: (tag, n) => `Tag "${tag}" is used in ${n} memo(s). Delete anyway?`,
         deleteTagConfirmNoMemo: (tag) => `Delete tag "${tag}"?`,
-        otherSettingsTitle: '⚙️ Other', otherSettingsDesc: 'No other settings available.',
+        otherSettingsTitle: '⚙️ Other',
+        languageSectionTitle: '🌐 Display Language',
+        languageSectionDesc: 'Change the language of the UI. Changes take effect immediately.',
+        languageAuto: '🌐 Auto (Browser default)',
         appTitle: 'Local Memo',
         appDesc: 'A floating memo widget that saves memos to IndexedDB with edit, copy, and delete features',
         dateLocale: 'en-US'
@@ -997,7 +1020,10 @@
         tagUsageCount: (n) => `在 ${n} 条备忘录中使用`, deleteTag: '删除',
         deleteTagConfirm: (tag, n) => `标签「${tag}」在 ${n} 条备忘录中使用，确定删除？`,
         deleteTagConfirmNoMemo: (tag) => `确定删除标签「${tag}」？`,
-        otherSettingsTitle: '⚙️ 其他', otherSettingsDesc: '目前没有其他设置项。',
+        otherSettingsTitle: '⚙️ 其他',
+        languageSectionTitle: '🌐 显示语言',
+        languageSectionDesc: '更改界面显示语言，更改后立即生效。',
+        languageAuto: '🌐 自动（浏览器设置）',
         appTitle: '本地备忘录',
         appDesc: '将备忘录保存到IndexedDB，支持编辑、复制和删除的浮动备忘录小组件',
         dateLocale: 'zh-CN'
@@ -1083,7 +1109,10 @@
         tagUsageCount: (n) => `${n}개의 메모에서 사용 중`, deleteTag: '삭제',
         deleteTagConfirm: (tag, n) => `태그 「${tag}」는 ${n}개의 메모에서 사용 중입니다. 삭제하시겠습니까?`,
         deleteTagConfirmNoMemo: (tag) => `태그 「${tag}」를 삭제하시겠습니까?`,
-        otherSettingsTitle: '⚙️ 기타', otherSettingsDesc: '현재 다른 설정 항목이 없습니다.',
+        otherSettingsTitle: '⚙️ 기타',
+        languageSectionTitle: '🌐 표시 언어',
+        languageSectionDesc: 'UI 표시 언어를 변경할 수 있습니다. 변경 후 즉시 반영됩니다.',
+        languageAuto: '🌐 자동（브라우저 설정）',
         appTitle: '로컬 메모',
         appDesc: 'IndexedDB에 메모를 저장하고 편집, 복사, 삭제가 가능한 플로팅 메모 위젯',
         dateLocale: 'ko-KR'
@@ -1169,14 +1198,29 @@
         tagUsageCount: (n) => `在 ${n} 條備忘錄中使用`, deleteTag: '刪除',
         deleteTagConfirm: (tag, n) => `標籤「${tag}」在 ${n} 條備忘錄中使用，確定刪除？`,
         deleteTagConfirmNoMemo: (tag) => `確定刪除標籤「${tag}」？`,
-        otherSettingsTitle: '⚙️ 其他', otherSettingsDesc: '目前沒有其他設定項目。',
+        otherSettingsTitle: '⚙️ 其他',
+        languageSectionTitle: '🌐 顯示語言',
+        languageSectionDesc: '可以變更UI的顯示語言，變更後立即生效。',
+        languageAuto: '🌐 自動（瀏覽器設定）',
         appTitle: '本地備忘錄',
         appDesc: '將備忘錄儲存到IndexedDB，支援編輯、複製和刪除的浮動備忘錄小工具',
         dateLocale: 'zh-TW'
       }
     };
 
-    // Select translation set based on browser language
+    // Available language options for the language switcher in Other settings tab.
+    // code: null = auto-detect from browser, otherwise must match a key in TRANSLATIONS.
+    // Fixed native labels are always shown in their own script regardless of current UI language.
+    const LANGUAGES = [
+      { code: null },
+      { code: 'ja',    label: '🇯🇵 日本語' },
+      { code: 'en',    label: '🇺🇸 English' },
+      { code: 'zh-CN', label: '🇨🇳 简体中文' },
+      { code: 'ko',    label: '🇰🇷 한국어' },
+      { code: 'zh-TW', label: '🇹🇼 繁體中文' }
+    ];
+
+    // Select translation set based on browser language (or saved preference)
     const T = TRANSLATIONS[getLang()];
 
     // Drag & Drop Manager
@@ -1454,6 +1498,14 @@
       _cache.variables = variables;
       if (_db) {
         dbPut(_db, 'variables', variables).catch(e => console.error('Failed to save variables:', e));
+      }
+    };
+
+    // Save language preference to IndexedDB (null = auto-detect from browser)
+    const saveLanguage = async (lang) => {
+      _cache.language = lang;
+      if (_db) {
+        await dbPut(_db, 'language', lang).catch(e => console.error('Failed to save language:', e));
       }
     };
 
@@ -4477,28 +4529,83 @@
                 'line-height:1.8',
                 'color:#333'
               ].join(';'));
-              
+
               const otherTitle = createElement('h3', [
                 'margin:0 0 16px 0',
                 'font-size:18px',
                 'font-weight:600',
                 'color:#333'
               ].join(';'), T.otherSettingsTitle);
-              
-              const otherDesc = createElement('p', [
-                'margin:0',
+
+              // Language switcher section
+              const langSection = createElement('div', 'margin-bottom:8px');
+
+              const langTitle = createElement('h4', [
+                'margin:0 0 6px 0',
+                'font-size:15px',
+                'font-weight:600',
+                'color:#333'
+              ].join(';'), T.languageSectionTitle);
+
+              const langDesc = createElement('p', [
+                'margin:0 0 12px 0',
                 'color:#5f6368',
-                'font-size:14px',
-                'line-height:1.6',
-                'padding:20px',
-                'background:#f8f9fa',
-                'border-radius:8px',
-                'text-align:center'
-              ].join(';'), T.otherSettingsDesc);
-              
+                'font-size:13px',
+                'line-height:1.5'
+              ].join(';'), T.languageSectionDesc);
+
+              const langButtons = createElement('div', [
+                'display:flex',
+                'flex-wrap:wrap',
+                'gap:8px'
+              ].join(';'));
+
+              const currentLang = _cache.language;
+              LANGUAGES.forEach((lang) => {
+                const isSelected = lang.code === currentLang;
+                const displayLabel = lang.code === null ? T.languageAuto : lang.label;
+                const btn = createElement('button', [
+                  `background:${isSelected ? '#1a73e8' : '#fff'}`,
+                  `color:${isSelected ? '#fff' : '#333'}`,
+                  `border:2px solid ${isSelected ? '#1a73e8' : '#dadce0'}`,
+                  'border-radius:8px',
+                  'padding:8px 16px',
+                  'font-size:13px',
+                  'font-family:inherit',
+                  'cursor:pointer',
+                  'transition:all 0.15s'
+                ].join(';'), displayLabel);
+
+                if (!isSelected) {
+                  btn.onmouseover = () => {
+                    btn.style.background = '#e8f0fe';
+                    btn.style.borderColor = '#1a73e8';
+                    btn.style.color = '#1a73e8';
+                  };
+                  btn.onmouseout = () => {
+                    btn.style.background = '#fff';
+                    btn.style.borderColor = '#dadce0';
+                    btn.style.color = '#333';
+                  };
+                }
+
+                btn.onclick = async () => {
+                  await saveLanguage(lang.code);
+                  close();
+                  await Promise.resolve(); // yield to event loop before re-initialization
+                  run();
+                };
+
+                langButtons.appendChild(btn);
+              });
+
+              langSection.appendChild(langTitle);
+              langSection.appendChild(langDesc);
+              langSection.appendChild(langButtons);
+
               otherContent.appendChild(otherTitle);
-              otherContent.appendChild(otherDesc);
-              
+              otherContent.appendChild(langSection);
+
               container.appendChild(otherContent);
             }
           },
