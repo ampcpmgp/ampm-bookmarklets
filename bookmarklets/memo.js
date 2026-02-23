@@ -731,7 +731,7 @@
     // Detect browser language and select appropriate translation set
     // Supports: ja (Japanese), en (English), zh-CN (Simplified Chinese), ko (Korean), zh-TW (Traditional Chinese)
     const getLang = () => {
-      const lang = (navigator.language || 'ja').toLowerCase();
+      const lang = (navigator.language || 'en').toLowerCase();
       if (lang.startsWith('ja')) return 'ja';
       if (lang.startsWith('ko')) return 'ko';
       if (lang.startsWith('zh')) {
@@ -966,7 +966,7 @@
         usageTitle: '📖 使用说明', usageIntro: '以下是此备忘录工具的实用功能介绍。',
         tagFeatureTitle: '🏷️ 标签功能',
         tagFeatureDesc: '为备忘录添加标签以分类和管理。设置多个标签来整理您的备忘录。',
-        tagFeatures: ['输入时自动补全和模糊搜尋现有标签', '创建或编辑备忘录时可添加/删除标签', '列表和全显示模式均显示标签', '按标签筛选备忘录（支持多选）', '在标签管理中删除不需要的标签'],
+        tagFeatures: ['输入时自动补全和模糊搜索现有标签', '创建或编辑备忘录时可添加/删除标签', '列表和全显示模式均显示标签', '按标签筛选备忘录（支持多选）', '在标签管理中删除不需要的标签'],
         tagUsageTitle: '💡 使用方法：',
         tagSteps: ['创建或编辑备忘录时，在「标签」字段输入标签名后按Enter', '已有标签会自动补全，选择即可', '点击标签旁的×可删除标签', '点击标题栏「🏷️ 标签」按钮按标签筛选', '在设置「🏷️ 标签管理」中查看和删除标签'],
         templateFeatureTitle: '✨ 模板功能',
