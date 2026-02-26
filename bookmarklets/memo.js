@@ -3541,6 +3541,12 @@
       'padding:2px 0',
       'scrollbar-width:thin'
     ].join(';'));
+    tagChipsRow.addEventListener('wheel', (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        tagChipsRow.scrollLeft += e.deltaY;
+      }
+    }, { passive: false });
 
     /**
      * Render tag filter chips row
