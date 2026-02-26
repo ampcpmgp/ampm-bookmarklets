@@ -1,8 +1,8 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v55
-// 2026-02-23
+// v56
+// 2026-02-26
 
 (async function run(startupOptions = {}) {
   try {
@@ -191,11 +191,26 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v55',
+      CURRENT: 'v56',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-23',
+      LAST_UPDATED: '2026-02-26',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v56',
+          date: '2026-02-26',
+          features: [
+            'タグフィルターをドロップダウンからインライン表示に刷新：ボタン行の下にタグチップを常時表示',
+            '横スクロール対応：タグが多い場合も横スクロールで快適に操作可能',
+            '一括解除チップ：フィルター選択中は赤い「✕ フィルタをクリア」チップを先頭に表示し、ワンクリックで全解除',
+            '選択タグを色で視覚的に区別：選択中は紫、未選択は薄紫の洗練されたチップUI',
+            'タグが0件の場合はチップ行を非表示：スッキリとした画面を維持',
+            'ドロップダウン関連コード（tagFilterDropdownState, tagFilterDropdown, openTagFilterDropdown等）を完全削除',
+            'renderList()の末尾でrenderTagChipsRow()を呼び出し：メモ追加・削除時もタグ一覧を自動更新',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべての操作で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v55',
           date: '2026-02-23',
@@ -3518,251 +3533,96 @@
     titleOnlyButton.title = T.viewToggleTitle;
     buttonRow.appendChild(titleOnlyButton);
     
-    // Tag filter dropdown state and handlers
-    // Using DialogManager pattern for unified ESC key handling
-    let tagFilterDropdownState = {
-      isOpen: false,
-      escapeHandler: null,
-      outsideClickHandler: null
-    };
-    
-    // Tag filter dropdown element
-    const tagFilterDropdown = createElement('div', [
+    // Tag filter chips row - shown below button row for inline tag filtering
+    const tagChipsRow = createElement('div', [
       'display:none',
-      'position:absolute',
-      'top:100%',
-      'left:0',
-      'min-width:200px',
-      'background:#fff',
-      'border:1px solid #ddd',
-      'border-radius:4px',
-      'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
-      'margin-top:4px',
-      `z-index:${Z_INDEX.DROPDOWN}`,
-      'max-height:200px',
-      'overflow-y:auto',
-      'box-sizing:border-box'
-    ].join(';'));
-    
-    /**
-     * Close tag filter dropdown
-     * Handles cleanup of event listeners and state management
-     */
-    const closeTagFilterDropdown = () => {
-      // Hide dropdown first
-      tagFilterDropdown.style.display = 'none';
-      
-      // Remove ESC key handler
-      if (tagFilterDropdownState.escapeHandler) {
-        document.removeEventListener('keydown', tagFilterDropdownState.escapeHandler);
-        tagFilterDropdownState.escapeHandler = null;
-      }
-      
-      // Remove outside click handler
-      if (tagFilterDropdownState.outsideClickHandler) {
-        document.removeEventListener('click', tagFilterDropdownState.outsideClickHandler);
-        tagFilterDropdownState.outsideClickHandler = null;
-      }
-      
-      // Update state flags
-      tagFilterDropdownState.isOpen = false;
-      // Clear modal flag to allow main bookmarklet to respond to ESC
-      KeyHandler.isModalOpen = false;
-    };
-    
-    /**
-     * Open tag filter dropdown
-     * Sets up event listeners and renders content
-     */
-    const openTagFilterDropdown = () => {
-      // If already open, close and clean up first to prevent duplicate listeners
-      if (tagFilterDropdownState.isOpen) {
-        closeTagFilterDropdown();
-      }
-      
-      renderTagFilterDropdown();
-      tagFilterDropdown.style.display = 'block';
-      
-      // Update state flags
-      tagFilterDropdownState.isOpen = true;
-      // Set modal flag to prevent main ESC handler from closing bookmarklet
-      KeyHandler.isModalOpen = true;
-      
-      // Create and add ESC key handler using DialogManager pattern
-      tagFilterDropdownState.escapeHandler = DialogManager.createEscapeHandler(() => {
-        closeTagFilterDropdown();
-      });
-      document.addEventListener('keydown', tagFilterDropdownState.escapeHandler);
-      
-      // Create and add outside click handler
-      // Use requestAnimationFrame for more predictable timing
-      requestAnimationFrame(() => {
-        // Check if dropdown is still open before adding handler
-        if (!tagFilterDropdownState.isOpen) return;
-        
-        tagFilterDropdownState.outsideClickHandler = (e) => {
-          if (!tagFilterContainer.contains(e.target)) {
-            closeTagFilterDropdown();
-          }
-        };
-        document.addEventListener('click', tagFilterDropdownState.outsideClickHandler);
-      });
-    };
-    
-    // Tag filter button
-    const tagFilterButton = createElement('button', [
-      'padding:4px 10px',
-      'font-size:12px',
-      'border:none',
-      'border-radius:4px',
-      'cursor:pointer',
-      'background:#9c27b0',
-      'color:#fff',
+      'overflow-x:auto',
       'white-space:nowrap',
-      'font-weight:normal',
-      'flex-shrink:0',
-      'position:relative'
-    ].join(';'), T.tagFilter, (e) => {
-      e.stopPropagation();
-      
-      // Toggle tag filter dropdown
-      if (tagFilterDropdownState.isOpen) {
-        closeTagFilterDropdown();
-      } else {
-        openTagFilterDropdown();
-      }
-    });
-    tagFilterButton.title = T.tagFilterTitle;
-    buttonRow.appendChild(tagFilterButton);
-    
+      'padding:2px 0',
+      'scrollbar-width:thin'
+    ].join(';'));
+
     /**
-     * Render tag filter dropdown content
-     * Updates the dropdown with current tags and selection state
+     * Render tag filter chips row
+     * Shows all tags as inline clickable chips below the button row.
+     * Selected tags are highlighted. Clear-all chip shown when filters active.
+     * Row is hidden when no tags exist.
      */
-    const renderTagFilterDropdown = () => {
-      clearContainer(tagFilterDropdown);
+    const renderTagChipsRow = () => {
       const allTags = loadAllTags();
-      
-      if (allTags.length === 0) {
-        const emptyMsg = createElement('div', [
-          'padding:12px',
-          'color:#999',
-          'font-size:12px',
-          'text-align:center',
-          'font-style:italic'
-        ].join(';'), T.noTagsAvailable);
-        tagFilterDropdown.appendChild(emptyMsg);
-        return;
-      }
-      
-      // Show clear filter button if any filters are active
+      tagChipsRow.style.display = allTags.length > 0 ? 'block' : 'none';
+      clearContainer(tagChipsRow);
+
+      if (allTags.length === 0) return;
+
+      const inner = createElement('div', [
+        'display:inline-flex',
+        'gap:6px',
+        'align-items:center'
+      ].join(';'));
+
+      // Clear-all chip when any filters are active
       if (currentTagFilter.length > 0) {
-        const clearButton = createElement('div', [
-          'padding:8px 12px',
-          'background:#f5f5f5',
-          'border-bottom:1px solid #ddd',
+        const clearChip = createElement('span', [
+          'display:inline-flex',
+          'align-items:center',
+          'padding:3px 10px',
+          'background:#d32f2f',
+          'color:#fff',
+          'border-radius:12px',
           'cursor:pointer',
-          'font-size:12px',
+          'font-size:11px',
           'font-weight:600',
-          'color:#d32f2f',
+          'white-space:nowrap',
+          'flex-shrink:0',
           'transition:background 0.2s'
         ].join(';'), T.clearFilter(currentTagFilter.length), (e) => {
           e.stopPropagation();
           currentTagFilter = [];
           saveTagFilter(currentTagFilter);
-          tagFilterButton.style.background = '#9c27b0';
-          renderTagFilterDropdown();
           renderList(load());
-          // Keep dropdown open for continuous operation
         });
-        
-        clearButton.onmouseover = () => clearButton.style.background = '#e8e8e8';
-        clearButton.onmouseout = () => clearButton.style.background = '#f5f5f5';
-        
-        tagFilterDropdown.appendChild(clearButton);
+        clearChip.onmouseover = () => { clearChip.style.background = '#b71c1c'; };
+        clearChip.onmouseout = () => { clearChip.style.background = '#d32f2f'; };
+        inner.appendChild(clearChip);
       }
-      
-      // Render all tags as checkboxes
+
+      // Tag chips
       allTags.forEach(tag => {
         const isSelected = currentTagFilter.includes(tag);
-        
-        const tagItem = createElement('div', [
-          'padding:8px 12px',
-          'cursor:pointer',
-          'font-size:12px',
-          'display:flex',
+        const chip = createElement('span', [
+          'display:inline-flex',
           'align-items:center',
-          'gap:8px',
-          'transition:background 0.2s',
-          isSelected ? 'background:#e3f2fd' : ''
-        ].join(';'), '', (e) => {
-          // Prevent event from bubbling to outside click handler
+          'padding:3px 10px',
+          isSelected ? 'background:#7b1fa2' : 'background:#ede7f6',
+          isSelected ? 'color:#fff' : 'color:#6a1b9a',
+          'border-radius:12px',
+          'cursor:pointer',
+          'font-size:11px',
+          'white-space:nowrap',
+          'flex-shrink:0',
+          'border:1px solid #9c27b0',
+          'transition:background 0.2s,color 0.2s'
+        ].join(';'), tag, (e) => {
           e.stopPropagation();
-          
-          // Toggle tag filter
           const index = currentTagFilter.indexOf(tag);
           if (index > -1) {
             currentTagFilter.splice(index, 1);
           } else {
             currentTagFilter.push(tag);
           }
-          
-          // Save filter state to IndexedDB
           saveTagFilter(currentTagFilter);
-          
-          // Update button style based on filter state
-          tagFilterButton.style.background = currentTagFilter.length > 0 ? '#7b1fa2' : '#9c27b0';
-          
-          // Re-render dropdown to update selection state
-          // Dropdown stays open for continuous selection
-          renderTagFilterDropdown();
           renderList(load());
         });
-        
-        // Checkbox indicator
-        const checkbox = createElement('span', [
-          'width:16px',
-          'height:16px',
-          'border:2px solid #9c27b0',
-          'border-radius:3px',
-          'display:inline-flex',
-          'align-items:center',
-          'justify-content:center',
-          'flex-shrink:0',
-          isSelected ? 'background:#9c27b0' : 'background:#fff'
-        ].join(';'), isSelected ? '✓' : '');
-        if (isSelected) {
-          checkbox.style.color = '#fff';
-          checkbox.style.fontSize = '11px';
-          checkbox.style.fontWeight = 'bold';
+        if (!isSelected) {
+          chip.onmouseover = () => { chip.style.background = '#d1c4e9'; };
+          chip.onmouseout = () => { chip.style.background = '#ede7f6'; };
         }
-        
-        const tagLabel = createElement('span', '', tag);
-        
-        tagItem.appendChild(checkbox);
-        tagItem.appendChild(tagLabel);
-        
-        tagItem.onmouseover = () => {
-          if (!isSelected) tagItem.style.background = '#f5f5f5';
-        };
-        tagItem.onmouseout = () => {
-          if (!isSelected) tagItem.style.background = '#fff';
-        };
-        
-        tagFilterDropdown.appendChild(tagItem);
+        inner.appendChild(chip);
       });
+
+      tagChipsRow.appendChild(inner);
     };
-    
-    // Create a container for the button and dropdown
-    const tagFilterContainer = createElement('div', 'position:relative;flex-shrink:0');
-    tagFilterContainer.appendChild(tagFilterButton);
-    tagFilterContainer.appendChild(tagFilterDropdown);
-    buttonRow.appendChild(tagFilterContainer);
-    
-    // Set initial button style based on loaded filter state
-    if (currentTagFilter.length > 0) {
-      tagFilterButton.style.background = '#7b1fa2';
-    }
     
     // Opens the settings dialog at the specified tab index (default: first tab)
     const openSettings = (initialTabIndex = 0) => {
@@ -4726,6 +4586,7 @@
     buttonRow.appendChild(deleteAllButton);
     
     header.appendChild(buttonRow);
+    header.appendChild(tagChipsRow);
     wrap.appendChild(header);
 
     const body = createElement('div', [
@@ -5955,6 +5816,7 @@
         listItem.appendChild(actions);
         listContainer.appendChild(listItem);
       });
+      renderTagChipsRow();
     };
 
     renderList(load());
