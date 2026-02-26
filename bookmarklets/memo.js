@@ -5603,6 +5603,7 @@
           listContainer.appendChild(listItem);
         });
         
+        renderTagChipsRow();
         return;
       }
 
