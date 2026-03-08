@@ -1,8 +1,8 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v25
-// 2026-02-15
+// v26
+// 2026-03-08
 
 (function() {
   try {
@@ -63,9 +63,25 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v25',
-      LAST_UPDATED: '2026-02-15',
+      CURRENT: 'v26',
+      LAST_UPDATED: '2026-03-08',
       HISTORY: [
+        {
+          version: 'v26',
+          date: '2026-03-08',
+          features: [
+            '✨ マークダウン文字列をシンプルにプレーンテキストとして表示',
+            'isMarkdownWithCodeBlocks による再構造化処理を削除：マークダウンをそのまま再レンダリングしない',
+            '新規ヘルパー関数 isMarkdownContent を実装：見出し（#）またはコードブロック（```）を含む文字列を検出',
+            '検出されたマークダウン文字列には 📝 Markdownドキュメント バッジを表示',
+            'markdownToHtml に [MARKDOWN_BADGE] マーカー処理を追加：バッジを視覚的に変換',
+            '.markdown-badge CSS を追加：ライトモードとダークモードの両方に対応',
+            '不要な isMarkdownWithCodeBlocks 関数を削除：コードをシンプルに保つ',
+            '📝 非常にきれいで可読性の高い実装',
+            '共通処理をリファクタリング：関数の役割が明確で理解しやすい',
+            '既存機能への影響を最小限に：安全で確実な実装'
+          ]
+        },
         {
           version: 'v25',
           date: '2026-02-15',
@@ -414,19 +430,13 @@
       }
     }
 
-    // Check if a string contains markdown content with code blocks
-    // Returns true if the string has both markdown structure (headings) and code blocks
-    function isMarkdownWithCodeBlocks(str) {
+    // Check if a string appears to be a markdown document
+    // Returns true if the string contains typical markdown structural elements (headings or code blocks)
+    function isMarkdownContent(str) {
       if (typeof str !== 'string') return false;
-      
-      // Must contain a code block
-      const hasCodeBlock = /```/.test(str);
-      if (!hasCodeBlock) return false;
-      
-      // Must contain markdown headings (##)
-      const hasMarkdownStructure = /^#{1,6}\s+/m.test(str);
-      
-      return hasMarkdownStructure;
+      const hasMarkdownHeadings = /^#{1,6}\s+/m.test(str);
+      const hasCodeBlocks = /```/.test(str);
+      return hasMarkdownHeadings || hasCodeBlocks;
     }
 
     // Format JSON string for code block display
@@ -612,17 +622,7 @@
       }
 
       if (typeof data === 'string') {
-        // Priority 1: Check if string contains markdown with complete code blocks
-        // (e.g., "## 世界観\n\n```json\n...\n```")
-        // If found, preserve the markdown structure including the code block
-        if (isMarkdownWithCodeBlocks(data)) {
-          // String contains markdown with code blocks - render as-is without escaping
-          // The code block will be processed by the markdown renderer
-          const lines = data.split('\n');
-          return lines.map(line => `${indent}${line}`).join('\n') + '\n';
-        }
-        
-        // Priority 2: Check if the string is JSONC (JSON with comments)
+        // Priority 1: Check if the string is JSONC (JSON with comments)
         // Display as code block with jsonc language identifier
         if (isJSONC(data)) {
           const jsonLines = data.split('\n');
@@ -634,7 +634,7 @@
           return codeBlock;
         }
         
-        // Priority 3: Check if the string is valid JSON - if so, display as JSON code block
+        // Priority 2: Check if the string is valid JSON - if so, display as JSON code block
         if (isValidJSON(data)) {
           const formattedJSON = formatJSONForCodeBlock(data);
           const jsonLines = formattedJSON.split('\n');
@@ -646,8 +646,12 @@
           return codeBlock;
         }
         
-        // Priority 4: Handle multiline strings with simple line breaks
+        // Priority 3: Handle multiline strings with simple line breaks
+        // If the content looks like a markdown document, show an indicator badge
         if (data.includes('\n')) {
+          if (isMarkdownContent(data)) {
+            markdown += `${indent}[MARKDOWN_BADGE]\n`;
+          }
           const lines = data.split('\n');
           lines.forEach(line => {
             markdown += `${indent}${escapeMarkdown(line)}\n`;
@@ -800,6 +804,9 @@
     // Markdown to HTML converter
     function markdownToHtml(markdown) {
       let html = markdown;
+
+      // Replace markdown document badge marker with a visual indicator badge
+      html = html.replace(/\[MARKDOWN_BADGE\]/g, '<span class="markdown-badge">📝 Markdownドキュメント</span>');
 
       // Process code blocks first (before inline code)
       html = processCodeBlocks(html);
@@ -1450,6 +1457,13 @@
           background: ${COLORS.DARK.ERROR_BG} !important;
           border: 2px solid ${COLORS.DARK.DANGER} !important;
         }
+
+        /* Markdown document indicator badge - dark mode */
+        .markdown-badge {
+          background: #1a3a5c !important;
+          color: ${COLORS.DARK.PRIMARY} !important;
+          border-color: #2d5a8e !important;
+        }
         
         .empty-state {
           color: ${COLORS.DARK.TEXT_LIGHT} !important;
@@ -1840,6 +1854,19 @@
         border: 1px solid ${COLORS.LIGHT.DANGER};
         border-radius: 6px;
         margin-bottom: 12px;
+      }
+
+      /* Markdown document indicator badge */
+      .markdown-badge {
+        display: inline-block;
+        background: #e8f4fd;
+        color: #1565c0;
+        border: 1px solid #90caf9;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 4px;
       }
 
       .empty-state {
