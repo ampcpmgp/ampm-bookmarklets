@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v27
+// v28
 // 2026-03-08
 
 (function() {
@@ -63,9 +63,19 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v27',
+      CURRENT: 'v28',
       LAST_UPDATED: '2026-03-08',
       HISTORY: [
+        {
+          version: 'v28',
+          date: '2026-03-08',
+          features: [
+            '🐛 コードブロック内の2個目以降の見出しがHTMLとして再レンダリングされる問題を修正',
+            '根本原因：markdownToHtmlの見出し正規表現がmフラグ(multiline)付きで、<pre><code>内の行頭にある##にもマッチしていた',
+            'processCodeBlocks内で#を&#35;にエスケープ：<pre><code>内では見出し正規表現がマッチしない',
+            'escapeHtml後に.replace(/#/g, "&#35;")を追加：シンプルで最小限の変更'
+          ]
+        },
         {
           version: 'v27',
           date: '2026-03-08',
@@ -818,7 +828,9 @@
       return text.replace(codeBlockPattern, (match, language, code) => {
         const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
         // Trim removes markdown indentation while preserving internal code structure
-        const escapedCode = escapeHtml(code.trim());
+        // Also escape '#' to prevent heading regexes (applied after processCodeBlocks)
+        // from matching inside <pre><code> blocks — the 'm' flag makes '^' match per line
+        const escapedCode = escapeHtml(code.trim()).replace(/#/g, '&#35;');
         return `<pre${langClass}><code>${escapedCode}</code></pre>`;
       });
     }
