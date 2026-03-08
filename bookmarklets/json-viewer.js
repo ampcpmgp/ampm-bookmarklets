@@ -1,7 +1,7 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v26
+// v27
 // 2026-03-08
 
 (function() {
@@ -63,9 +63,22 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v26',
+      CURRENT: 'v27',
       LAST_UPDATED: '2026-03-08',
       HISTORY: [
+        {
+          version: 'v27',
+          date: '2026-03-08',
+          features: [
+            '🐛 マークダウン文字列がコードブロックで正しく表示されるように修正',
+            '根本原因：escapeMarkdownが#をエスケープしないため、# Titleが<h1>として再レンダリングされていた',
+            'マークダウンコンテンツを```markdownコードブロックとして表示：processCodeBlocksのescapeHtmlにより#等が文字通り表示される',
+            'isMarkdownContentチェックをdata.includes(newline)チェックの前に移動：単一行の# Titleも正しく処理',
+            '[MARKDOWN_BADGE]マーカーをコードブロックの前に配置：バッジとコードブロックを一体表示',
+            '📝 非常にきれいで可読性の高い実装',
+            '既存機能への影響を最小限に：安全で確実な実装'
+          ]
+        },
         {
           version: 'v26',
           date: '2026-03-08',
@@ -646,12 +659,21 @@
           return codeBlock;
         }
         
-        // Priority 3: Handle multiline strings with simple line breaks
-        // If the content looks like a markdown document, show an indicator badge
+        // Priority 3: If the string is a markdown document, display as code block with badge
+        // This prevents markdown syntax (e.g. # headings) from being re-rendered as HTML
+        if (isMarkdownContent(data)) {
+          const lines = data.split('\n');
+          const codeBlock = [
+            `${indent}[MARKDOWN_BADGE]`,
+            `${indent}\`\`\`markdown`,
+            ...lines.map(line => `${indent}${line}`),
+            `${indent}\`\`\``
+          ].join('\n') + '\n';
+          return codeBlock;
+        }
+        
+        // Priority 4: Handle multiline strings with simple line breaks
         if (data.includes('\n')) {
-          if (isMarkdownContent(data)) {
-            markdown += `${indent}[MARKDOWN_BADGE]\n`;
-          }
           const lines = data.split('\n');
           lines.forEach(line => {
             markdown += `${indent}${escapeMarkdown(line)}\n`;
