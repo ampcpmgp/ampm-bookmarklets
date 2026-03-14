@@ -1,8 +1,8 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v28
-// 2026-03-08
+// v29
+// 2026-03-14
 
 (function() {
   try {
@@ -63,9 +63,22 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v28',
-      LAST_UPDATED: '2026-03-08',
+      CURRENT: 'v29',
+      LAST_UPDATED: '2026-03-14',
       HISTORY: [
+        {
+          version: 'v29',
+          date: '2026-03-14',
+          features: [
+            '🐛 マークダウン表示時、内部に ``` があるとコードブロックが分断される問題を修正',
+            '根本原因：processCodeBlocksの正規表現が3バッククォートに固定されており、コンテンツ内の``` によって外側のフェンスが分断されていた',
+            'getCodeFence(content)ヘルパーを追加：コンテンツ内の最長バッククォート列+1の長さのフェンスを返す',
+            'processCodeBlocksの正規表現をバックリファレンス付き可変長フェンス対応に更新：/(`{3,})(\\w*)\\n?([\\s\\S]*?)\\1/g',
+            'JSONC・JSON・Markdownの3つのコードブロック生成箇所すべてでgetCodeFenceを使用するようにリファクタリング',
+            '非常にきれいで可読性の高い実装：共通処理を一元化',
+            '既存機能への影響を最小限に：安全で確実な実装'
+          ]
+        },
         {
           version: 'v28',
           date: '2026-03-08',
@@ -462,6 +475,17 @@
       return hasMarkdownHeadings || hasCodeBlocks;
     }
 
+    // Return the minimum code fence string (3+ backticks) that does not appear in the content.
+    // This prevents code blocks from being split when the content itself contains backtick fences.
+    function getCodeFence(content) {
+      let maxBackticks = 2; // minimum result will be 3 (2 + 1)
+      const matches = content.match(/`+/g);
+      if (matches) {
+        maxBackticks = Math.max(maxBackticks, ...matches.map(m => m.length));
+      }
+      return '`'.repeat(maxBackticks + 1);
+    }
+
     // Format JSON string for code block display
     function formatJSONForCodeBlock(str) {
       try {
@@ -648,11 +672,12 @@
         // Priority 1: Check if the string is JSONC (JSON with comments)
         // Display as code block with jsonc language identifier
         if (isJSONC(data)) {
+          const fence = getCodeFence(data);
           const jsonLines = data.split('\n');
           const codeBlock = [
-            `${indent}\`\`\`jsonc`,
+            `${indent}${fence}jsonc`,
             ...jsonLines.map(line => `${indent}${line}`),
-            `${indent}\`\`\``
+            `${indent}${fence}`
           ].join('\n') + '\n';
           return codeBlock;
         }
@@ -660,11 +685,12 @@
         // Priority 2: Check if the string is valid JSON - if so, display as JSON code block
         if (isValidJSON(data)) {
           const formattedJSON = formatJSONForCodeBlock(data);
+          const fence = getCodeFence(formattedJSON);
           const jsonLines = formattedJSON.split('\n');
           const codeBlock = [
-            `${indent}\`\`\`json`,
+            `${indent}${fence}json`,
             ...jsonLines.map(line => `${indent}${line}`),
-            `${indent}\`\`\``
+            `${indent}${fence}`
           ].join('\n') + '\n';
           return codeBlock;
         }
@@ -672,12 +698,13 @@
         // Priority 3: If the string is a markdown document, display as code block with badge
         // This prevents markdown syntax (e.g. # headings) from being re-rendered as HTML
         if (isMarkdownContent(data)) {
+          const fence = getCodeFence(data);
           const lines = data.split('\n');
           const codeBlock = [
             `${indent}[MARKDOWN_BADGE]`,
-            `${indent}\`\`\`markdown`,
+            `${indent}${fence}markdown`,
             ...lines.map(line => `${indent}${line}`),
-            `${indent}\`\`\``
+            `${indent}${fence}`
           ].join('\n') + '\n';
           return codeBlock;
         }
@@ -820,12 +847,13 @@
 
     // Process code blocks (```language ... ```)
     function processCodeBlocks(text) {
-      // Match code blocks with optional language specifier and flexible newline handling
-      // Pattern: ```[language][\n]?[content]```
-      // Note: Non-greedy match works for single code blocks; nested blocks within blocks are not supported
-      const codeBlockPattern = /```(\w*)\n?([\s\S]*?)```/g;
+      // Match code blocks with variable-length fences (3+ backticks).
+      // The backreference \1 ensures the closing fence has the same length as the opening fence,
+      // so content containing shorter backtick sequences (e.g. ```) does not split the block.
+      // Pattern: <fence><language>\n?<content><same-fence>
+      const codeBlockPattern = /(`{3,})(\w*)\n?([\s\S]*?)\1/g;
       
-      return text.replace(codeBlockPattern, (match, language, code) => {
+      return text.replace(codeBlockPattern, (match, fence, language, code) => {
         const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
         // Trim removes markdown indentation while preserving internal code structure
         // Also escape '#' to prevent heading regexes (applied after processCodeBlocks)
