@@ -4645,32 +4645,6 @@
     searchInput.type = 'text';
     searchInput.placeholder = T.searchPlaceholder;
 
-    // Prevent key events from leaking to page-level listeners (Discord, Slack, etc.)
-    searchInput.addEventListener('keydown', (e) => {
-      e.stopPropagation();
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        // Clear search on ESC
-        searchInput.value = '';
-        currentSearchQuery = '';
-        searchClearBtn.style.display = 'none';
-        renderList(load());
-      }
-    });
-    searchInput.addEventListener('input', (e) => {
-      e.stopPropagation();
-      currentSearchQuery = searchInput.value;
-      searchClearBtn.style.display = currentSearchQuery ? 'flex' : 'none';
-      renderList(load());
-    });
-    searchInput.addEventListener('paste', stopPropagation);
-    searchInput.addEventListener('focus', () => {
-      searchInput.style.borderColor = '#1a73e8';
-    });
-    searchInput.addEventListener('blur', () => {
-      searchInput.style.borderColor = '#ddd';
-    });
-
     // Clear button positioned inside the input on the right
     const searchClearBtn = createElement('button', [
       'display:none',
@@ -4701,6 +4675,32 @@
     });
     searchClearBtn.onmouseover = () => { searchClearBtn.style.background = '#888'; };
     searchClearBtn.onmouseout = () => { searchClearBtn.style.background = '#bbb'; };
+
+    // Prevent key events from leaking to page-level listeners (Discord, Slack, etc.)
+    searchInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        // Clear search on ESC
+        searchInput.value = '';
+        currentSearchQuery = '';
+        searchClearBtn.style.display = 'none';
+        renderList(load());
+      }
+    });
+    searchInput.addEventListener('input', (e) => {
+      e.stopPropagation();
+      currentSearchQuery = searchInput.value;
+      searchClearBtn.style.display = currentSearchQuery ? 'flex' : 'none';
+      renderList(load());
+    });
+    searchInput.addEventListener('paste', stopPropagation);
+    searchInput.addEventListener('focus', () => {
+      searchInput.style.borderColor = '#1a73e8';
+    });
+    searchInput.addEventListener('blur', () => {
+      searchInput.style.borderColor = '#ddd';
+    });
 
     searchRow.appendChild(searchInput);
     searchRow.appendChild(searchClearBtn);
