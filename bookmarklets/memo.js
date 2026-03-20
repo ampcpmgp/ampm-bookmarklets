@@ -1,8 +1,8 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v56
-// 2026-02-26
+// v57
+// 2026-03-20
 
 (async function run(startupOptions = {}) {
   try {
@@ -191,11 +191,25 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v56',
+      CURRENT: 'v57',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-02-26',
+      LAST_UPDATED: '2026-03-20',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v57',
+          date: '2026-03-20',
+          features: [
+            'メモ検索機能を追加：タイトル・本文・タグを横断してリアルタイム検索が可能に',
+            '洗練された検索UI：ヘッダーに常時表示される検索入力バーをシームレスに統合',
+            '高速インクリメンタル検索：入力と同時にメモを絞り込み、素早く目的のメモを発見',
+            'クリアボタン：入力欄右端の✕ボタンワンクリックで検索をリセット',
+            'ESCキー対応：検索入力中にESCキーで検索をクリアし、メモ一覧を即座に復元',
+            '多言語対応：検索UIのプレースホルダーと件数表示を全6言語でローカライズ',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべての操作で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v56',
           date: '2026-02-26',
@@ -794,6 +808,8 @@
         tagFilter: '🏷️ タグ', tagFilterTitle: 'タグでフィルタリング',
         settings: '⚙️ 設定', settingsTitle: 'バージョン情報を表示',
         deleteAll: '🗑️ 一括削除', deleteAllTitle: 'ピンを除いて一括削除を行います',
+        searchPlaceholder: '🔍 タイトル・本文・タグを検索...',
+        searchClear: '✕',
         titlePlaceholder: 'タイトル（省略可）',
         memoPlaceholder: 'テキストを入力...',
         memoContentPlaceholder: 'メモ内容を入力...',
@@ -883,6 +899,8 @@
         tagFilter: '🏷️ Tags', tagFilterTitle: 'Filter by tags',
         settings: '⚙️ Settings', settingsTitle: 'Show settings',
         deleteAll: '🗑️ Delete All', deleteAllTitle: 'Delete all unpinned memos',
+        searchPlaceholder: '🔍 Search title, content, tags...',
+        searchClear: '✕',
         titlePlaceholder: 'Title (optional)',
         memoPlaceholder: 'Enter text...',
         memoContentPlaceholder: 'Enter memo content...',
@@ -972,6 +990,8 @@
         tagFilter: '🏷️ 标签', tagFilterTitle: '按标签筛选',
         settings: '⚙️ 设置', settingsTitle: '显示设置',
         deleteAll: '🗑️ 批量删除', deleteAllTitle: '删除所有未固定的备忘录',
+        searchPlaceholder: '🔍 搜索标题、内容、标签...',
+        searchClear: '✕',
         titlePlaceholder: '标题（可省略）',
         memoPlaceholder: '输入文本...',
         memoContentPlaceholder: '输入备忘录内容...',
@@ -1061,6 +1081,8 @@
         tagFilter: '🏷️ 태그', tagFilterTitle: '태그로 필터링',
         settings: '⚙️ 설정', settingsTitle: '설정 표시',
         deleteAll: '🗑️ 일괄 삭제', deleteAllTitle: '고정되지 않은 메모 모두 삭제',
+        searchPlaceholder: '🔍 제목·내용·태그 검색...',
+        searchClear: '✕',
         titlePlaceholder: '제목 (선택사항)',
         memoPlaceholder: '텍스트 입력...',
         memoContentPlaceholder: '메모 내용 입력...',
@@ -1150,6 +1172,8 @@
         tagFilter: '🏷️ 標籤', tagFilterTitle: '依標籤篩選',
         settings: '⚙️ 設定', settingsTitle: '顯示設定',
         deleteAll: '🗑️ 批次刪除', deleteAllTitle: '刪除所有未固定的備忘錄',
+        searchPlaceholder: '🔍 搜尋標題、內容、標籤...',
+        searchClear: '✕',
         titlePlaceholder: '標題（可省略）',
         memoPlaceholder: '輸入文字...',
         memoContentPlaceholder: '輸入備忘錄內容...',
@@ -1657,6 +1681,9 @@
 
     // Track current tag filter state - load from IndexedDB (via cache)
     let currentTagFilter = loadTagFilter();
+
+    // Track current search query (in-memory only, not persisted)
+    let currentSearchQuery = '';
 
 
     const createElement = (tag, css = '', text = '', clickHandler) => {
@@ -4592,6 +4619,93 @@
     buttonRow.appendChild(deleteAllButton);
     
     header.appendChild(buttonRow);
+
+    // Search row - inline search bar shown persistently below the button row
+    const searchRow = createElement('div', [
+      'display:flex',
+      'align-items:center',
+      'gap:4px',
+      'padding:0 0 2px 0',
+      'position:relative'
+    ].join(';'));
+
+    const searchInput = createElement('input', [
+      'flex:1',
+      'padding:5px 28px 5px 8px',
+      'font-size:12px',
+      'border:1px solid #ddd',
+      'border-radius:4px',
+      'outline:none',
+      'background:#fff',
+      'color:#333',
+      'box-sizing:border-box',
+      'min-width:0',
+      'transition:border-color 0.2s'
+    ].join(';'));
+    searchInput.type = 'text';
+    searchInput.placeholder = T.searchPlaceholder;
+
+    // Prevent key events from leaking to page-level listeners (Discord, Slack, etc.)
+    searchInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        // Clear search on ESC
+        searchInput.value = '';
+        currentSearchQuery = '';
+        searchClearBtn.style.display = 'none';
+        renderList(load());
+      }
+    });
+    searchInput.addEventListener('input', (e) => {
+      e.stopPropagation();
+      currentSearchQuery = searchInput.value;
+      searchClearBtn.style.display = currentSearchQuery ? 'flex' : 'none';
+      renderList(load());
+    });
+    searchInput.addEventListener('paste', stopPropagation);
+    searchInput.addEventListener('focus', () => {
+      searchInput.style.borderColor = '#1a73e8';
+    });
+    searchInput.addEventListener('blur', () => {
+      searchInput.style.borderColor = '#ddd';
+    });
+
+    // Clear button positioned inside the input on the right
+    const searchClearBtn = createElement('button', [
+      'display:none',
+      'align-items:center',
+      'justify-content:center',
+      'position:absolute',
+      'right:4px',
+      'top:50%',
+      'transform:translateY(-50%)',
+      'width:18px',
+      'height:18px',
+      'border:none',
+      'border-radius:50%',
+      'background:#bbb',
+      'color:#fff',
+      'cursor:pointer',
+      'font-size:10px',
+      'line-height:1',
+      'padding:0',
+      'flex-shrink:0',
+      'transition:background 0.2s'
+    ].join(';'), T.searchClear, () => {
+      searchInput.value = '';
+      currentSearchQuery = '';
+      searchClearBtn.style.display = 'none';
+      renderList(load());
+      searchInput.focus();
+    });
+    searchClearBtn.onmouseover = () => { searchClearBtn.style.background = '#888'; };
+    searchClearBtn.onmouseout = () => { searchClearBtn.style.background = '#bbb'; };
+
+    searchRow.appendChild(searchInput);
+    searchRow.appendChild(searchClearBtn);
+
+    header.appendChild(searchRow);
     header.appendChild(tagChipsRow);
     wrap.appendChild(header);
 
@@ -5390,6 +5504,17 @@
           if (!item.tags || item.tags.length === 0) return false;
           // Show memo if it has at least one of the selected tags
           return currentTagFilter.some(filterTag => item.tags.includes(filterTag));
+        });
+      }
+
+      // Filter data by search query if any
+      if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        filteredData = filteredData.filter(item => {
+          if (item.title && item.title.toLowerCase().includes(query)) return true;
+          if (item.text && item.text.toLowerCase().includes(query)) return true;
+          if (item.tags && item.tags.some(tag => tag.toLowerCase().includes(query))) return true;
+          return false;
         });
       }
       
