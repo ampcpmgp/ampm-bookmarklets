@@ -1,8 +1,8 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v57
-// 2026-03-20
+// v58
+// 2026-03-21
 
 (async function run(startupOptions = {}) {
   try {
@@ -119,7 +119,7 @@
     const LS_VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const LS_VARIABLES_KEY = 'my_local_storage_notes_variables';
     const LS_TAG_FILTER_KEY = 'my_local_storage_notes_tag_filter';
-    const MAX = 300;
+    const MAX = 1000;
 
     // IndexedDB utility functions
     const openDB = () => new Promise((resolve, reject) => {
@@ -191,11 +191,21 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v57',
+      CURRENT: 'v58',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-03-20',
+      LAST_UPDATED: '2026-03-21',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v58',
+          date: '2026-03-21',
+          features: [
+            '件数表示を (件数/件数) から (件数/最大件数) に変更：現在の表示件数と保存上限を一目で把握',
+            '最大件数を300件から1000件に拡張：より多くのメモを保存可能に',
+            '非常にきれいな実装：共通処理をリファクタリングし、可読性とメンテナンス性を最大化',
+            '安全で確実な動作：既存機能に影響を与えず、すべての操作で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v57',
           date: '2026-03-20',
@@ -5518,7 +5528,7 @@
         });
       }
       
-      title.textContent = `Memo (${filteredData.length}/${data.length})`;
+      title.textContent = `Memo (${filteredData.length}/${MAX})`;
       listContainer.replaceChildren();
       
       // Clear drag-drop tracking when re-rendering list
