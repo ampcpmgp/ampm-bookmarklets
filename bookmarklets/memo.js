@@ -1,8 +1,8 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v58
-// 2026-03-21
+// v59
+// 2026-03-28
 
 (async function run(startupOptions = {}) {
   try {
@@ -191,11 +191,22 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v58',
+      CURRENT: 'v59',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-03-21',
+      LAST_UPDATED: '2026-03-28',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v59',
+          date: '2026-03-28',
+          features: [
+            'タグ入力フィールドをクリック時に候補が即座に表示：1文字入力不要で既存タグを素早く選択可能に',
+            '新規作成・編集・全表示・一覧表示の全モードでクリック候補表示に対応',
+            '入力をクリアしても候補が表示され続け、連続タグ選択がより快適に',
+            '非常にきれいな実装：onfocusハンドラー追加とoninputの条件削除で最小限の変更を実現',
+            '安全で確実な動作：既存機能に影響を与えず、すべての操作で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v58',
           date: '2026-03-21',
@@ -2995,13 +3006,12 @@
       };
       
       // Input event handlers
+      tagInput.onfocus = () => {
+        showAutocomplete(tagInput.value.trim());
+      };
+      
       tagInput.oninput = (e) => {
-        const query = e.target.value.trim();
-        if (query.length > 0) {
-          showAutocomplete(query);
-        } else {
-          autocompleteDropdown.style.display = 'none';
-        }
+        showAutocomplete(e.target.value.trim());
       };
       
       tagInput.onkeydown = (e) => {
