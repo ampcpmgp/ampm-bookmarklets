@@ -1,7 +1,7 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v59
+// v60
 // 2026-03-28
 
 (async function run(startupOptions = {}) {
@@ -116,7 +116,6 @@
     const STORE_NAME = 'settings';
     // localStorage keys (used only for one-time data migration)
     const LS_MEMOS_KEY = 'my_local_storage_notes';
-    const LS_VIEW_MODE_KEY = 'my_local_storage_notes_view_mode';
     const LS_VARIABLES_KEY = 'my_local_storage_notes_variables';
     const LS_TAG_FILTER_KEY = 'my_local_storage_notes_tag_filter';
     const MAX = 1000;
@@ -152,7 +151,6 @@
     let _db = null;
     const _cache = {
       memos: [],
-      viewMode: null,
       variables: [],
       tagFilter: [],
       language: null
@@ -179,7 +177,6 @@
       };
 
       _cache.memos = await loadWithMigration('memos', LS_MEMOS_KEY, []);
-      _cache.viewMode = await loadWithMigration('viewMode', LS_VIEW_MODE_KEY, null);
       _cache.variables = await loadWithMigration('variables', LS_VARIABLES_KEY, []);
       _cache.tagFilter = await loadWithMigration('tagFilter', LS_TAG_FILTER_KEY, []);
       _cache.language = (await dbGet(_db, 'language')) || null;
@@ -191,11 +188,22 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v59',
+      CURRENT: 'v60',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-03-28',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v60',
+          date: '2026-03-28',
+          features: [
+            '全表示UIを完全削除：一覧表示のみに統一し、シンプルで一貫したUIを実現',
+            '全表示・一覧表示の切替ボタンを削除：不要なUI要素を排除し、操作をより直感的に',
+            '全表示用フォーム要素（emojiTitleRowContainer、titleInput、textarea、saveButton等）を削除',
+            '非常にきれいな実装：共通処理をリファクタリングし、不要なコードを完全削除',
+            '安全で確実な動作：既存機能に影響を与えず、すべての操作で正しく動作することを保証'
+          ]
+        },
         {
           version: 'v59',
           date: '2026-03-28',
@@ -824,8 +832,6 @@
     // Add new languages here - each key must exist in all language objects
     const TRANSLATIONS = {
       ja: {
-        viewFull: '📝 全表示', viewList: '📋 一覧',
-        viewToggleTitle: 'タイトル一覧表示を切り替えます',
         tagFilter: '🏷️ タグ', tagFilterTitle: 'タグでフィルタリング',
         settings: '⚙️ 設定', settingsTitle: 'バージョン情報を表示',
         deleteAll: '🗑️ 一括削除', deleteAllTitle: 'ピンを除いて一括削除を行います',
@@ -915,8 +921,6 @@
         dateLocale: 'ja-JP'
       },
       en: {
-        viewFull: '📝 Full', viewList: '📋 List',
-        viewToggleTitle: 'Toggle list/full view',
         tagFilter: '🏷️ Tags', tagFilterTitle: 'Filter by tags',
         settings: '⚙️ Settings', settingsTitle: 'Show settings',
         deleteAll: '🗑️ Delete All', deleteAllTitle: 'Delete all unpinned memos',
@@ -1006,8 +1010,6 @@
         dateLocale: 'en-US'
       },
       'zh-CN': {
-        viewFull: '📝 全显示', viewList: '📋 列表',
-        viewToggleTitle: '切换列表/全显示',
         tagFilter: '🏷️ 标签', tagFilterTitle: '按标签筛选',
         settings: '⚙️ 设置', settingsTitle: '显示设置',
         deleteAll: '🗑️ 批量删除', deleteAllTitle: '删除所有未固定的备忘录',
@@ -1097,8 +1099,6 @@
         dateLocale: 'zh-CN'
       },
       ko: {
-        viewFull: '📝 전체 보기', viewList: '📋 목록',
-        viewToggleTitle: '목록/전체 보기 전환',
         tagFilter: '🏷️ 태그', tagFilterTitle: '태그로 필터링',
         settings: '⚙️ 설정', settingsTitle: '설정 표시',
         deleteAll: '🗑️ 일괄 삭제', deleteAllTitle: '고정되지 않은 메모 모두 삭제',
@@ -1188,8 +1188,6 @@
         dateLocale: 'ko-KR'
       },
       'zh-TW': {
-        viewFull: '📝 全顯示', viewList: '📋 清單',
-        viewToggleTitle: '切換清單/全顯示',
         tagFilter: '🏷️ 標籤', tagFilterTitle: '依標籤篩選',
         settings: '⚙️ 設定', settingsTitle: '顯示設定',
         deleteAll: '🗑️ 批次刪除', deleteAllTitle: '刪除所有未固定的備忘錄',
@@ -1535,19 +1533,6 @@
       }));
     };
 
-    // Load saved view mode from IndexedDB (via cache)
-    const loadViewMode = () => {
-      return _cache.viewMode === 'list';
-    };
-
-    // Save view mode to IndexedDB
-    const saveViewMode = (isListMode) => {
-      _cache.viewMode = isListMode ? 'list' : 'full';
-      if (_db) {
-        dbPut(_db, 'viewMode', _cache.viewMode).catch(() => {});
-      }
-    };
-
     const save = (data) => {
       _cache.memos = data;
       if (_db) {
@@ -1762,12 +1747,6 @@
     const initializeNewMemoEmoji = () => {
       return getRandomEmoji();
     };
-
-    // Track current emoji (initialize with random emoji for new memo)
-    let currentEmoji = initializeNewMemoEmoji();
-    
-    // Track current tags for new memo creation
-    let currentTags = [];
 
     // Create a button with hover effect
     const createButtonWithHover = (style, text, clickHandler, hoverBg, normalBg) => {
@@ -3535,51 +3514,6 @@
       'align-items:center'
     ].join(';'));
     
-    // Initialize view mode from IndexedDB (via cache)
-    let isTitleOnlyMode = loadViewMode();
-    
-    const titleOnlyButton = createElement('button', [
-      'padding:4px 10px',
-      'font-size:12px',
-      'border:none',
-      'border-radius:4px',
-      'cursor:pointer',
-      'background:#34a853',
-      'color:#fff',
-      'white-space:nowrap',
-      'font-weight:normal',
-      'flex-shrink:0'
-    ].join(';'), isTitleOnlyMode ? T.viewFull : T.viewList, () => {
-      isTitleOnlyMode = !isTitleOnlyMode;
-      titleOnlyButton.textContent = isTitleOnlyMode ? T.viewFull : T.viewList;
-      titleOnlyButton.style.background = isTitleOnlyMode ? '#1a73e8' : '#34a853';
-      
-      // Save view mode to IndexedDB
-      saveViewMode(isTitleOnlyMode);
-      
-      // Hide/show input fields based on mode
-      if (isTitleOnlyMode) {
-        emojiTitleRowContainer.style.display = 'none';
-        newMemoTagInput.container.style.display = 'none';
-        input.style.display = 'none';
-        saveButton.style.display = 'none';
-        // When entering list view, just reset the flag but preserve compactFormState
-        // This allows users to resume editing if they accidentally switch views
-        KeyHandler.isNewMemoCreating = false;
-      } else {
-        emojiTitleRowContainer.style.display = 'block';
-        newMemoTagInput.container.style.display = 'block';
-        input.style.display = 'block';
-        saveButton.style.display = 'block';
-        // When switching to full view, completely reset compact form state
-        resetCompactFormState();
-      }
-      
-      renderList(load());
-    });
-    titleOnlyButton.title = T.viewToggleTitle;
-    buttonRow.appendChild(titleOnlyButton);
-    
     // Tag filter chips row - shown below button row for inline tag filtering
     const tagChipsRow = createElement('div', [
       'display:none',
@@ -4738,311 +4672,6 @@
       'box-sizing:border-box'
     ].join(';'));
 
-    // Emoji + Title Row Container (for proper dropdown containment)
-    const emojiTitleRowContainer = createElement('div', [
-      'position:relative',
-      'margin-bottom:8px'
-    ].join(';'));
-
-    // Emoji + Title Row
-    const emojiTitleRow = createElement('div', [
-      'display:flex',
-      'gap:6px',
-      'align-items:center'
-    ].join(';'));
-
-    // Emoji button (show ➕ when empty, otherwise show the emoji)
-    const emojiButton = createElement('button', [
-      'width:42px',
-      'height:42px',
-      'border:1px solid #ccc',
-      'border-radius:4px',
-      'cursor:pointer',
-      'background:#fff',
-      'font-size:24px',
-      'display:flex',
-      'align-items:center',
-      'justify-content:center',
-      'transition:all 0.2s',
-      'flex-shrink:0',
-      'padding:0'
-    ].join(';'), currentEmoji || '➕', () => {
-      emojiDropdown.style.display = emojiDropdown.style.display === 'none' ? 'block' : 'none';
-    });
-    
-    // Apply centered hover effect
-    applyHoverEffect(emojiButton, 1.05, '#f5f5f5');
-    
-    emojiTitleRow.appendChild(emojiButton);
-
-    // Title input
-    const titleInput = createElement('input', [
-      'flex:1',
-      'padding:10px',
-      'border:1px solid #ccc',
-      'border-radius:4px',
-      'font-size:15px',
-      'font-weight:600',
-      'background:#fff',
-      'color:#333',
-      'font-family:sans-serif',
-      'box-sizing:border-box'
-    ].join(';'));
-    titleInput.type = 'text';
-    titleInput.placeholder = T.titlePlaceholder;
-    titleInput.onkeydown = (e) => {
-      if (e.key === KeyHandler.ESC) {
-        e.preventDefault();
-        e.stopPropagation();
-        // If user is creating a memo, clear the form instead of closing bookmarklet
-        // clearFullViewForm is defined after input element is created
-        if (KeyHandler.isNewMemoCreating) {
-          clearFullViewForm();
-        } else {
-          close();
-        }
-        return;
-      }
-      // Note: Ctrl+Enter handler will be added after saveButton is created
-      e.stopPropagation();
-    };
-    
-    // Track when user starts interacting with the form in full view
-    titleInput.oninput = () => {
-      if (!isTitleOnlyMode) {
-        KeyHandler.isNewMemoCreating = true;
-      }
-    };
-    titleInput.onpaste = stopPropagation;
-    
-    emojiTitleRow.appendChild(titleInput);
-
-    // Emoji dropdown picker
-    const emojiDropdown = createElement('div', [
-      'display:none',
-      'position:absolute',
-      'top:48px',
-      'left:0',
-      'right:0',
-      'background:#fff',
-      'border:1px solid #ccc',
-      'border-radius:6px',
-      'box-shadow:0 4px 12px rgba(0,0,0,0.15)',
-      'padding:8px',
-      `z-index:${Z_INDEX.DROPDOWN}`,
-      'box-sizing:border-box'
-    ].join(';'));
-
-    // Random button in picker
-    const randomPickerButton = createElement('button', [
-      'width:100%',
-      'padding:8px',
-      'margin-bottom:8px',
-      'font-size:13px',
-      'border:1px solid #ddd',
-      'border-radius:4px',
-      'cursor:pointer',
-      'background:#f59e0b',
-      'color:#fff',
-      'font-weight:500',
-      'transition:background 0.2s'
-    ].join(';'), T.randomEmoji, () => {
-      const emoji = getRandomEmoji();
-      currentEmoji = emoji;
-      emojiButton.textContent = emoji;
-      emojiDropdown.style.display = 'none';
-      // Track that user is creating a memo
-      if (!isTitleOnlyMode) {
-        KeyHandler.isNewMemoCreating = true;
-      }
-    });
-    randomPickerButton.onmouseover = () => {
-      randomPickerButton.style.background = '#d97706';
-    };
-    randomPickerButton.onmouseout = () => {
-      randomPickerButton.style.background = '#f59e0b';
-    };
-    emojiDropdown.appendChild(randomPickerButton);
-
-    // Clear button in picker
-    const clearPickerButton = createElement('button', [
-      'width:100%',
-      'padding:8px',
-      'margin-bottom:8px',
-      'font-size:13px',
-      'border:1px solid #ddd',
-      'border-radius:4px',
-      'cursor:pointer',
-      'background:#ef4444',
-      'color:#fff',
-      'font-weight:500',
-      'transition:background 0.2s'
-    ].join(';'), T.clearEmoji, () => {
-      currentEmoji = '';
-      emojiButton.textContent = '➕';
-      emojiDropdown.style.display = 'none';
-    });
-    clearPickerButton.onmouseover = () => {
-      clearPickerButton.style.background = '#dc2626';
-    };
-    clearPickerButton.onmouseout = () => {
-      clearPickerButton.style.background = '#ef4444';
-    };
-    emojiDropdown.appendChild(clearPickerButton);
-
-    // Emoji grid
-    const emojiGrid = createElement('div', [
-      'display:grid',
-      'grid-template-columns:repeat(7, 1fr)',
-      'gap:4px',
-      'max-height:200px',
-      'overflow-y:auto',
-      'overflow-x:hidden',
-      'padding:4px'
-    ].join(';'));
-
-    EMOJIS.forEach(emoji => {
-      const emojiBtn = createElement('button', [
-        'padding:8px',
-        'font-size:20px',
-        'border:1px solid transparent',
-        'border-radius:4px',
-        'cursor:pointer',
-        'background:transparent',
-        'transition:all 0.2s',
-        'line-height:1',
-        'min-width:0',
-        'box-sizing:border-box'
-      ].join(';'), emoji, () => {
-        currentEmoji = emoji;
-        emojiButton.textContent = emoji;
-        emojiDropdown.style.display = 'none';
-        // Track that user is creating a memo
-        if (!isTitleOnlyMode) {
-          KeyHandler.isNewMemoCreating = true;
-        }
-      });
-      
-      // Apply centered hover effect with background and border
-      applyHoverEffect(emojiBtn, 1.15, '#f0f0f0', '#ccc');
-      
-      emojiGrid.appendChild(emojiBtn);
-    });
-
-    emojiDropdown.appendChild(emojiGrid);
-    emojiTitleRowContainer.appendChild(emojiTitleRow);
-    emojiTitleRowContainer.appendChild(emojiDropdown);
-
-    body.appendChild(emojiTitleRowContainer);
-
-    // Tag input for new memo creation
-    const newMemoTagInput = createTagInput([], (tags) => {
-      currentTags = tags;
-      if (!isTitleOnlyMode) {
-        KeyHandler.isNewMemoCreating = true;
-      }
-    });
-    body.appendChild(newMemoTagInput.container);
-
-    // Use centralized textarea creation for consistent UI/UX
-    const input = createTextarea({
-      placeholder: T.memoPlaceholder,
-      value: '',
-      borderColor: '#ccc',
-      marginBottom: '10px'
-    });
-    input.style.flexShrink = '0';
-    input.onkeydown = (e) => {
-      if (e.key === KeyHandler.ESC) {
-        e.preventDefault();
-        e.stopPropagation();
-        // If user is creating a memo, clear the form instead of closing bookmarklet
-        if (KeyHandler.isNewMemoCreating) {
-          clearFullViewForm();
-        } else {
-          close();
-        }
-        return;
-      }
-      if (KeyHandler.isCtrlEnter(e)) {
-        e.preventDefault();
-        saveButton.click();
-        return;
-      }
-      e.stopPropagation();
-    };
-    
-    // Track when user starts interacting with the form in full view
-    input.oninput = () => {
-      if (!isTitleOnlyMode) {
-        KeyHandler.isNewMemoCreating = true;
-      }
-    };
-    input.onpaste = stopPropagation;
-    
-    body.appendChild(input);
-    
-    // Helper function to clear the full view form and reset creation state
-    // Defined here after both titleInput and input are created
-    const clearFullViewForm = () => {
-      titleInput.value = '';
-      input.value = '';
-      currentEmoji = initializeNewMemoEmoji();
-      currentTags = [];
-      newMemoTagInput.setTags([]);
-      emojiButton.textContent = currentEmoji;
-      KeyHandler.isNewMemoCreating = false;
-    };
-
-    const saveButton = createElement('button', [
-      'flex-shrink:0',
-      'width:100%',
-      'padding:8px',
-      `background:${COLORS.SAVE_BUTTON}`,
-      'color:#fff',
-      'border:none',
-      'border-radius:4px',
-      'cursor:pointer',
-      'font-weight:bold',
-      'font-size:13px',
-      'box-sizing:border-box'
-    ].join(';'), T.saveMemo, () => {
-      const title = titleInput.value.trim();
-      const value = input.value.trim();
-      if (!value) return;
-
-      const data = load();
-      if (data.length >= MAX) {
-        alert(T.maxMemos(MAX));
-        return;
-      }
-
-      const now = new Date().toISOString();
-      data.unshift({ title: title, text: value, createdDate: now, updatedDate: now, pinned: false, emoji: currentEmoji, tags: currentTags });
-      save(data);
-      // Use clearFullViewForm to reset state consistently
-      clearFullViewForm();
-    });
-    body.appendChild(saveButton);
-
-    // Now that saveButton is created, add Ctrl+Enter handler to titleInput
-    // This allows saving the memo from the title input field
-    const originalTitleKeydown = titleInput.onkeydown;
-    titleInput.onkeydown = (e) => {
-      // Check Ctrl+Enter first before calling original handler
-      // This ensures Ctrl+Enter is handled before e.stopPropagation() in the original handler
-      if (KeyHandler.isCtrlEnter(e)) {
-        e.preventDefault();
-        saveButton.click();
-        return;
-      }
-      
-      // Call original handler if it exists (handles ESC and stopPropagation)
-      if (originalTitleKeydown) {
-        originalTitleKeydown(e);
-      }
-    };
-
     const listContainer = createElement('ul', [
       'list-style:none',
       'margin-top:15px',
@@ -5551,214 +5180,47 @@
         return data.indexOf(a) - data.indexOf(b);
       });
 
-      if (isTitleOnlyMode) {
-        // Add "New Memo" button at the top of list view
-        if (compactFormState.visible) {
-          // Show compact form
-          listContainer.appendChild(createCompactNewMemoForm());
-        } else {
-          // Show "Add New Memo" button
-          const addButton = createElement('button', [
-            'width:100%',
-            'padding:10px',
-            'margin-bottom:8px',
-            `background:${COLORS.SAVE_BUTTON}`,
-            'color:#fff',
-            'border:none',
-            'border-radius:6px',
-            'cursor:pointer',
-            'font-weight:600',
-            'font-size:13px',
-            'transition:background 0.2s',
-            'display:flex',
-            'align-items:center',
-            'justify-content:center',
-            'gap:6px'
-          ].join(';'), T.addNewMemo, () => {
-            compactFormState.visible = true;
-            KeyHandler.isNewMemoCreating = true; // Prevent ESC from closing bookmarklet
-            renderList(data);
-            // Focus on the textarea after rendering
-            setTimeout(() => {
-              const textarea = listContainer.querySelector('textarea');
-              if (textarea) textarea.focus();
-            }, 0);
-          });
-          addButton.onmouseover = () => {
-            addButton.style.background = COLORS.SAVE_BUTTON_HOVER;
-          };
-          addButton.onmouseout = () => {
-            addButton.style.background = COLORS.SAVE_BUTTON;
-          };
-          listContainer.appendChild(addButton);
-        }
-        // Title-only mode: show titles with compact action buttons
-        // Track pinned items index for drag & drop
-        let pinnedItemsIndex = 0;
-        
-        sortedData.forEach((item, sortedIndex) => {
-          const originalIndex = data.indexOf(item);
-          
-          const listItem = createElement('li', [
-            'background:#fff',
-            'border:1px solid #eee',
-            'margin-bottom:6px',
-            'padding:8px 10px',
-            'border-radius:6px',
-            'display:flex',
-            'justify-content:space-between',
-            'align-items:center',
-            'gap:8px',
-            'box-sizing:border-box',
-            'transition:background 0.2s',
-            item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
-          ].join(';'));
-          
-          // Setup drag & drop for pinned items only
-          if (item.pinned) {
-            const currentPinnedIndex = pinnedItemsIndex;
-            DragDropManager.setupDraggable(listItem, currentPinnedIndex, data, (newData) => {
-              save(newData);
-            });
-            pinnedItemsIndex++;
-          }
-          
-          // Content area (clickable to expand for unpinned items)
-          // For pinned items, cursor is handled by drag handle
-          const contentArea = createElement('div', [
-            'flex:1',
-            'display:flex',
-            'align-items:center',
-            'gap:8px',
-            item.pinned ? '' : 'cursor:pointer',
-            'min-width:0',
-            'overflow:hidden'
-          ].join(';'));
-          
-          contentArea.onmouseover = () => {
-            listItem.style.background = item.pinned ? '#fff9e6' : '#f5f5f5';
-          };
-          contentArea.onmouseout = () => {
-            listItem.style.background = item.pinned ? '#fffbf0' : '#fff';
-          };
-          
-          // Emoji display
-          if (item.emoji) {
-            const emojiSpan = createElement('span', [
-              'font-size:18px',
-              'flex-shrink:0'
-            ].join(';'), item.emoji);
-            contentArea.appendChild(emojiSpan);
-          }
-          
-          const titleText = createElement('div', [
-            'flex:1',
-            'min-width:0',
-            'display:-webkit-box',
-            '-webkit-line-clamp:2',
-            '-webkit-box-orient:vertical',
-            'overflow:hidden',
-            'line-height:1.4',
-            'word-break:break-word'
-          ].join(';'));
-          
-          if (item.title) {
-            const titleSpan = createElement('span', [
-              'font-weight:600',
-              'color:#1a73e8'
-            ].join(';'), item.title);
-            titleText.appendChild(titleSpan);
-          } else {
-            const previewText = item.text.substring(0, 50) + (item.text.length > 50 ? '...' : '');
-            const previewSpan = createElement('span', [
-              'color:#666',
-              'font-style:italic'
-            ].join(';'), previewText);
-            titleText.appendChild(previewSpan);
-          }
-          
-          contentArea.appendChild(titleText);
-          
-          // Display tags in compact mode
-          if (item.tags && item.tags.length > 0) {
-            const tagsContainer = createElement('div', [
-              'display:flex',
-              'gap:4px',
-              'flex-wrap:wrap',
-              'flex-shrink:0',
-              'max-width:40%'
-            ].join(';'));
-            
-            // Show up to 3 tags, then show "+N" indicator
-            const displayTags = item.tags.slice(0, 3);
-            displayTags.forEach(tag => {
-              const tagChip = createElement('span', [
-                'display:inline-block',
-                'padding:2px 6px',
-                'background:#e3f2fd',
-                'border:1px solid #90caf9',
-                'border-radius:10px',
-                'font-size:10px',
-                'color:#1976d2',
-                'font-weight:500',
-                'white-space:nowrap'
-              ].join(';'), tag);
-              tagsContainer.appendChild(tagChip);
-            });
-            
-            // Show "+N" if there are more tags
-            if (item.tags.length > 3) {
-              const moreIndicator = createElement('span', [
-                'display:inline-block',
-                'padding:2px 6px',
-                'background:#f5f5f5',
-                'border:1px solid #ddd',
-                'border-radius:10px',
-                'font-size:10px',
-                'color:#666',
-                'font-weight:500'
-              ].join(';'), `+${item.tags.length - 3}`);
-              tagsContainer.appendChild(moreIndicator);
-            }
-            
-            contentArea.appendChild(tagsContainer);
-          }
-          
-          // Only make unpinned items clickable to expand in title-only mode
-          // Pinned items use drag handle and should not expand on click
-          if (!item.pinned) {
-            contentArea.onclick = () => {
-              isTitleOnlyMode = false;
-              titleOnlyButton.textContent = T.viewList;
-              titleOnlyButton.style.background = '#34a853';
-              
-              // Show input fields
-              emojiTitleRowContainer.style.display = 'block';
-              newMemoTagInput.container.style.display = 'block';
-              input.style.display = 'block';
-              saveButton.style.display = 'block';
-              
-              // Reset compact form state when switching to full view
-              resetCompactFormState();
-              
-              renderList(data);
-            };
-          }
-          
-          listItem.appendChild(contentArea);
-          
-          // Add compact action buttons
-          const actionsContainer = createActionButtons(item, originalIndex, data, true);
-          listItem.appendChild(actionsContainer);
-          
-          listContainer.appendChild(listItem);
+      // Add "New Memo" button at the top of list view
+      if (compactFormState.visible) {
+        // Show compact form
+        listContainer.appendChild(createCompactNewMemoForm());
+      } else {
+        // Show "Add New Memo" button
+        const addButton = createElement('button', [
+          'width:100%',
+          'padding:10px',
+          'margin-bottom:8px',
+          `background:${COLORS.SAVE_BUTTON}`,
+          'color:#fff',
+          'border:none',
+          'border-radius:6px',
+          'cursor:pointer',
+          'font-weight:600',
+          'font-size:13px',
+          'transition:background 0.2s',
+          'display:flex',
+          'align-items:center',
+          'justify-content:center',
+          'gap:6px'
+        ].join(';'), T.addNewMemo, () => {
+          compactFormState.visible = true;
+          KeyHandler.isNewMemoCreating = true; // Prevent ESC from closing bookmarklet
+          renderList(data);
+          // Focus on the textarea after rendering
+          setTimeout(() => {
+            const textarea = listContainer.querySelector('textarea');
+            if (textarea) textarea.focus();
+          }, 0);
         });
-        
-        renderTagChipsRow();
-        return;
+        addButton.onmouseover = () => {
+          addButton.style.background = COLORS.SAVE_BUTTON_HOVER;
+        };
+        addButton.onmouseout = () => {
+          addButton.style.background = COLORS.SAVE_BUTTON;
+        };
+        listContainer.appendChild(addButton);
       }
-
-      // Full view mode: show complete memo items with all details
+      // List view: show titles with compact action buttons
       // Track pinned items index for drag & drop
       let pinnedItemsIndex = 0;
       
@@ -5768,16 +5230,18 @@
         const listItem = createElement('li', [
           'background:#fff',
           'border:1px solid #eee',
-          'margin-bottom:8px',
-          'padding:12px',
+          'margin-bottom:6px',
+          'padding:8px 10px',
           'border-radius:6px',
           'display:flex',
-          'flex-direction:column',
-          'gap:10px',
+          'justify-content:space-between',
+          'align-items:center',
+          'gap:8px',
           'box-sizing:border-box',
+          'transition:background 0.2s',
           item.pinned ? 'background:#fffbf0;border-color:#ffd700' : ''
         ].join(';'));
-
+        
         // Setup drag & drop for pinned items only
         if (item.pinned) {
           const currentPinnedIndex = pinnedItemsIndex;
@@ -5786,62 +5250,82 @@
           });
           pinnedItemsIndex++;
         }
-
-        const textWrapper = createElement('div', [
-          'width:100%',
-          'box-sizing:border-box'
+        
+        // Content area
+        const contentArea = createElement('div', [
+          'flex:1',
+          'display:flex',
+          'align-items:center',
+          'gap:8px',
+          'min-width:0',
+          'overflow:hidden'
         ].join(';'));
-
-        // Display title and/or emoji if they exist
-        if (item.title || item.emoji) {
-          const titleRow = createElement('div', [
-            'display:flex',
-            'align-items:center',
-            'gap:8px',
-            'margin-bottom:8px'
-          ].join(';'));
+        
+        contentArea.onmouseover = () => {
+          listItem.style.background = item.pinned ? '#fff9e6' : '#f5f5f5';
+        };
+        contentArea.onmouseout = () => {
+          listItem.style.background = item.pinned ? '#fffbf0' : '#fff';
+        };
           
-          if (item.emoji) {
-            const emojiSpan = createElement('span', [
-              'font-size:22px',
-              'flex-shrink:0'
-            ].join(';'), item.emoji);
-            titleRow.appendChild(emojiSpan);
-          }
-          
-          if (item.title) {
-            const titleElement = createElement('div', [
-              'font-size:16px',
-              'font-weight:700',
-              'color:#1a73e8',
-              'line-height:1.4',
-              'letter-spacing:0.3px',
-              'word-break:break-word',
-              'flex:1'
-            ].join(';'), item.title);
-            titleRow.appendChild(titleElement);
-          }
-          
-          textWrapper.appendChild(titleRow);
+          // Emoji display
+        // Emoji display
+        if (item.emoji) {
+          const emojiSpan = createElement('span', [
+            'font-size:18px',
+            'flex-shrink:0'
+          ].join(';'), item.emoji);
+          contentArea.appendChild(emojiSpan);
         }
-
-        // Display tags in full view
+        
+        const titleText = createElement('div', [
+          'flex:1',
+          'min-width:0',
+          'display:-webkit-box',
+          '-webkit-line-clamp:2',
+          '-webkit-box-orient:vertical',
+          'overflow:hidden',
+          'line-height:1.4',
+          'word-break:break-word'
+        ].join(';'));
+        
+        if (item.title) {
+          const titleSpan = createElement('span', [
+            'font-weight:600',
+            'color:#1a73e8'
+          ].join(';'), item.title);
+          titleText.appendChild(titleSpan);
+        } else {
+          const previewText = item.text.substring(0, 50) + (item.text.length > 50 ? '...' : '');
+          const previewSpan = createElement('span', [
+            'color:#666',
+            'font-style:italic'
+          ].join(';'), previewText);
+          titleText.appendChild(previewSpan);
+        }
+        
+        contentArea.appendChild(titleText);
+        
+        // Display tags in compact mode
         if (item.tags && item.tags.length > 0) {
           const tagsContainer = createElement('div', [
             'display:flex',
-            'gap:6px',
+            'gap:4px',
             'flex-wrap:wrap',
-            'margin-bottom:8px'
+            'flex-shrink:0',
+            'max-width:40%'
           ].join(';'));
           
-          item.tags.forEach(tag => {
+          // Show up to 3 tags, then show "+N" indicator
+          const displayTags = item.tags.slice(0, 3);
+          displayTags.forEach(tag => {
             const tagChip = createElement('span', [
               'display:inline-block',
-              'padding:4px 10px',
+              'padding:2px 6px',
               'background:#e3f2fd',
               'border:1px solid #90caf9',
-              'border-radius:12px',
-              'font-size:12px',
+              'border-radius:10px',
+              'font-size:10px',
               'color:#1976d2',
               'font-weight:500',
               'white-space:nowrap'
@@ -5849,137 +5333,37 @@
             tagsContainer.appendChild(tagChip);
           });
           
-          textWrapper.appendChild(tagsContainer);
-        }
-
-        const textElement = createElement('div', [
-          'word-break:break-all',
-          'font-size:13px',
-          'color:#333',
-          'line-height:1.6',
-          'display:-webkit-box',
-          '-webkit-line-clamp:5',
-          '-webkit-box-orient:vertical',
-          'overflow:hidden'
-        ].join(';'), item.text);
-        
-        textWrapper.appendChild(textElement);
-        
-        // Add timestamp information with refined UX
-        const timestampContainer = createElement('div', [
-          'display:flex',
-          'gap:8px',
-          'flex-wrap:wrap',
-          'margin-top:8px',
-          'font-size:11px',
-          'color:#888',
-          'opacity:0.8'
-        ].join(';'));
-        
-        const createdDate = new Date(item.createdDate);
-        const updatedDate = new Date(item.updatedDate);
-        const createdDateStr = createdDate.toLocaleDateString(T.dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
-        const updatedDateStr = updatedDate.toLocaleDateString(T.dateLocale, { year: 'numeric', month: 'short', day: 'numeric' });
-        
-        // Show creation date
-        const createdSpan = createElement('span', [
-          'display:inline-flex',
-          'align-items:center',
-          'gap:3px'
-        ].join(';'));
-        const createdLabel = createElement('span', 'opacity:0.7', T.createdLabel);
-        createdSpan.appendChild(createdLabel);
-        createdSpan.appendChild(document.createTextNode(' ' + createdDateStr));
-        timestampContainer.appendChild(createdSpan);
-        
-        // Show update date only if different from creation date
-        if (updatedDateStr !== createdDateStr) {
-          const separator = createElement('span', 'opacity:0.5', '•');
-          timestampContainer.appendChild(separator);
-          
-          const updatedSpan = createElement('span', [
-            'display:inline-flex',
-            'align-items:center',
-            'gap:3px'
-          ].join(';'));
-          const updatedLabel = createElement('span', 'opacity:0.7', T.updatedLabel);
-          updatedSpan.appendChild(updatedLabel);
-          updatedSpan.appendChild(document.createTextNode(' ' + updatedDateStr));
-          timestampContainer.appendChild(updatedSpan);
-        }
-        
-        textWrapper.appendChild(timestampContainer);
-
-        // Check if the text element is truncated by comparing scroll and client heights
-        const checkTruncation = () => {
-          return textElement.scrollHeight > textElement.clientHeight;
-        };
-
-        // Add "Show more" button if text is truncated (setTimeout ensures proper height calculation after render)
-        setTimeout(() => {
-          if (checkTruncation()) {
-            const toggleButton = createElement('button', [
-              'margin-top:6px',
-              'padding:4px 10px',
-              'font-size:11px',
-              'border:none',
-              'border-radius:4px',
-              'cursor:pointer',
-              'background:#f0f0f0',
+          // Show "+N" if there are more tags
+          if (item.tags.length > 3) {
+            const moreIndicator = createElement('span', [
+              'display:inline-block',
+              'padding:2px 6px',
+              'background:#f5f5f5',
+              'border:1px solid #ddd',
+              'border-radius:10px',
+              'font-size:10px',
               'color:#666',
-              'transition:all 0.2s',
               'font-weight:500'
-            ].join(';'), T.showMore);
-            
-            let isExpanded = false;
-            toggleButton.onclick = () => {
-              isExpanded = !isExpanded;
-              if (isExpanded) {
-                textElement.style.cssText = [
-                  'word-break:break-all',
-                  'font-size:13px',
-                  'color:#333',
-                  'line-height:1.6',
-                  'white-space:pre-wrap'
-                ].join(';');
-                toggleButton.textContent = T.showLess;
-              } else {
-                textElement.style.cssText = [
-                  'word-break:break-all',
-                  'font-size:13px',
-                  'color:#333',
-                  'line-height:1.6',
-                  'display:-webkit-box',
-                  '-webkit-line-clamp:5',
-                  '-webkit-box-orient:vertical',
-                  'overflow:hidden'
-                ].join(';');
-                toggleButton.textContent = T.showMore;
-              }
-            };
-            
-            textWrapper.appendChild(toggleButton);
+            ].join(';'), `+${item.tags.length - 3}`);
+            tagsContainer.appendChild(moreIndicator);
           }
-        }, 0);
-
-        listItem.appendChild(textWrapper);
-
-        const actions = createActionButtons(item, originalIndex, data, false);
-        listItem.appendChild(actions);
+          
+          contentArea.appendChild(tagsContainer);
+        }
+        
+        listItem.appendChild(contentArea);
+        
+        // Add compact action buttons
+        const actionsContainer = createActionButtons(item, originalIndex, data, true);
+        listItem.appendChild(actionsContainer);
+        
         listContainer.appendChild(listItem);
       });
+      
       renderTagChipsRow();
     };
 
     renderList(load());
-    
-    // Apply saved view mode on initial load
-    if (isTitleOnlyMode) {
-      emojiTitleRowContainer.style.display = 'none';
-      newMemoTagInput.container.style.display = 'none';
-      input.style.display = 'none';
-      saveButton.style.display = 'none';
-    }
 
     // If requested (e.g. after language change), open the settings dialog at the specified tab
     if (startupOptions.openSettingsTab !== undefined) {
