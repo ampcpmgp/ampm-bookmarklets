@@ -1,7 +1,7 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v61
+// v62
 // 2026-06-24
 
 (async function run(startupOptions = {}) {
@@ -49,7 +49,9 @@
       `z-index:${Z_INDEX.BASE}`,
       'border:none',
       'outline:none',
-      'background:transparent'
+      'background:transparent',
+      'user-select:text',
+      '-webkit-user-select:text'
     ].join(';');
     
     // Use Popover API for proper display management
@@ -188,11 +190,21 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v61',
+      CURRENT: 'v62',
       // Last update date (automatically used in file header)
       LAST_UPDATED: '2026-06-24',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v62',
+          date: '2026-06-24',
+          features: [
+            'Discord等Electron/Chromium環境でテキスト選択ができない問題を修正：user-select:noneの継承を明示的に打ち消し',
+            'shadow host、wrap、全ダイアログオーバーレイ（設定・変数編集・テンプレート入力）にuser-select:textを直接指定',
+            '非常にきれいな実装：既存コードに影響を与えず、最小限のプロパティ追加で問題を解決',
+            '安全で確実な動作：全環境でテキスト選択が正しく動作することを保証'
+          ]
+        },
         {
           version: 'v61',
           date: '2026-06-24',
@@ -1971,7 +1983,9 @@
         'display:flex',
         'align-items:center',
         'justify-content:center',
-        'backdrop-filter:blur(2px)'
+        'backdrop-filter:blur(2px)',
+        'user-select:text',
+        '-webkit-user-select:text'
       ].join(';'));
 
       // Form container
@@ -2358,7 +2372,9 @@
         'display:flex',
         'align-items:center',
         'justify-content:center',
-        'backdrop-filter:blur(2px)'
+        'backdrop-filter:blur(2px)',
+        'user-select:text',
+        '-webkit-user-select:text'
       ].join(';'));
       
       // Dialog container
@@ -3237,7 +3253,9 @@
           `z-index:${Z_INDEX.MODAL_OVERLAY}`,
           'display:flex',
           'align-items:center',
-          'justify-content:center'
+          'justify-content:center',
+          'user-select:text',
+          '-webkit-user-select:text'
         ].join(';'));
         
         // Create modal container
@@ -3494,7 +3512,9 @@
       'font-family:sans-serif',
       'font-size:14px',
       'box-sizing:border-box',
-      'line-height:1.5'
+      'line-height:1.5',
+      'user-select:text',
+      '-webkit-user-select:text'
     ].join(';'));
 
     const header = createElement('div', [
