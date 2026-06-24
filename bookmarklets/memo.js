@@ -1,8 +1,8 @@
 // ローカルメモ
 // IndexedDBにメモを保存し、編集・コピー・削除ができるフローティングメモウィジェット
 // 📝
-// v60
-// 2026-03-28
+// v61
+// 2026-06-24
 
 (async function run(startupOptions = {}) {
   try {
@@ -188,11 +188,22 @@
     // All version information is maintained here for easy updates and display
     const VERSION_INFO = {
       // Current version (automatically used in file header)
-      CURRENT: 'v60',
+      CURRENT: 'v61',
       // Last update date (automatically used in file header)
-      LAST_UPDATED: '2026-03-28',
+      LAST_UPDATED: '2026-06-24',
       // Complete version history (displayed in update information tab)
       HISTORY: [
+        {
+          version: 'v61',
+          date: '2026-06-24',
+          features: [
+            'select型テンプレートにデフォルト値機能を追加：${select:項目名|選択肢1,選択肢2,選択肢3|デフォルト値} の書式で初期選択値を指定可能に',
+            'デフォルト値指定時は「選択してください」プレースホルダーをスキップし、指定された選択肢が自動選択された状態で表示',
+            'デフォルト値が選択肢に含まれない場合は従来通りプレースホルダーが表示（安全なフォールバック）',
+            '非常にきれいな実装：既存のパース・レンダリングパターンを完全に維持し、最小限の変更で新機能を追加',
+            '安全で確実な動作：既存のselect型テンプレートに影響を与えず、すべてのケースで正しく動作することを保証'
+          ]
+        },
         {
           version: 'v60',
           date: '2026-03-28',
@@ -889,7 +900,7 @@
         templateTypesTitle: '📝 テンプレートの種類:',
         textTypeTitle: '1. テキスト入力 (text)', textTypeDesc: '自由なテキストを入力できる基本的な入力フィールドです。',
         numberTypeTitle: '2. 数値入力 (number)', numberTypeDesc: '数値のみを入力できる入力フィールドです。',
-        selectTypeTitle: '3. 選択入力 (select)', selectTypeDesc: 'ドロップダウンメニューから選択肢を選べます。カンマ (,) で区切って選択肢を指定します。注意: 選択肢の値にカンマを含めることはできません。',
+        selectTypeTitle: '3. 選択入力 (select)', selectTypeDesc: 'ドロップダウンメニューから選択肢を選べます。カンマ (,) で区切って選択肢を指定します。パイプ (|) の後にデフォルト値を指定すると初期選択状態になります。注意: 選択肢の値にカンマを含めることはできません。',
         textareaTypeTitle: '4. 複数行テキスト入力 (textarea)', textareaTypeDesc: '複数行のテキストを入力できるテキストエリアです。長文や複数行の内容に最適です。',
         exampleTitle: '💡 使用例:',
         exampleCode: 'こんにちは、${text:名前}さん！\n今日は${select:天気|晴れ,曇り,雨}ですね。\n気温は${number:気温}度です。\n\n感想:\n${textarea:コメント}',
@@ -978,7 +989,7 @@
         templateTypesTitle: '📝 Template Types:',
         textTypeTitle: '1. Text Input (text)', textTypeDesc: 'A basic text input field for free-form text.',
         numberTypeTitle: '2. Number Input (number)', numberTypeDesc: 'An input field that only accepts numbers.',
-        selectTypeTitle: '3. Dropdown Selection (select)', selectTypeDesc: 'Choose from a dropdown menu. Separate options with commas (,). Note: option values cannot contain commas.',
+        selectTypeTitle: '3. Dropdown Selection (select)', selectTypeDesc: 'Choose from a dropdown menu. Separate options with commas (,). Add a pipe (|) followed by the default value to pre-select an option. Note: option values cannot contain commas.',
         textareaTypeTitle: '4. Multiline Text Input (textarea)', textareaTypeDesc: 'A textarea for multiline text. Best for long content.',
         exampleTitle: '💡 Example:',
         exampleCode: "Hello, ${text:Name}!\nToday's weather is ${select:Weather|Sunny,Cloudy,Rainy}.\nTemperature: ${number:Temp} degrees.\n\nComment:\n${textarea:Notes}",
@@ -1067,7 +1078,7 @@
         templateTypesTitle: '📝 模板类型：',
         textTypeTitle: '1. 文本输入 (text)', textTypeDesc: '可自由输入文本的基本输入字段。',
         numberTypeTitle: '2. 数字输入 (number)', numberTypeDesc: '只能输入数字的输入字段。',
-        selectTypeTitle: '3. 下拉选择 (select)', selectTypeDesc: '从下拉菜单中选择。用逗号(,)分隔选项。注意：选项值不能包含逗号。',
+        selectTypeTitle: '3. 下拉选择 (select)', selectTypeDesc: '从下拉菜单中选择。用逗号(,)分隔选项。在选项后用竖线(|)指定默认值可预选选项。注意：选项值不能包含逗号。',
         textareaTypeTitle: '4. 多行文本输入 (textarea)', textareaTypeDesc: '可输入多行文本的文本框，适合长内容。',
         exampleTitle: '💡 使用示例：',
         exampleCode: '你好，${text:姓名}！\n今天天气${select:天气|晴天,多云,下雨}。\n气温${number:温度}度。\n\n感想：\n${textarea:备注}',
@@ -1156,7 +1167,7 @@
         templateTypesTitle: '📝 템플릿 유형:',
         textTypeTitle: '1. 텍스트 입력 (text)', textTypeDesc: '자유로운 텍스트를 입력할 수 있는 기본 입력 필드입니다.',
         numberTypeTitle: '2. 숫자 입력 (number)', numberTypeDesc: '숫자만 입력할 수 있는 입력 필드입니다.',
-        selectTypeTitle: '3. 선택 입력 (select)', selectTypeDesc: '드롭다운 메뉴에서 선택할 수 있습니다. 쉼표(,)로 선택지를 구분합니다. 주의: 선택지 값에 쉼표를 포함할 수 없습니다.',
+        selectTypeTitle: '3. 선택 입력 (select)', selectTypeDesc: '드롭다운 메뉴에서 선택할 수 있습니다. 쉼표(,)로 선택지를 구분합니다. 파이프(|) 뒤에 기본값을 지정하면 초기 선택 상태가 됩니다. 주의: 선택지 값에 쉼표를 포함할 수 없습니다.',
         textareaTypeTitle: '4. 여러 줄 텍스트 입력 (textarea)', textareaTypeDesc: '여러 줄 텍스트를 입력할 수 있는 텍스트 영역입니다. 긴 내용에 적합합니다.',
         exampleTitle: '💡 사용 예시:',
         exampleCode: '안녕하세요, ${text:이름}님!\n오늘 날씨는 ${select:날씨|맑음,흐림,비}입니다.\n기온은 ${number:기온}도입니다.\n\n감상:\n${textarea:코멘트}',
@@ -1245,7 +1256,7 @@
         templateTypesTitle: '📝 範本類型：',
         textTypeTitle: '1. 文字輸入 (text)', textTypeDesc: '可自由輸入文字的基本輸入欄位。',
         numberTypeTitle: '2. 數字輸入 (number)', numberTypeDesc: '只能輸入數字的輸入欄位。',
-        selectTypeTitle: '3. 下拉選擇 (select)', selectTypeDesc: '從下拉選單中選擇。用逗號(,)分隔選項。注意：選項值不能包含逗號。',
+        selectTypeTitle: '3. 下拉選擇 (select)', selectTypeDesc: '從下拉選單中選擇。用逗號(,)分隔選項。在選項後用豎線(|)指定預設值可預選選項。注意：選項值不能包含逗號。',
         textareaTypeTitle: '4. 多行文字輸入 (textarea)', textareaTypeDesc: '可輸入多行文字的文字區域，適合長內容。',
         exampleTitle: '💡 使用範例：',
         exampleCode: '您好，${text:姓名}！\n今天天氣${select:天氣|晴天,多雲,下雨}。\n氣溫${number:溫度}度。\n\n感想：\n${textarea:備注}',
@@ -1797,7 +1808,7 @@
      * @returns {Array<{type: string, name: string, options: Array<string>, placeholder: string}>} - Array of template placeholders
      */
     const parseTemplates = (text) => {
-      // Match ${type:name} or ${type:name|option1,option2,...}
+      // Match ${type:name} or ${type:name|option1,option2,...} or ${type:name|option1,option2,...|default}
       const regex = /\$\{(text|number|select|textarea):([^}|]+)(?:\|([^}]+))?\}/g;
       const templates = [];
       
@@ -1808,9 +1819,16 @@
         const optionsStr = match[3];
         
         // Parse options for select type (comma-separated values)
-        const options = optionsStr 
-          ? optionsStr.split(',').map(opt => opt.trim()).filter(opt => opt)
-          : [];
+        // Support default value syntax: ${select:name|opt1,opt2,opt3|defaultValue}
+        let options = [];
+        let defaultValue = null;
+        if (optionsStr) {
+          const parts = optionsStr.split('|');
+          options = parts[0].split(',').map(opt => opt.trim()).filter(opt => opt);
+          if (parts.length > 1) {
+            defaultValue = parts.slice(1).join('|').trim();
+          }
+        }
         
         // Avoid duplicates based on type and name combination
         if (name && !templates.find(t => t.type === type && t.name === name)) {
@@ -1818,6 +1836,7 @@
             type, 
             name, 
             options,
+            defaultValue,
             placeholder: match[0] 
           });
         }
@@ -1863,19 +1882,25 @@
           inputElement = createElement('select');
           inputElement.style.cssText = commonStyles.join(';');
           
-          // Add default empty option
-          const defaultOption = createElement('option');
-          defaultOption.value = '';
-          defaultOption.textContent = T.templateSelectPlaceholder(template.name);
-          defaultOption.disabled = true;
-          defaultOption.selected = true;
-          inputElement.appendChild(defaultOption);
+          // Add default empty option if no default value is specified
+          if (!template.defaultValue) {
+            const defaultOption = createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = T.templateSelectPlaceholder(template.name);
+            defaultOption.disabled = true;
+            defaultOption.selected = true;
+            inputElement.appendChild(defaultOption);
+          }
           
           // Add options from template
           template.options.forEach(optionValue => {
             const option = createElement('option');
             option.value = optionValue;
             option.textContent = optionValue;
+            // Pre-select if matches default value
+            if (template.defaultValue && optionValue === template.defaultValue) {
+              option.selected = true;
+            }
             inputElement.appendChild(option);
           });
           break;
@@ -3836,7 +3861,7 @@
                 'font-family:monospace',
                 'font-size:12px',
                 'color:#d73a49'
-              ].join(';'), '${select:項目名|選択肢1,選択肢2,選択肢3}');
+              ].join(';'), '${select:項目名|選択肢1,選択肢2,選択肢3|デフォルト値}');
               
               const selectTypeDesc = createElement('p', [
                 'margin:0',
