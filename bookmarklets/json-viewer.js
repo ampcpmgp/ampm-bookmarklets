@@ -1,8 +1,8 @@
 // JSON Viewer
 // 複雑にネストされたJSONデータをマークダウン形式で綺麗に表示するビューアー
 // 📊
-// v29
-// 2026-03-14
+// v30
+// 2026-07-01
 
 (function() {
   try {
@@ -63,9 +63,19 @@
 
     // Centralized version management
     const VERSION_INFO = {
-      CURRENT: 'v29',
-      LAST_UPDATED: '2026-03-14',
+      CURRENT: 'v30',
+      LAST_UPDATED: '2026-07-01',
       HISTORY: [
+        {
+          version: 'v30',
+          date: '2026-07-01',
+          features: [
+            '🐛 TOCの見出しID重複バグを修正：`_data`をクリックしても`data`に遷移してしまう問題',
+            '根本原因：makeIdUniqueのfalsy判定(`!idCounter[baseId]`)でカウンタが0のときにリセットされていた',
+            '修正：`idCounter[baseId] === undefined`に変更。同baseIdの2回目以降は`-1`サフィックスが付く',
+            '`[0].data`と`[0]._data`、2回目の`[0].code`などアンダースコア有無でID衝突していた問題を解決'
+          ]
+        },
         {
           version: 'v29',
           date: '2026-03-14',
@@ -1165,7 +1175,7 @@
 
     // Make ID unique by adding a counter if necessary
     function makeIdUnique(baseId, idCounter) {
-      if (!idCounter[baseId]) {
+      if (idCounter[baseId] === undefined) {
         idCounter[baseId] = 0;
         return baseId;
       }
