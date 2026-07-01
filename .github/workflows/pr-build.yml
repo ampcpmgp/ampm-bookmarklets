@@ -52,8 +52,9 @@ jobs:
             const owner = context.repo.owner;
             const isFork = context.payload.pull_request.head.repo.full_name !== context.payload.repository.full_name;
             
-            // Generate htmlpreview.github.io link for index.html
-            const previewUrl = `https://htmlpreview.github.io/?https://github.com/${owner}/${repo}/blob/${branch}/index.html`;
+            // Generate htmlpreview.github.io link for index.html with cache buster
+            const cacheBuster = Date.now();
+            const previewUrl = `https://htmlpreview.github.io/?https://github.com/${owner}/${repo}/blob/${branch}/index.html?t=${cacheBuster}`;
             
             let message = `## 🎉 Build Successful!\n`;
             
